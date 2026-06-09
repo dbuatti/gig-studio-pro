@@ -76,7 +76,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
       const { error } = await supabase.from('profiles').update({ 
         youtube_api_key: ytApiKey,
       }).eq('id', user.id);
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       showSuccess("YouTube API Key Updated");
     } catch (err) {
       showError("Failed to save YouTube API key");

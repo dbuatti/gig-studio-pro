@@ -14,7 +14,8 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { autoVibeCheck } from '@/utils/vibeUtils';
 
 // UI Components
-import { Loader2, Plus, Music2, Calendar, Sparkles } from 'lucide-react';
+import { Plus, Music2, Calendar, Sparkles } from 'lucide-react';
+import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 
@@ -279,7 +280,7 @@ const Index = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
 
       if (data?.orderedIds) {
         const newSubsetOrder = data.orderedIds
@@ -318,7 +319,7 @@ const Index = () => {
         .from('setlist_songs')
         .update({ isPlayed: !song.isPlayed })
         .eq('id', songId);
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       await fetchSetlistsAndRepertoire();
     } catch (err: any) {
       showError(`Failed to update status: ${err.message}`);
@@ -353,7 +354,7 @@ const Index = () => {
         .from('setlist_songs')
         .delete()
         .eq('id', songId);
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       await fetchSetlistsAndRepertoire();
       showSuccess("Song removed from setlist");
     } catch (err: any) {
@@ -367,7 +368,7 @@ const Index = () => {
         .from('repertoire')
         .delete()
         .eq('id', songId);
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       await fetchSetlistsAndRepertoire();
       showSuccess("Song deleted from library");
     } catch (err: any) {
@@ -385,7 +386,7 @@ const Index = () => {
         .insert({ user_id: userId, name })
         .select()
         .single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       await fetchSetlistsAndRepertoire();
       setActiveSetlistId(data.id);
       showSuccess("Setlist created");
@@ -402,7 +403,7 @@ const Index = () => {
         .from('setlists')
         .update({ name: newName })
         .eq('id', id);
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       await fetchSetlistsAndRepertoire();
       showSuccess("Setlist renamed");
     } catch (err: any) {
@@ -417,7 +418,7 @@ const Index = () => {
         .from('setlists')
         .delete()
         .eq('id', id);
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       
       if (activeSetlistId === id) {
         setActiveSetlistId(null);
@@ -526,7 +527,7 @@ const Index = () => {
           }
         });
 
-        if (error) throw error;
+        if (error) throw new Error(error.message || "Unknown error");
 
         if (data?.energy_level) {
           await syncToMasterRepertoire(userId!, [{
@@ -550,7 +551,7 @@ const Index = () => {
   };
 
   if (authLoading || isFetchingSettings || loading) {
-    return <div className="h-screen flex items-center justify-center bg-slate-950"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
+    return <DashboardSkeleton />;
   }
 
   return (

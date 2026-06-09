@@ -40,7 +40,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
         .order('readiness_score', { ascending: false })
         .limit(30);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       setResults(data || []);
     } catch (err) {
       // Error handled by toast in parent component

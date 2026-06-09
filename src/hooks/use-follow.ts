@@ -61,7 +61,7 @@ export function useFollow(profileUserId: string | undefined) {
           .delete()
           .eq('follower_id', user.id)
           .eq('followed_id', profileUserId);
-        if (error) throw error;
+        if (error) throw new Error(error.message || "Unknown error");
         setIsFollowing(false);
         setFollowCount(prev => Math.max(0, prev - 1));
         showSuccess(`Unfollowed user.`);
@@ -69,7 +69,7 @@ export function useFollow(profileUserId: string | undefined) {
         const { error } = await supabase
           .from('follows')
           .insert({ follower_id: user.id, followed_id: profileUserId });
-        if (error) throw error;
+        if (error) throw new Error(error.message || "Unknown error");
         setIsFollowing(true);
         setFollowCount(prev => prev + 1);
         showSuccess(`Now following user!`);

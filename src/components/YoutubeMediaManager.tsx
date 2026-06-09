@@ -76,7 +76,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         body: { query: searchTerm }
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
 
       if (searchData.items && searchData.items.length > 0) {
         // Note: The proxy currently returns raw search results. 
@@ -177,7 +177,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         })
         .eq('id', song.id);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
 
       showInfo("Background extraction queued. You can close this window; the audio will update automatically.");
       showSuccess("Task Queued Successfully");

@@ -12,7 +12,7 @@ export const r2Storage = {
       body: { action: 'getUploadUrl', path, contentType: file.type }
     });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "Unknown error");
 
     const uploadRes = await fetch(data.url, {
       method: 'PUT',
@@ -34,7 +34,7 @@ export const r2Storage = {
     const { error } = await supabase.functions.invoke('r2-storage', {
       body: { action: 'delete', path }
     });
-    if (error) throw error;
+    if (error) throw new Error(error.message || "Unknown error");
   },
 
   /**
@@ -44,7 +44,7 @@ export const r2Storage = {
     const { data, error } = await supabase.functions.invoke('r2-storage', {
       body: { action: 'list', path: prefix }
     });
-    if (error) throw error;
+    if (error) throw new Error(error.message || "Unknown error");
     return data.files;
   }
 };

@@ -40,7 +40,7 @@ const EmergencyCleanup = () => {
         days_old: DAYS_TO_KEEP
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       
       addLog(`✅ Result: ${data}`);
       showSuccess("Database purge complete!");
@@ -58,7 +58,7 @@ const EmergencyCleanup = () => {
     addLog(`Attempting manual purge of path: ${manualPath}`);
     try {
       const { error } = await supabase.storage.from(BUCKET).remove([manualPath]);
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       addLog(`✅ Successfully purged: ${manualPath}`);
       showSuccess("Manual purge successful");
       setManualPath("");

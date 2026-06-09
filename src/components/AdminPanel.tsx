@@ -67,7 +67,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     showInfo("Starting asset migration to R2...");
     try {
       const { data, error } = await supabase.functions.invoke('migrate-to-r2');
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       showSuccess(data.message || "Migration complete!");
       await onRefreshRepertoire();
     } catch (err: any) {
@@ -83,7 +83,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     showInfo("Renaming R2 assets...");
     try {
       const { data, error } = await supabase.functions.invoke('rename-r2-assets');
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       showSuccess(data.message || "Renaming complete!");
       await onRefreshRepertoire();
     } catch (err: any) {

@@ -72,7 +72,7 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
 
     try {
       const { error } = await supabase.from('sheet_links').delete().eq('id', linkId).eq('user_id', user.id); 
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       showSuccess("Link deleted successfully.");
       onLinkDeleted();
     } catch (err: any) {

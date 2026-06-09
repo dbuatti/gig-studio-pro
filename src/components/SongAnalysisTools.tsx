@@ -89,7 +89,7 @@ const SongAnalysisTools: React.FC<SongAnalysisToolsProps> = ({
       const { data, error } = await supabase.functions.invoke('enrich-metadata', {
         body: { queries: [`${formData.name} by ${formData.artist}`] }
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       
       const result = Array.isArray(data) ? data[0] : data;
       if (result?.originalKey) {

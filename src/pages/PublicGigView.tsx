@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Music2, MapPin, Calendar, ArrowLeft, User, Waves } from 'lucide-react';
+import { Music2, MapPin, Calendar, ArrowLeft, User, Waves } from 'lucide-react';
+import { PublicPageSkeleton } from '@/components/skeletons/DashboardSkeleton';
 import { Button } from '@/components/ui/button';
 import { SetlistSong } from '@/components/SetlistManager';
 import { cn } from '@/lib/utils';
@@ -73,11 +74,7 @@ const PublicGigView = () => {
   }, [performer?.custom_theme]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
-        <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
-      </div>
-    );
+    return <PublicPageSkeleton />;
   }
 
   if (!gigSession || !setlist) {

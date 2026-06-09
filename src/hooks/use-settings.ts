@@ -197,7 +197,7 @@ export function useSettings() {
         .from('sheet_links')
         .update({ link_size: newSize })
         .eq('user_id', user.id);
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
     } catch (err: unknown) {
       console.error("[useSettings] Failed to update all sheet links size:", (err as Error).message);
     }

@@ -1,21 +1,23 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Index from "@/pages/Index";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "@/pages/Login";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
-import Profile from "@/pages/Profile";
-import PublicRepertoire from "@/pages/PublicRepertoire";
-import SheetReaderMode from "@/pages/SheetReaderMode";
-import AuditReaderMode from "@/pages/AuditReaderMode";
-import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
-import DebugPage from "@/pages/DebugPage";
-import EmergencyCleanup from "@/pages/EmergencyCleanup";
+import PublicRepertoire from "@/pages/PublicRepertoire";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+
+const Index = React.lazy(() => import("@/pages/Index"));
+const Profile = React.lazy(() => import("@/pages/Profile"));
+const SheetReaderMode = React.lazy(() => import("@/pages/SheetReaderMode"));
+const AuditReaderMode = React.lazy(() => import("@/pages/AuditReaderMode"));
+const SongStudio = React.lazy(() => import("@/pages/SongStudio"));
+const DebugPage = React.lazy(() => import("@/pages/DebugPage"));
+const EmergencyCleanup = React.lazy(() => import("@/pages/EmergencyCleanup"));
 
 const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
 
@@ -57,7 +59,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const MainLayout = () => {
   return (
-    <>
+    <Suspense fallback={<LoadingSpinner />}>
       <KeepAliveWorker />
       <Routes>
         <Route path="/" element={<RootRoute />} />
@@ -77,7 +79,7 @@ const MainLayout = () => {
         <Route path="/debug" element={<ProtectedRoute><DebugPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </>
+    </Suspense>
   );
 };
 

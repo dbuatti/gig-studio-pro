@@ -60,7 +60,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
         if (error.message.includes('Failed to fetch')) {
           console.error("Network/CORS error during assignment fetch. Supabase API might be down or blocked.");
         }
-        throw error;
+        throw new Error(error.message || "Unknown error");
       }
 
       const currentAssignments = new Set(data.map(item => item.setlist_id));
@@ -90,7 +90,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
         const { error } = await supabase
           .from('setlist_songs')
           .insert({ setlist_id: setlistId, song_id: repertoireDbId, sort_order: 0, is_confirmed: false }); 
-        if (error) throw error;
+        if (error) throw new Error(error.message || "Unknown error");
         setAssignedSetlistIds(prev => new Set(prev).add(setlistId));
         showSuccess(`Added to "${allSetlists.find(s => s.id === setlistId)?.name}"`);
         
@@ -104,7 +104,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
           .delete()
           .eq('setlist_id', setlistId)
           .eq('song_id', repertoireDbId); 
-        if (error) throw error;
+        if (error) throw new Error(error.message || "Unknown error");
         setAssignedSetlistIds(prev => {
           const newSet = new Set(prev);
           newSet.delete(setlistId);

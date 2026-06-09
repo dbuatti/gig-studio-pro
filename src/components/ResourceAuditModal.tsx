@@ -212,7 +212,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
         body: { songIds: songsToProcess.map(s => s.id), userId: user.id }
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
 
       const successful = data.results.filter((r: any) => r.status === 'SUCCESS').length;
       const failed = data.results.filter((r: any) => r.status === 'ERROR').length;

@@ -84,7 +84,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
         }
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       setPlan(data);
       setEditingSetNames(data.setNames || {});
       showSuccess("Gig plan generated!");

@@ -48,7 +48,7 @@ const SongRecommender: React.FC<SongRecommenderProps> = ({ currentSongs, reperto
         }
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
 
       const recs = (data || [])
         .map((rec: Recommendation) => {

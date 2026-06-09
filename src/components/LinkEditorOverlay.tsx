@@ -184,7 +184,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
           target_y: targetPoint.y,
           link_size: globalLinkSize,
         }).eq('id', editingLink.id).eq('user_id', user.id); 
-        if (error) throw error;
+        if (error) throw new Error(error.message || "Unknown error");
         showSuccess("Link updated successfully!");
       } else {
         const { error } = await supabase.from('sheet_links').insert({
@@ -198,7 +198,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
           target_y: targetPoint.y,
           link_size: globalLinkSize,
         });
-        if (error) throw error;
+        if (error) throw new Error(error.message || "Unknown error");
         showSuccess("Link created successfully!");
       }
       onLinkCreated();

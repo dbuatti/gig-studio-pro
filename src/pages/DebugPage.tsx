@@ -132,7 +132,7 @@ const DebugPage: React.FC = () => {
         .eq('song_id', debugSongId)
         .eq('user_id', user.id);
       
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       setLinks(data || []);
     } catch (err: unknown) {
       showError("Failed to load links.");
@@ -270,7 +270,7 @@ const DebugPage: React.FC = () => {
 
     try {
       const { error } = await supabase.from('sheet_links').delete().eq('song_id', debugSongId).eq('user_id', user.id);
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       showSuccess("All links deleted successfully.");
       setLinks([]);
     } catch (err: unknown) {

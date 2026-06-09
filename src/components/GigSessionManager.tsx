@@ -39,7 +39,7 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
         .eq('setlist_id', setlistId)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       setSessions(data || []);
     } catch (err) {
       // Error handled by toast in parent component
@@ -72,7 +72,7 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
 
       if (error) {
         if (error.code === '23505') throw new Error("Code already exists globally. Try something more unique.");
-        throw error;
+        throw new Error(error.message || "Unknown error");
       }
 
       showSuccess(`Gig Code "${code}" Created!`);
@@ -92,7 +92,7 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
         .update({ is_active: !current })
         .eq('id', id);
       
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       fetchSessions();
     } catch (err) {
       // Error handled by toast in parent component
@@ -103,7 +103,7 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
     if (!confirm("Remove this gig code?")) return;
     try {
       const { error } = await supabase.from('gig_sessions').delete().eq('id', id);
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       fetchSessions();
     } catch (err) {
       // Error handled by toast in parent component

@@ -98,7 +98,7 @@ const Profile = () => {
         .update(updates)
         .eq('id', currentUser.id);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       showSuccess("Settings Saved");
     } catch (err: unknown) {
       showError("Save failed. Try again.");

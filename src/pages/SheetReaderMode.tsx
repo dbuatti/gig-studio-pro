@@ -296,7 +296,7 @@ const SheetReaderMode: React.FC = () => {
     }
     try {
       const { data, error } = await supabase.from('sheet_links').select('*').eq('song_id', currentSong.master_id).eq('user_id', user.id);
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       setLinks(data || []);
     } catch (err: any) {
       console.error("Failed to load links:", err);

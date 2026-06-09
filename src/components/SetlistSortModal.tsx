@@ -205,7 +205,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
         }
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
 
       if (data?.orderedIds) {
         const newOrder = data.orderedIds

@@ -197,7 +197,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
     try {
       const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).maybeSingle();
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       if (!data) throw new Error("Track not found.");
 
       const targetSong: SetlistSong = {

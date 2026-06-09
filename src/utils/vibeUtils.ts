@@ -21,7 +21,7 @@ export const autoVibeCheck = async (userId: string, song: Partial<SetlistSong>) 
       }
     });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "Unknown error");
 
     if (data?.energy_level) {
       const updates = {

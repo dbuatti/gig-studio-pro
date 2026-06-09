@@ -352,7 +352,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             }
           });
 
-          if (error) throw error;
+          if (error) throw new Error(error.message || "Unknown error");
 
           if (data?.energy_level) {
             await syncToMasterRepertoire(user.id, [{

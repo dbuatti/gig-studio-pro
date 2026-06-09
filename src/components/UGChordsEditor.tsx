@@ -274,7 +274,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
       const { data, error = null } = await supabase.functions.invoke('enrich-metadata', {
         body: { queries: [chordsText], mode: 'chords-cleanup' }
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Unknown error");
       if (data?.cleaned_text) {
         setChordsText(data.cleaned_text);
         showSuccess("Chords Text Cleaned Complete");
