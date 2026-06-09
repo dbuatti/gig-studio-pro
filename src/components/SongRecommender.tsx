@@ -58,7 +58,7 @@ const SongRecommender: React.FC<SongRecommenderProps> = ({ currentSongs, reperto
         .filter(Boolean) as (Recommendation & { song: SetlistSong })[];
 
       setRecommendations(recs);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showError("Failed to get recommendations.");
     } finally {
       setIsLoading(false);

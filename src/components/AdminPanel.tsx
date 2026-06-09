@@ -70,8 +70,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
       if (error) throw new Error(error.message || "Unknown error");
       showSuccess(data.message || "Migration complete!");
       await onRefreshRepertoire();
-    } catch (err: any) {
-      showError(`Migration failed: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Migration failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsMigrating(false);
     }
@@ -86,8 +86,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
       if (error) throw new Error(error.message || "Unknown error");
       showSuccess(data.message || "Renaming complete!");
       await onRefreshRepertoire();
-    } catch (err: any) {
-      showError(`Renaming failed: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Renaming failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsRenaming(false);
     }

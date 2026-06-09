@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/use-theme';
 
 interface PublicRepertoireViewProps {
-  profile: any;
-  songs: any[];
+  profile: Record<string, unknown>;
+  songs: Record<string, unknown>[];
   isPreview?: boolean;
   themes: { name: string; primary: string; background: string; text: string; border: string }[];
 }
@@ -45,7 +45,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
         return titleA.localeCompare(titleB);
       });
 
-      const alphaGroups: Record<string, any[]> = {};
+      const alphaGroups: Record<string, Record<string, unknown>[]> = {};
       sorted.forEach(s => {
         const title = (s.title || s.name || "").replace(/^(the |a |an )/i, '');
         const letter = title[0]?.toUpperCase() || '#';
@@ -60,7 +60,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
       }));
     }
 
-    const groups: Record<string, any[]> = {};
+    const groups: Record<string, Record<string, unknown>[]> = {};
     processedSongs.forEach(s => {
       const artist = s.artist || 'Unknown Artist';
       if (!groups[artist]) groups[artist] = [];
@@ -177,13 +177,13 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 md:gap-x-12 gap-y-10 md:gap-y-16">
-              {(groupedSongs as any[]).map((group) => (
+              {(groupedSongs as Record<string, unknown>[]).map((group) => (
                 <section key={sortMode === 'artist' ? group.artist : group.letter} className="space-y-4">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-border pb-2" style={{ color: colors.primary, borderColor: 'hsl(var(--border))' }}>
                     {sortMode === 'artist' ? group.artist : group.letter}
                   </h3>
                   <div className="flex flex-col gap-2.5">
-                    {group.songs.map((song: any) => (
+                    {group.songs.map((song: Record<string, unknown>) => (
                       <div key={song.id} className="flex items-center justify-between group py-0.5">
                         <div className="flex flex-col min-w-0">
                           <span className="text-[13px] font-bold tracking-tight group-hover:translate-x-1 transition-transform truncate" style={{ color: colors.text }}>

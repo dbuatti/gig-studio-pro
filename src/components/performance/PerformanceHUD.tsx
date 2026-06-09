@@ -77,7 +77,7 @@ const PerformanceHUD: React.FC<PerformanceHUDProps> = ({
             { id: 'lyrics', label: 'Lyrics', icon: AlignLeft, color: 'bg-pink-600', disabled: !currentSong?.lyrics },
             { id: 'pdf', label: 'Chart', icon: FileText, color: 'bg-emerald-600', disabled: !currentSong?.pdfUrl }
           ].map((mode) => (
-            <Button key={mode.id} variant="ghost" size="sm" disabled={mode.disabled} onClick={() => setViewMode(mode.id as any)} className={cn("text-[10px] font-black uppercase tracking-widest h-10 px-6 gap-2.5 rounded-xl transition-all", viewMode === mode.id ? `${mode.color} text-white shadow-lg` : "text-slate-500 hover:text-white disabled:opacity-10")}>
+            <Button key={mode.id} variant="ghost" size="sm" disabled={mode.disabled} onClick={() => setViewMode(mode.id as 'visualizer' | 'pdf' | 'lyrics')} className={cn("text-[10px] font-black uppercase tracking-widest h-10 px-6 gap-2.5 rounded-xl transition-all", viewMode === mode.id ? `${mode.color} text-white shadow-lg` : "text-slate-500 hover:text-white disabled:opacity-10")}>
               <mode.icon className="w-4 h-4" /> {mode.label}
             </Button>
           ))}

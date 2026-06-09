@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 
 interface SetlistControlsProps {
   sortMode: string;
-  setSortMode: (mode: any) => void;
+  setSortMode: (mode: string) => void;
   onOpenSortModal: () => void;
   isFilterOpen: boolean;
   setIsFilterOpen: (open: boolean) => void;

@@ -31,7 +31,7 @@ interface PerformanceOverlayProps {
   onClose: () => void;
   onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
-  analyzer: any;
+  analyzer: AnalyserNode | null;
   onOpenAdmin?: () => void;
   gigId?: string | null;
   isLoadingAudio?: boolean;

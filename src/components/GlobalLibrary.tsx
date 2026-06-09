@@ -18,7 +18,7 @@ interface GlobalLibraryProps {
 const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
   const { keyPreference } = useSettings();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<Record<string, unknown>[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const searchGlobal = async (searchTerm: string) => {

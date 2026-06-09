@@ -77,7 +77,7 @@ const Index = () => {
 
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
   const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp'>(() => 
-    (localStorage.getItem('gig_sort_mode') as any) || 'none'
+    (localStorage.getItem('gig_sort_mode') as string) || 'none'
   );
   const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
     const saved = localStorage.getItem('gig_active_filters');
@@ -158,8 +158,8 @@ const Index = () => {
       setAllSetlists(setlistsWithSongs);
       const savedId = localStorage.getItem('active_setlist_id');
       setActiveSetlistId(savedId && setlistsWithSongs.some(s => s.id === savedId) ? savedId : (setlistsWithSongs[0]?.id || null));
-    } catch (err: any) {
-      showError(`Failed to load data: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       if (isInitial) setLoading(false);
     }
@@ -186,7 +186,7 @@ const Index = () => {
   const [isMDAuditOpen, setIsMDAuditOpen] = useState(false);
   const [isGigPlannerOpen, setIsGigPlannerOpen] = useState(false);
   const [isAuditLoading, setIsAuditLoading] = useState(false);
-  const [auditData, setAuditData] = useState<any>(null);
+  const [auditData, setAuditData] = useState<Record<string, unknown> | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isStorageAuditOpen, setIsStorageAuditOpen] = useState(false);
 
@@ -246,7 +246,7 @@ const Index = () => {
         await syncToMasterRepertoire(userId, [{ ...repertoireUpdates, id: song.master_id || song.id, name: song.name, artist: song.artist }]);
       }
       await fetchSetlistsAndRepertoire();
-    } catch (err: any) { showError(`Update failed: ${err.message}`); }
+    } catch (err: unknown) { showError(`Update failed: ${err instanceof Error ? err.message : String(err)}`); }
   }, [activeSetlist, userId, fetchSetlistsAndRepertoire]);
 
   const handleReshuffleSubset = async (groupNum: number) => {
@@ -305,7 +305,7 @@ const Index = () => {
         await fetchSetlistsAndRepertoire();
         showSuccess(`Set ${groupNum} flow optimized!`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Subset Reshuffle Error:", err);
       showError("Failed to reshuffle subset flow. Please try again.");
     }
@@ -321,8 +321,8 @@ const Index = () => {
         .eq('id', songId);
       if (error) throw new Error(error.message || "Unknown error");
       await fetchSetlistsAndRepertoire();
-    } catch (err: any) {
-      showError(`Failed to update status: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to update status: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -343,8 +343,8 @@ const Index = () => {
       
       await fetchSetlistsAndRepertoire();
       showSuccess("Setlist order saved");
-    } catch (err: any) {
-      showError(`Failed to reorder: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to reorder: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -357,8 +357,8 @@ const Index = () => {
       if (error) throw new Error(error.message || "Unknown error");
       await fetchSetlistsAndRepertoire();
       showSuccess("Song removed from setlist");
-    } catch (err: any) {
-      showError(`Failed to remove song: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to remove song: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -371,8 +371,8 @@ const Index = () => {
       if (error) throw new Error(error.message || "Unknown error");
       await fetchSetlistsAndRepertoire();
       showSuccess("Song deleted from library");
-    } catch (err: any) {
-      showError(`Failed to delete song: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to delete song: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -390,8 +390,8 @@ const Index = () => {
       await fetchSetlistsAndRepertoire();
       setActiveSetlistId(data.id);
       showSuccess("Setlist created");
-    } catch (err: any) {
-      showError(`Failed to create: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to create: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -406,8 +406,8 @@ const Index = () => {
       if (error) throw new Error(error.message || "Unknown error");
       await fetchSetlistsAndRepertoire();
       showSuccess("Setlist renamed");
-    } catch (err: any) {
-      showError(`Failed to rename: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to rename: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -427,8 +427,8 @@ const Index = () => {
       
       await fetchSetlistsAndRepertoire();
       showSuccess("Setlist deleted");
-    } catch (err: any) {
-      showError(`Failed to delete: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to delete: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -462,8 +462,8 @@ const Index = () => {
       await fetchSetlistsAndRepertoire();
       setActiveSetlistId(newList.id);
       showSuccess("Setlist duplicated");
-    } catch (err: any) {
-      showError(`Failed to duplicate: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to duplicate: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -478,7 +478,7 @@ const Index = () => {
       else await fetchSetlistsAndRepertoire();
       showSuccess(`"${name}" added to repertoire!`);
       handleEditSong(song, 'details');
-    } catch (err: any) { showError("Failed to add discovered song."); }
+    } catch (err: unknown) { showError("Failed to add discovered song."); }
   };
 
   const handleUpdateSetlistSongs = useCallback(async (setlistId: string, song: SetlistSong, action: 'add' | 'remove', setGroup?: number) => {
@@ -496,7 +496,7 @@ const Index = () => {
         await supabase.from('setlist_songs').delete().eq('setlist_id', setlistId).eq('song_id', song.master_id || song.id);
       }
       await fetchSetlistsAndRepertoire();
-    } catch (err: any) { showError(`Failed to update setlist: ${err.message}`); }
+    } catch (err: unknown) { showError(`Failed to update setlist: ${err instanceof Error ? err.message : String(err)}`); }
   }, [fetchSetlistsAndRepertoire, allSetlists]);
 
   const handleBulkVibeCheck = async () => {
@@ -709,8 +709,8 @@ const Index = () => {
               onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
               searchTerm={searchTerm} 
               setSearchTerm={setSearchTerm} 
-              sortMode={sortMode as any} 
-              setSortMode={setSortMode as any} 
+              sortMode={sortMode} 
+              setSortMode={setSortMode} 
               activeFilters={activeFilters} 
               setActiveFilters={setActiveFilters} 
               onUpdateSetlistSongs={handleUpdateSetlistSongs} 

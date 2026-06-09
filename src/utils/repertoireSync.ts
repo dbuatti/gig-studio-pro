@@ -60,7 +60,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
 
   for (const song of songsToSync) {
     try {
-      const dbUpdates: { [key: string]: any } = {
+      const dbUpdates: { [key: string]: unknown } = {
         user_id: userId,
         updated_at: new Date().toISOString(),
       };
@@ -210,7 +210,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       energy_level: result.energy_level as EnergyZone,
       comfort_level: (result.comfort_level !== null && result.comfort_level <= 5) ? result.comfort_level * 20 : (result.comfort_level ?? 0),
       needs_improvement: result.needs_improvement ?? false,
-    } as any);
+    } as SetlistSong);
     } catch (err) {
       console.error(`[repertoireSync] Unexpected error syncing song ${song.name}:`, err);
     }

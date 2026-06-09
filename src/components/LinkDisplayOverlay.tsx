@@ -75,8 +75,8 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
       if (error) throw new Error(error.message || "Unknown error");
       showSuccess("Link deleted successfully.");
       onLinkDeleted();
-    } catch (err: any) {
-      showError(`Failed to delete link: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to delete link: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, [user, onLinkDeleted]);
 

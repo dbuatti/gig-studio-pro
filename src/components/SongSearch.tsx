@@ -18,7 +18,7 @@ interface SongSearchProps {
 
 export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, externalQuery }) => {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<Record<string, unknown>[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [expandingId, setExpandingId] = useState<number | null>(null);
   
@@ -59,7 +59,7 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
     performSearch(query);
   };
 
-  const toggleExpand = (song: any) => {
+  const toggleExpand = (song: Record<string, unknown>) => {
     if (expandingId === song.trackId) {
       setExpandingId(null);
     } else {
@@ -70,7 +70,7 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
     }
   };
 
-  const handleAddClick = (song: any) => {
+  const handleAddClick = (song: Record<string, unknown>) => {
     onAddToSetlist(
       song.previewUrl, 
       song.trackName, 
@@ -82,7 +82,7 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
     );
   };
 
-  const handlePreviewClick = (song: any) => {
+  const handlePreviewClick = (song: Record<string, unknown>) => {
     onSelectSong(song.previewUrl, song.trackName, song.artistName);
   };
 

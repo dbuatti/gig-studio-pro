@@ -7,12 +7,12 @@ import { useState, useEffect, useCallback } from 'react';
  * Useful for performance modes where the user might not touch the screen for long periods.
  */
 export function useWakeLock(enabled: boolean) {
-  const [sentinel, setSentinel] = useState<any>(null);
+  const [sentinel, setSentinel] = useState<WakeLockSentinel | null>(null);
 
   const requestWakeLock = useCallback(async () => {
     if ('wakeLock' in navigator && enabled) {
       try {
-        const lock = await (navigator as any).wakeLock.request('screen');
+        const lock = await (navigator as Navigator & { wakeLock: { request: (type: string) => Promise<WakeLockSentinel> } }).wakeLock.request('screen');
         setSentinel(lock);
         
         lock.addEventListener('release', () => {
@@ -20,8 +20,8 @@ export function useWakeLock(enabled: boolean) {
         });
         
         // Wake lock acquired
-      } catch (err: any) {
-        console.error(`[WakeLock] ${err.name}, ${err.message}`);
+      } catch (err: unknown) {
+        console.error(`[WakeLock] ${err instanceof Error ? err.name : 'Unknown'}, ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }, [enabled]);

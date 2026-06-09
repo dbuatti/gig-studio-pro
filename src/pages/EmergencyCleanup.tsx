@@ -44,8 +44,8 @@ const EmergencyCleanup = () => {
       
       addLog(`✅ Result: ${data}`);
       showSuccess("Database purge complete!");
-    } catch (err: any) {
-      addLog(`❌ DB Purge failed: ${err.message}`);
+    } catch (err: unknown) {
+      addLog(`❌ DB Purge failed: ${err instanceof Error ? err.message : String(err)}`);
       showError(err.message);
     } finally {
       setIsProcessing(false);
@@ -62,8 +62,8 @@ const EmergencyCleanup = () => {
       addLog(`✅ Successfully purged: ${manualPath}`);
       showSuccess("Manual purge successful");
       setManualPath("");
-    } catch (err: any) {
-      addLog(`❌ Manual purge failed: ${err.message}`);
+    } catch (err: unknown) {
+      addLog(`❌ Manual purge failed: ${err instanceof Error ? err.message : String(err)}`);
       showError(err.message);
     } finally {
       setIsProcessing(false);

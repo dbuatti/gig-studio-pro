@@ -39,7 +39,7 @@ export function useFollow(profileUserId: string | undefined) {
       if (followersError) throw followersError;
       setFollowCount(followersCount || 0);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Error handled by toast
     } finally {
       setLoading(false);
@@ -74,8 +74,8 @@ export function useFollow(profileUserId: string | undefined) {
         setFollowCount(prev => prev + 1);
         showSuccess(`Now following user!`);
       }
-    } catch (err: any) {
-      showError(`Failed to update follow status: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to update follow status: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }

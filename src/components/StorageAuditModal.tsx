@@ -24,7 +24,7 @@ interface StorageFile {
 interface StorageAuditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  repertoire: any[];
+  repertoire: Record<string, unknown>[];
 }
 
 const StorageAuditModal: React.FC<StorageAuditModalProps> = ({ isOpen, onClose, repertoire }) => {
@@ -39,8 +39,8 @@ const StorageAuditModal: React.FC<StorageAuditModalProps> = ({ isOpen, onClose, 
     try {
       const files = await r2Storage.list(`${user.id}/`);
       setStorageFiles(files.map(f => ({ ...f, path: f.Key })));
-    } catch (err: any) {
-      showError(`Failed to scan R2 storage: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to scan R2 storage: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +62,7 @@ const StorageAuditModal: React.FC<StorageAuditModalProps> = ({ isOpen, onClose, 
     });
 
     return storageFiles.map(file => {
-      const isOrphaned = !Array.from(dbUrls).some((url: any) => url.endsWith(file.path));
+      const isOrphaned = !Array.from(dbUrls).some((url: unknown) => typeof url === 'string' && url.endsWith(file.path));
       return { ...file, isOrphaned };
     });
   }, [storageFiles, repertoire]);
@@ -74,8 +74,8 @@ const StorageAuditModal: React.FC<StorageAuditModalProps> = ({ isOpen, onClose, 
       await r2Storage.delete(path);
       setStorageFiles(prev => prev.filter(f => f.path !== path));
       showSuccess("File purged from R2 storage.");
-    } catch (err: any) {
-      showError(`Purge failed: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Purge failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -89,8 +89,8 @@ const StorageAuditModal: React.FC<StorageAuditModalProps> = ({ isOpen, onClose, 
       }
       setStorageFiles(prev => prev.filter(f => !orphanedFiles.some(of => of.path === f.path)));
       showSuccess(`Successfully purged ${orphanedFiles.length} files from R2.`);
-    } catch (err: any) {
-      showError(`Bulk purge failed: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Bulk purge failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsPurging(false);
     }

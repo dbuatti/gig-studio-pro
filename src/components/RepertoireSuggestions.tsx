@@ -30,10 +30,10 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
     }
   }, [repertoire.length, fetchSuggestions, suggestions.length, isLoading, error]);
 
-  const mapToSong = (s: any): SetlistSong => ({
+  const mapToSong = (s: Record<string, unknown>): SetlistSong => ({
     id: crypto.randomUUID(),
-    name: s.name || s.title,
-    artist: s.artist || s.artistName || "Unknown Artist",
+    name: s.name as string || s.title as string,
+    artist: s.artist as string || s.artistName as string || "Unknown Artist",
     previewUrl: "",
     pitch: 0,
     originalKey: "C",
@@ -63,7 +63,7 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
     extraction_status: 'idle',
   });
 
-  const handleAdd = (s: any) => {
+  const handleAdd = (s: Record<string, unknown>) => {
     onAddSong(mapToSong(s));
     dismissSuggestion(s);
     showSuccess(`Added "${s.name || s.title}" to library`);

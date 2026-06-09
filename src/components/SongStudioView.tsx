@@ -120,7 +120,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Auto-save failed:", err);
     } finally {
       setIsSaving(false);
@@ -253,7 +253,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       if (isAudioContext && isDifferentUrl) {
         await audio.loadFromUrl(audioUrl, targetSong.pitch ?? 0, true);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to load song data:", err);
       onClose();
     } finally {
@@ -297,7 +297,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }
   }, [pitch, audio, song]);
 
-  const handleProSyncSelect = async (itunesSong: any) => {
+  const handleProSyncSelect = async (itunesSong: Record<string, unknown>) => {
     if (!user) return;
 
     const updates: Partial<SetlistSong> = {

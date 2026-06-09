@@ -165,7 +165,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                   <TooltipContent className="text-[10px] font-black uppercase">{filter.label}</TooltipContent>
                 </Tooltip>
                 <DropdownMenuContent className="w-52 p-2 rounded-2xl bg-slate-950 border-white/10 text-white shadow-2xl">
-                  <DropdownMenuRadioGroup value={activeFilters[filter.id as keyof FilterState] as string} onValueChange={(v) => onFilterChange({ ...activeFilters, [filter.id]: v as any })}>
+                  <DropdownMenuRadioGroup value={activeFilters[filter.id as keyof FilterState] as string} onValueChange={(v) => onFilterChange({ ...activeFilters, [filter.id]: v as string })}>
                     <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-11 rounded-xl">All Songs</DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-11 rounded-xl text-emerald-400">Yes / Verified</DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-11 rounded-xl text-red-400">No / Missing</DropdownMenuRadioItem>

@@ -7,7 +7,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface StudioTabNavProps {
   tabs: string[];
   activeTab: string;
-  onTabChange: (tab: any) => void;
+  onTabChange: (tab: string) => void;
 }
 
 const StudioTabNav: React.FC<StudioTabNavProps> = ({ tabs, activeTab, onTabChange }) => {

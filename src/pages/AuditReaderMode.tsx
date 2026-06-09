@@ -158,7 +158,7 @@ const AuditReaderMode: React.FC = () => {
       const savedFilters = localStorage.getItem('gig_active_filters');
       const activeFilters = savedFilters ? JSON.parse(savedFilters) : DEFAULT_FILTERS;
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
-      const sortMode = (localStorage.getItem('gig_sort_mode') as any) || 'none';
+      const sortMode = (localStorage.getItem('gig_sort_mode') as string) || 'none';
 
       const { data: masterData, error: masterError } = await supabase
         .from('repertoire')
@@ -168,7 +168,7 @@ const AuditReaderMode: React.FC = () => {
       
       if (masterError) throw masterError;
       
-      const masterRepertoireList = (masterData || []).map((d: any) => ({
+      const masterRepertoireList = (masterData || []).map((d: Record<string, unknown>) => ({
         id: d.id,
         master_id: d.id,
         name: d.title,
@@ -269,8 +269,8 @@ const AuditReaderMode: React.FC = () => {
         if (idx !== -1) initialIndex = idx;
       }
       setCurrentIndex(initialIndex);
-    } catch (err: any) {
-      showError(`Failed to load songs: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to load songs: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setInitialLoading(false);
     }
@@ -426,7 +426,7 @@ const AuditReaderMode: React.FC = () => {
       chordBold: ugChordsChordBold,
       chordColor: ugChordsChordColor,
       lineSpacing: ugChordsLineSpacing,
-      textAlign: ugChordsTextAlign as any,
+      textAlign: ugChordsTextAlign as React.CSSProperties['textAlign'],
     };
 
     if (currentSong.ug_chords_config) {

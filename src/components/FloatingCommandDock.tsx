@@ -132,7 +132,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [internalIsMenuOpen, handleToggleMenu]);
 
-  const handleDragEnd = (_: any, info: any) => {
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: { offset: { x: number; y: number } }) => {
     const newPos = { x: position.x + info.offset.x, y: position.y + info.offset.y };
     setPosition(newPos);
     localStorage.setItem('floating_dock_position', JSON.stringify(newPos));

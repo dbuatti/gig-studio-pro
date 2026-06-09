@@ -200,7 +200,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
           <SetlistMultiSelector
             songMasterId={formData.master_id || formData.id || ''}
             allSetlists={allSetlists}
-            songToAssign={formData as any}
+            songToAssign={formData as SetlistSong}
             onUpdateSetlistSongs={onUpdateSetlistSongs}
           />
         </div>

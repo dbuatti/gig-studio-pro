@@ -172,7 +172,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       }
 
       setSuggestions(enriched);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to fetch subset suggestions:", err);
       showError("Failed to load suggestions. Please try again.");
     } finally {
@@ -230,9 +230,9 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       showSuccess(`"${song.name}" added to ${subsetName}!`);
       setSuggestions(prev => prev.map((s, i) => i === index ? { ...s, isAdding: false, isAdded: true } : s));
       await onSongAdded();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to add suggested song:", err);
-      showError(`Failed to add song: ${err.message}`);
+      showError(`Failed to add song: ${err instanceof Error ? err.message : String(err)}`);
       setSuggestions(prev => prev.map((s, i) => i === index ? { ...s, isAdding: false } : s));
     }
   };

@@ -237,8 +237,8 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
         showError("Could not find chords content on the page.");
       }
 
-    } catch (error: any) {
-      showError(`Failed to fetch chords: ${error.message || "Network error"}`);
+    } catch (error: unknown) {
+      showError(`Failed to fetch chords: ${error instanceof Error ? error.message : "Network error"}`);
     } finally {
       setIsFetchingUg(false);
     }
@@ -683,7 +683,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                 fontFamily: config.fontFamily, 
                 fontSize: `${config.fontSize}px`, 
                 lineHeight: config.lineSpacing,
-                textAlign: config.textAlign as any,
+                textAlign: config.textAlign as React.CSSProperties['textAlign'],
                 color: readableChordColor
               }}
             >

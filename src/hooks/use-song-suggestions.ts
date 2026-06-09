@@ -11,7 +11,7 @@ interface UseSongSuggestionsProps {
 }
 
 export function useSongSuggestions({ repertoire, limit = 10 }: UseSongSuggestionsProps) {
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Record<string, unknown>[]>([]);
   const [ignoredKeys, setIgnored] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +74,7 @@ export function useSongSuggestions({ repertoire, limit = 10 }: UseSongSuggestion
 
       const rawBatch = Array.isArray(data) ? data : (data?.suggestions || []);
       
-      const filtered = rawBatch.filter((s: any) => {
+      const filtered = rawBatch.filter((s: Record<string, unknown>) => {
         const songName = s.name || s.title || "";
         const songArtist = s.artist || s.artistName || "";
         const key = getNormalizedKey(songName, songArtist);
@@ -82,7 +82,7 @@ export function useSongSuggestions({ repertoire, limit = 10 }: UseSongSuggestion
       }).slice(0, limit);
 
       setSuggestions(filtered);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[useSongSuggestions] Fetch error:", err);
       setError("Discovery engine temporarily unavailable.");
     } finally {
@@ -90,7 +90,7 @@ export function useSongSuggestions({ repertoire, limit = 10 }: UseSongSuggestion
     }
   }, [repertoire, ignoredKeys, existingKeys, limit]);
 
-  const dismissSuggestion = useCallback((song: any) => {
+  const dismissSuggestion = useCallback((song: Record<string, unknown>) => {
     const key = getNormalizedKey(song.name || song.title, song.artist || song.artistName || "");
     setIgnored(prev => new Set(prev).add(key));
     setSuggestions(prev => prev.filter(s => getNormalizedKey(s.name || s.title, s.artist || s.artistName || "") !== key));

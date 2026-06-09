@@ -67,7 +67,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
   }, [songs]);
 
   const autoPopulatedCount = useMemo(() => {
-    return (songs as any[]).filter(s => s.metadata_source === 'auto_populated').length;
+    return (songs as Record<string, unknown>[]).filter(s => s.metadata_source === 'auto_populated').length;
   }, [songs]);
 
   const missingEnergyCount = useMemo(() => {

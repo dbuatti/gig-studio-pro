@@ -41,7 +41,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     }
   }, [repertoire.length, fetchSuggestions, suggestions.length, isLoading, error, seedSong]);
 
-  const handleAdd = (song: any) => {
+  const handleAdd = (song: Record<string, unknown>) => {
     if (onAddExistingSong) {
       onAddExistingSong({
         id: crypto.randomUUID(),

@@ -31,8 +31,8 @@ interface SetlistRowProps {
   onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
   onRemove: (id: string) => void;
-  allSetlists: any[];
-  onUpdateSetlistSongs: any;
+  allSetlists: { id: string; name: string; songs: SetlistSong[] }[];
+  onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   isReorderingEnabled: boolean;
   handleMove: (id: string, dir: 'up' | 'down') => void;
   handleMoveToTop: (id: string) => void;

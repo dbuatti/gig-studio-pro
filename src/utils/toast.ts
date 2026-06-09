@@ -18,10 +18,10 @@ export const dismissToast = (toastId: string) => {
   toast.dismiss(toastId);
 };
 
-export const showInfo = (message: string, options?: any) => {
+export const showInfo = (message: string, options?: Record<string, unknown>) => {
   toast.info(message, options);
 };
 
-export const showWarning = (message: string, options?: any) => {
+export const showWarning = (message: string, options?: Record<string, unknown>) => {
   toast.warning(message, options);
 };

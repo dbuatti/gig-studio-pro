@@ -60,9 +60,9 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
 
       onUploadComplete(publicUrl, uploadType);
       showSuccess(`${uploadType === 'pdf' ? 'Full Score' : 'Lead Sheet'} uploaded to R2 successfully.`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Upload error:', error);
-      showError(`Upload failed: ${error.message}`);
+      showError(`Upload failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsUploading(false);
     }

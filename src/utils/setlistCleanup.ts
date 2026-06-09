@@ -48,9 +48,9 @@ export const cleanSetlistDuplicates = async (setlistId: string, setlistName: str
 
     showSuccess(`Removed ${duplicateIds.length} duplicate entries from "${setlistName}".`);
     return duplicateIds.length;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[setlistCleanup] Error:", err);
-    showError(`Cleanup failed: ${err.message}`);
+    showError(`Cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
     return 0;
   }
 };
@@ -81,7 +81,7 @@ export const cleanAllSetlists = async (userId: string) => {
     } else {
       showSuccess("No duplicates found in any setlist.");
     }
-  } catch (err: any) {
-    showError(`Global cleanup failed: ${err.message}`);
+  } catch (err: unknown) {
+    showError(`Global cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 };

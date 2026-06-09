@@ -19,7 +19,7 @@ interface GigSessionManagerProps {
 
 const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [newCode, setNewCode] = useState("");
@@ -78,8 +78,8 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
       showSuccess(`Gig Code "${code}" Created!`);
       setNewCode("");
       fetchSessions();
-    } catch (err: any) {
-      showError(err.message);
+    } catch (err: unknown) {
+      showError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsCreating(false);
     }

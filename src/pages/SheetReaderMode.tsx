@@ -216,12 +216,12 @@ const SheetReaderMode: React.FC = () => {
       const savedFilters = localStorage.getItem('gig_active_filters');
       const activeFilters = savedFilters ? JSON.parse(savedFilters) : DEFAULT_FILTERS;
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
-      const sortMode = (localStorage.getItem('gig_sort_mode') as any) || 'none';
+      const sortMode = (localStorage.getItem('gig_sort_mode') as string) || 'none';
 
       const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
       
-      const masterRepertoireList: SetlistSong[] = (masterData || []).map((d: any) => ({
+      const masterRepertoireList: SetlistSong[] = (masterData || []).map((d: Record<string, unknown>) => ({
         id: d.id, master_id: d.id, name: d.title, artist: d.artist,
         originalKey: d.original_key ?? 'TBC', targetKey: d.target_key ?? d.original_key ?? 'TBC',
         pitch: d.pitch ?? 0, previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
@@ -248,7 +248,7 @@ const SheetReaderMode: React.FC = () => {
       if (readerViewMode === 'gigs' && readerSetlistId) {
         const { data: junctionData } = await supabase.from('setlist_songs').select('song_id, id, isPlayed, sort_order, set_group').eq('setlist_id', readerSetlistId).order('sort_order', { ascending: true });
         if (junctionData) {
-          currentViewSongs = junctionData.map((j: any) => {
+          currentViewSongs = junctionData.map((j: Record<string, unknown>) => {
             const master = masterRepertoireList.find(m => m.id === j.song_id);
             return master ? { ...master, id: j.id, master_id: master.id, isPlayed: j.isPlayed || false, set_group: j.set_group || 1 } : null;
           }).filter(Boolean) as SetlistSong[];
@@ -280,8 +280,8 @@ const SheetReaderMode: React.FC = () => {
         const idx = readableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
         if (idx !== -1) setCurrentIndex(idx);
       }
-    } catch (err: any) {
-      showError(`Failed to load songs: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to load songs: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setInitialLoading(false);
     }
@@ -298,7 +298,7 @@ const SheetReaderMode: React.FC = () => {
       const { data, error } = await supabase.from('sheet_links').select('*').eq('song_id', currentSong.master_id).eq('user_id', user.id);
       if (error) throw new Error(error.message || "Unknown error");
       setLinks(data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to load links:", err);
     }
   }, [user, currentSong?.master_id, selectedChartType]);
@@ -431,7 +431,7 @@ const SheetReaderMode: React.FC = () => {
       chordBold: ugChordsChordBold,
       chordColor: ugChordsChordColor,
       lineSpacing: ugChordsLineSpacing,
-      textAlign: ugChordsTextAlign as any,
+      textAlign: ugChordsTextAlign as React.CSSProperties['textAlign'],
     };
     if (currentSong.ug_chords_config) {
       return { ...baseConfig, ...currentSong.ug_chords_config, fontSize: (currentSong.ug_chords_config.fontSize || ugChordsFontSize) + 1 };

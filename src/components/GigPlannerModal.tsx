@@ -21,9 +21,9 @@ interface GigPlannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   repertoire: SetlistSong[];
-  onAddExternalSong: (song: any, setGroup?: number) => Promise<void>;
+  onAddExternalSong: (song: Record<string, unknown>, setGroup?: number) => Promise<void>;
   onAddLibrarySong: (songId: string, setGroup?: number) => Promise<void>;
-  onBuildGig: (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: any[], setNames: Record<string, string>, stimulusText: string) => Promise<void>;
+  onBuildGig: (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: Record<string, unknown>[], setNames: Record<string, string>, stimulusText: string) => Promise<void>;
   activeSetlistName?: string;
   initialStimulus?: string;
 }
@@ -37,7 +37,7 @@ interface GigPlan {
     specialRequests: string[];
   };
   suggestedLibrarySongs: {id: string, setGroup: number}[];
-  suggestedExternalSongs: any[];
+  suggestedExternalSongs: Record<string, unknown>[];
 }
 
 const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
@@ -88,7 +88,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
       setPlan(data);
       setEditingSetNames(data.setNames || {});
       showSuccess("Gig plan generated!");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Gig Planner Error:", err);
       showError("Failed to generate gig plan. Please try again.");
     } finally {
@@ -105,7 +105,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
     }
   };
 
-  const handleAddExternal = async (song: any, index: number) => {
+  const handleAddExternal = async (song: Record<string, unknown>, index: number) => {
     try {
       await onAddExternalSong(song, song.setGroup);
       setAddedSongs(prev => new Set(prev).add(`ext-${index}`));
@@ -149,7 +149,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
     if (!acc[group]) acc[group] = [];
     acc[group].push(song);
     return acc;
-  }, {} as Record<number, any[]>) : {};
+  }, {} as Record<number, Record<string, unknown>[]>) : {};
 
   const sortedGroups = Object.keys(groupedSongs).map(Number).sort((a, b) => {
     if (a === 99) return 1;

@@ -103,7 +103,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
           fontFamily: config.fontFamily, 
           fontSize: `${config.fontSize}px`, 
           lineHeight: config.lineSpacing,
-          textAlign: config.textAlign as any,
+          textAlign: config.textAlign as React.CSSProperties['textAlign'],
           color: readableChordColor
         }}
       >

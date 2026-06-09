@@ -40,7 +40,7 @@ export const r2Storage = {
   /**
    * Lists files in an R2 path.
    */
-  async list(prefix: string): Promise<any[]> {
+  async list(prefix: string): Promise<Record<string, unknown>[]> {
     const { data, error } = await supabase.functions.invoke('r2-storage', {
       body: { action: 'list', path: prefix }
     });

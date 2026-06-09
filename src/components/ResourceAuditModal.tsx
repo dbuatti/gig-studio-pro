@@ -85,7 +85,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
             return true;
         }
       } else {
-        const sheetUrl = (s as any).sheet_music_url || s.pdfUrl || s.leadsheetUrl;
+        const sheetUrl = (s as Record<string, unknown>).sheet_music_url as string || s.pdfUrl || s.leadsheetUrl;
         const hasLink = !!sheetUrl && sheetUrl.trim() !== "";
         
         switch (activeFilter) {
@@ -105,9 +105,9 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
       if (!urlToVerify) return;
       onVerify(song.id, { ugUrl: sanitizeUGUrl(urlToVerify) }); 
     } else {
-      const urlToVerify = customUrl || (song as any).sheet_music_url || song.pdfUrl || song.leadsheetUrl;
+      const urlToVerify = customUrl || (song as Record<string, unknown>).sheet_music_url as string || song.pdfUrl || song.leadsheetUrl;
       if (!urlToVerify) return;
-      onVerify(song.id, { sheet_music_url: urlToVerify } as any);
+      onVerify(song.id, { sheet_music_url: urlToVerify } as Record<string, unknown>);
     }
     
     setEditingId(null);
@@ -117,9 +117,9 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
 
   const handleRebind = (song: SetlistSong) => {
     setEditingId(song.id);
-    const currentUrl = activeTab === 'ug' 
+      const currentUrl = activeTab === 'ug' 
       ? song.ugUrl 
-      : ((song as any).sheet_music_url || song.pdfUrl || song.leadsheetUrl);
+      : (((song as Record<string, unknown>).sheet_music_url as string) || song.pdfUrl || song.leadsheetUrl);
     setEditValue(currentUrl || "");
     
     const query = encodeURIComponent(`${song.artist || ''} ${song.name} ${activeTab === 'ug' ? 'chords' : 'sheet music pdf'}`);
@@ -214,15 +214,15 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
 
       if (error) throw new Error(error.message || "Unknown error");
 
-      const successful = data.results.filter((r: any) => r.status === 'SUCCESS').length;
-      const failed = data.results.filter((r: any) => r.status === 'ERROR').length;
-      const skipped = data.results.filter((r: any) => r.status === 'SKIPPED').length;
+      const successful = data.results.filter((r: Record<string, unknown>) => r.status === 'SUCCESS').length;
+      const failed = data.results.filter((r: Record<string, unknown>) => r.status === 'ERROR').length;
+      const skipped = data.results.filter((r: Record<string, unknown>) => r.status === 'SKIPPED').length;
 
       showSuccess(`Bulk Key Pull Complete! ${successful} successful, ${failed} failed, ${skipped} skipped.`);
       onRefreshRepertoire(); // Refresh the parent component's repertoire data
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Bulk key pull failed:", err);
-      showError(`Bulk key pull failed: ${err.message}`);
+      showError(`Bulk key pull failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsBulkPullingKeys(false);
     }
@@ -332,7 +332,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
               )}
               {auditList.map((song) => {
                 const isEditing = editingId === song.id;
-                const sheetUrl = (song as any).sheet_music_url || song.pdfUrl || song.leadsheetUrl;
+                const sheetUrl = (song as Record<string, unknown>).sheet_music_url as string || song.pdfUrl || song.leadsheetUrl;
                 const hasLink = activeTab === 'ug' ? !!song.ugUrl : !!sheetUrl;
                 const hasChords = !!song.ug_chords_text && song.ug_chords_text.trim() !== "";
 

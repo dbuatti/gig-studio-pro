@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from '@/components/ui/button';
 
 interface YoutubeResultsShelfProps {
-  results: any[];
+  results: Record<string, unknown>[];
   currentVideoId: string | null;
   onSelect: (videoUrl: string) => void;
   onDownloadAudio: (videoUrl: string) => void;

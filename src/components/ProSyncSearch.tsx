@@ -11,13 +11,13 @@ import { cn } from "@/lib/utils";
 interface ProSyncSearchProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (song: any) => void;
+  onSelect: (song: Record<string, unknown>) => void;
   initialQuery?: string;
 }
 
 const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect, initialQuery }) => {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<Record<string, unknown>[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const performSearch = async (searchQuery: string) => {

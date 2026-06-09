@@ -374,8 +374,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       } else if (failCount > 0) {
         showError(`Vibe Check failed for ${failCount} songs.`);
       }
-    } catch (err: any) {
-      showError(`Vibe Check Error: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Vibe Check Error: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsVibeChecking(false);
       setVibeCheckProgress(0);
