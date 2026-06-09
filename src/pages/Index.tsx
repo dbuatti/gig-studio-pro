@@ -23,28 +23,15 @@ import { Button } from '@/components/ui/button';
 import SetlistManager, { SetlistSong, Setlist, EnergyZone } from '@/components/SetlistManager';
 import { FilterState, DEFAULT_FILTERS } from '@/components/SetlistFilters';
 import SetlistStats from '@/components/SetlistStats';
-import AdminPanel from '@/components/AdminPanel';
-import PreferencesModal from '@/components/PreferencesModal';
-import UserGuideModal from '@/components/UserGuideModal';
-import SongStudioModal from '@/components/SongStudioModal';
 import FloatingCommandDock from '@/components/FloatingCommandDock';
 import ActiveSongBanner from '@/components/ActiveSongBanner';
 import { StudioTab } from '@/components/SongStudioView';
 import RepertoireView from '@/components/RepertoireView';
-import KeyManagementModal from '@/components/KeyManagementModal';
-import PerformanceOverlay from '@/components/PerformanceOverlay';
 import GoalTracker from '@/components/GoalTracker';
-import SetlistSortModal from '@/components/SetlistSortModal';
-import { calculateSemitones } from '@/utils/keyUtils';
-import SetlistSettingsModal from '@/components/SetlistSettingsModal';
-import SetlistSelector from '@/components/SetlistSelector';
-import GlobalSearchModal from '@/components/GlobalSearchModal';
-import GigPlannerModal from '@/components/GigPlannerModal';
-import MDAuditModal from '@/components/MDAuditModal';
-import ShortcutCheatSheet from '@/components/ShortcutCheatSheet';
 import DashboardHeader from '@/components/DashboardHeader';
 import StorageAuditModal from '@/components/StorageAuditModal';
 import RepertoireSummary from '@/components/RepertoireSummary';
+import DashboardModals from '@/components/dashboard/DashboardModals';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 
 const Index = () => {
@@ -744,81 +731,64 @@ const Index = () => {
         hasReadableChart={!!activeSong} 
       />
 
-      <SongStudioModal
-        isOpen={isSongStudioModalOpen}
-        onClose={() => setIsSongStudioModalOpen(false)}
-        gigId={songStudioModalGigId}
-        songId={songStudioModalSongId}
-        visibleSongs={songStudioVisibleSongs || (activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire)}
-        onSelectSong={(id) => setSongStudioModalSongId(id)}
-        allSetlists={allSetlists}
+      <DashboardModals
+        userId={userId}
+        activeSetlist={activeSetlist}
+        activeSong={activeSong}
+        filteredAndSortedSongs={filteredAndSortedSongs}
         masterRepertoire={masterRepertoire}
-        defaultTab={songStudioDefaultTab}
-        audioEngine={audio}
+        allSetlists={allSetlists}
+        audio={audio}
+        globalKeyPreference={globalKeyPreference}
         preventStageKeyOverwrite={preventStageKeyOverwrite}
+        isSongStudioModalOpen={isSongStudioModalOpen}
+        setIsSongStudioModalOpen={setIsSongStudioModalOpen}
+        songStudioModalSongId={songStudioModalSongId}
+        songStudioModalGigId={songStudioModalGigId}
+        songStudioDefaultTab={songStudioDefaultTab}
+        songStudioVisibleSongs={songStudioVisibleSongs}
+        isPerformanceOverlayOpen={isPerformanceOverlayOpen}
+        setIsPerformanceOverlayOpen={setIsPerformanceOverlayOpen}
+        isAdminPanelOpen={isAdminPanelOpen}
+        setIsAdminPanelOpen={setIsAdminPanelOpen}
+        isPreferencesOpen={isPreferencesOpen}
+        setIsPreferencesOpen={setIsPreferencesOpen}
+        isUserGuideOpen={isUserGuideOpen}
+        setIsUserGuideOpen={setIsUserGuideOpen}
+        isKeyManagementOpen={isKeyManagementOpen}
+        setIsKeyManagementOpen={setIsKeyManagementOpen}
+        isGlobalSearchOpen={isGlobalSearchOpen}
+        setIsGlobalSearchOpen={setIsGlobalSearchOpen}
+        isSetlistSortModalOpen={isSetlistSortModalOpen}
+        setIsSetlistSortModalOpen={setIsSetlistSortModalOpen}
+        isSetlistSettingsOpen={isSetlistSettingsOpen}
+        setIsSetlistSettingsOpen={setIsSetlistSettingsOpen}
+        isMDAuditOpen={isMDAuditOpen}
+        setIsMDAuditOpen={setIsMDAuditOpen}
+        isGigPlannerOpen={isGigPlannerOpen}
+        setIsGigPlannerOpen={setIsGigPlannerOpen}
+        isShortcutSheetOpen={isShortcutSheetOpen}
+        setIsShortcutSheetOpen={setIsShortcutSheetOpen}
+        isStorageAuditOpen={isStorageAuditOpen}
+        setIsStorageAuditOpen={setIsStorageAuditOpen}
+        activeSetGroup={activeSetGroup}
+        setActiveSetGroup={setActiveSetGroup}
+        auditData={auditData}
+        isAuditLoading={isAuditLoading}
+        onSelectSong={handleSelectSong}
+        onUpdateSongInSetlist={handleUpdateSongInSetlist}
+        onUpdateSetlistSongs={handleUpdateSetlistSongs}
+        onDeleteSetlist={handleDeleteSetlist}
+        onRenameSetlist={handleRenameSetlist}
+        onReorderSongs={handleReorderSongs}
+        onRefreshRepertoire={() => fetchSetlistsAndRepertoire()}
+        onAddExistingSong={async (s) => { if (userId) { await syncToMasterRepertoire(userId, [s]); await fetchSetlistsAndRepertoire(); } }}
+        onGlobalSearchAdd={handleGlobalSearchAdd}
+        onSetSongStudioVisibleSongs={setSongStudioVisibleSongs}
+        onSetSongStudioModalGigId={setSongStudioModalGigId}
+        onSetSongStudioModalSongId={setSongStudioModalSongId}
+        onSetSongStudioDefaultTab={setSongStudioDefaultTab}
       />
-
-      {isPerformanceOverlayOpen && activeSetlist && activeSong && (
-        <PerformanceOverlay
-          songs={activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs}
-          currentIndex={(activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs).findIndex(s => s.id === activeSong.id)}
-          isPlaying={audio.isPlaying}
-          progress={audio.progress}
-          duration={audio.duration}
-          onTogglePlayback={audio.togglePlayback}
-          onNext={() => {
-            const songs = activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs;
-            const idx = songs.findIndex(s => s.id === activeSong.id);
-            if (idx !== -1 && idx < songs.length - 1) {
-              handleSelectSong(songs[idx + 1]);
-            } else if (songs.length > 0) {
-              handleSelectSong(songs[0]);
-            }
-          }}
-          onPrevious={() => {
-            const songs = activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs;
-            const idx = songs.findIndex(s => s.id === activeSong.id);
-            if (idx > 0) {
-              handleSelectSong(songs[idx - 1]);
-            } else if (songs.length > 0) {
-              handleSelectSong(songs[songs.length - 1]);
-            }
-          }}
-          onShuffle={() => {}}
-          onClose={() => {
-            setIsPerformanceOverlayOpen(false);
-            setActiveSetGroup(null);
-          }}
-          onUpdateSong={handleUpdateSongInSetlist}
-          onUpdateKey={async (id, targetKey) => {
-            const song = activeSetlist.songs.find(s => s.id === id);
-            if (song) {
-              const newPitch = calculateSemitones(song.originalKey || 'C', targetKey);
-              await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch });
-            }
-          }}
-          analyzer={audio.analyzer}
-          gigId={activeSetlist.id}
-          isLoadingAudio={audio.isLoadingAudio}
-        />
-      )}
-
-      <AdminPanel isOpen={isAdminPanelOpen} onClose={() => setIsAdminPanelOpen(false)} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} repertoire={masterRepertoire} />
-      <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
-      <UserGuideModal isOpen={isUserGuideOpen} onClose={() => setIsUserGuideOpen(false)} />
-      <KeyManagementModal isOpen={isKeyManagementOpen} onClose={() => setIsKeyManagementOpen(false)} repertoire={masterRepertoire} onUpdateKey={async (songId, updates) => { if (!userId) return; await syncToMasterRepertoire(userId, [{ ...updates, id: songId }]); await fetchSetlistsAndRepertoire(); }} keyPreference={globalKeyPreference} />
-      <GlobalSearchModal isOpen={isGlobalSearchOpen} onClose={() => setIsGlobalSearchOpen(false)} onAddSong={handleGlobalSearchAdd} repertoire={masterRepertoire} onAddExistingSong={async (s) => { if (userId) { await syncToMasterRepertoire(userId, [s]); await fetchSetlistsAndRepertoire(); } }} />
-      
-      {activeSetlist && (
-        <>
-          <SetlistSortModal isOpen={isSetlistSortModalOpen} onClose={() => setIsSetlistSortModalOpen(false)} songs={activeSetlist.songs} onReorder={handleReorderSongs} setlistName={activeSetlist.name} masterRepertoire={masterRepertoire} onAddSongs={async (songs) => { for (const s of songs) await handleUpdateSetlistSongs(activeSetlist.id, s, 'add'); }} />
-          <SetlistSettingsModal isOpen={isSetlistSettingsOpen} onClose={() => setIsSetlistSettingsOpen(false)} setlistId={activeSetlist.id} setlistName={activeSetlist.name} onDelete={handleDeleteSetlist} onRename={handleRenameSetlist} onRefresh={() => fetchSetlistsAndRepertoire()} />
-        </>
-      )}
-      <MDAuditModal isOpen={isMDAuditOpen} onClose={() => setIsMDAuditOpen(false)} auditData={auditData} isLoading={isAuditLoading} />
-      <GigPlannerModal isOpen={isGigPlannerOpen} onClose={() => setIsGigPlannerOpen(false)} repertoire={masterRepertoire} onAddExternalSong={async () => {}} onAddLibrarySong={async () => {}} onBuildGig={async () => {}} />
-      <ShortcutCheatSheet isOpen={isShortcutSheetOpen} onClose={() => setIsShortcutSheetOpen(false)} />
-      <StorageAuditModal isOpen={isStorageAuditOpen} onClose={() => setIsStorageAuditOpen(false)} repertoire={masterRepertoire} />
     </div>
   );
 };
