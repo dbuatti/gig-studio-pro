@@ -30,32 +30,36 @@ const MasteryRating: React.FC<MasteryRatingProps> = ({
 
   return (
     <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          disabled={readonly}
-          onMouseEnter={() => !readonly && setHover(star)}
-          onMouseLeave={() => !readonly && setHover(null)}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!readonly && onChange) {
-              // Convert 1-5 back to 0-100
-              onChange(star * 20);
-            }
-          }}
-          className={cn(
-            "transition-all duration-200 p-1 -m-1 flex items-center justify-center",
-            readonly ? "cursor-default" : "cursor-pointer hover:scale-125 active:scale-90",
-            (hover !== null ? star <= hover : star <= displayValue)
-              ? "text-amber-400 fill-amber-400"
-              : "text-muted-foreground/20 fill-transparent"
-          )}
-        >
-          <Star className={cn(sizes[size])} />
-        </button>
-      ))}
+      {value === 0 && readonly ? (
+        <span className="text-[9px] font-black uppercase tracking-widest text-slate-700">Not Rated</span>
+      ) : (
+        [1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            disabled={readonly}
+            onMouseEnter={() => !readonly && setHover(star)}
+            onMouseLeave={() => !readonly && setHover(null)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!readonly && onChange) {
+                // Convert 1-5 back to 0-100
+                onChange(star * 20);
+              }
+            }}
+            className={cn(
+              "transition-all duration-200 p-1 -m-1 flex items-center justify-center",
+              readonly ? "cursor-default" : "cursor-pointer hover:scale-125 active:scale-90",
+              (hover !== null ? star <= hover : star <= displayValue)
+                ? "text-amber-400 fill-amber-400"
+                : "text-slate-700 fill-transparent"
+            )}
+          >
+            <Star className={cn(sizes[size])} />
+          </button>
+        ))
+      )}
     </div>
   );
 };

@@ -111,7 +111,13 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
             <TooltipTrigger asChild>
               <div className="flex flex-col items-center gap-2">
                 <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-white/5">
-                  <div className={cn("h-full transition-all duration-700 shadow-[0_0_15px_rgba(0,0,0,0.5)]", getEnergyBarClass(song.energy_level))} />
+                  {song.energy_level ? (
+                    <div className={cn("h-full transition-all duration-700 shadow-[0_0_15px_rgba(0,0,0,0.5)]", getEnergyBarClass(song.energy_level))} />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center">
+                      <span className="text-[6px] font-black uppercase tracking-widest text-slate-700">Not Classified</span>
+                    </div>
+                  )}
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{song.energy_level || 'TBC'}</span>
               </div>

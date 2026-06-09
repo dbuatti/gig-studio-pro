@@ -5,7 +5,7 @@ import {
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle,
   ShieldCheck, Clock, ArrowRight, Check, ChevronDown,
   ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Library,
-  BookOpen, Tv, Sliders, Loader2, RotateCcw, Plus
+  BookOpen, Tv, Sliders, Loader2, RotateCcw, Plus, Sparkles
 } from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
@@ -517,8 +517,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     onClick={() => setSuggesterGroup(groupNum)}
                     className="flex-1 h-9 rounded-xl text-[10px] font-bold uppercase tracking-wider text-indigo-400 border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 gap-1.5"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    Suggest Songs
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Discover
                   </Button>
                   <Button
                     variant="outline"

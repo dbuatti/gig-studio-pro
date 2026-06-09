@@ -148,9 +148,9 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
             )
           )}
           {isRepertoireSongValid ? (
-            assignedCount > 0 ? `ASSIGNED TO ${assignedCount} GIGS` : "ADD TO SETLISTS"
+            assignedCount > 0 ? `In ${assignedCount} Gigs` : "Add to Gigs"
           ) : (
-            "INVALID SONG ID"
+            "Invalid Song ID"
           )}
         </Button>
       </DropdownMenuTrigger>
