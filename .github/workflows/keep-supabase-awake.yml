@@ -2,7 +2,7 @@ name: Keep Supabase Awake
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/25 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -11,8 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     environment: Production
     steps:
-      - name: Ping Supabase REST API
+      - uses: actions/checkout@v4
+      - name: Query tables via REST API
         run: |
-          curl -s --retry 3 --retry-delay 5 \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}"
+          for table in repertoire setlists gig_sessions follows; do
+            curl -sf --retry 2 --retry-delay 3 \
+              "${{ secrets.SUPABASE_URL }}/rest/v1/$table?select=count&limit=0" \
+              -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+              -H "Accept: application/json" || true
+          done
+      - name: Ping Auth endpoint
+        run: |
+          curl -sf --retry 2 --retry-delay 3 \
+            "${{ secrets.SUPABASE_URL }}/auth/v1/user" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" || true
