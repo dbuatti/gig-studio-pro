@@ -22,6 +22,7 @@ interface YoutubeMediaManagerProps {
   onOpenAdmin?: () => void;
   onLoadAudioFromUrl: (url: string, initialPitch?: number) => Promise<void>;
   onSwitchTab: (tab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library') => void;
+  onRefreshSong?: () => Promise<void>;
 }
 
 const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
@@ -31,6 +32,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   onOpenAdmin,
   onLoadAudioFromUrl,
   onSwitchTab,
+  onRefreshSong,
 }) => {
   const { user } = useAuth();
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
@@ -158,30 +160,37 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       return;
     }
 
-    if (song?.extraction_status === 'completed' && song?.audio_url) {
-      showInfo("Audio already extracted and available.");
-      setIsQueuingExtraction(false);
-      return;
-    }
+    const isOverride = song?.extraction_status === 'completed' && song?.audio_url;
 
     handleAutoSave({ youtubeUrl: targetVideoUrl });
     setIsQueuingExtraction(true); 
 
     try {
+      const dbUpdates: Record<string, unknown> = {
+        youtube_url: targetVideoUrl,
+        extraction_status: 'queued',
+        last_sync_log: 'Queued for background audio extraction.'
+      };
+
+      if (isOverride) {
+        dbUpdates.audio_url = null;
+        dbUpdates.last_sync_log = 'Re-queued — manual override with new YouTube source.';
+      }
+
       const { error } = await supabase
         .from('repertoire')
-        .update({ 
-          youtube_url: targetVideoUrl,
-          extraction_status: 'queued', 
-          last_sync_log: 'Queued for background audio extraction.'
-        })
+        .update(dbUpdates)
         .eq('id', song.id);
 
       if (error) throw new Error(error.message || "Unknown error");
 
-      showInfo("Background extraction queued. You can close this window; the audio will update automatically.");
-      showSuccess("Task Queued Successfully");
-      
+      if (isOverride && onRefreshSong) {
+        await onRefreshSong();
+        showSuccess("Audio re-queued with new YouTube source. Old extraction cleared.");
+      } else {
+        showInfo("Background extraction queued. You can close this window; the audio will update automatically.");
+        showSuccess("Task Queued Successfully");
+      }
     } catch (err: unknown) {
       showError(`Failed to queue extraction: ${(err as Error).message}`);
     } finally {
@@ -202,13 +211,23 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
-        <Input
-          placeholder="Search song or paste URL..."
-          value={formData.youtubeUrl || ""}
-          onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
-          onKeyDown={(e) => e.key === 'Enter' && performYoutubeDiscovery(formData.youtubeUrl || '')}
-          className="flex-1 bg-slate-900 border-white/10 h-14 px-6 rounded-xl text-white placeholder:text-slate-600"
-        />
+        <div className="flex-1 space-y-2">
+          <Input
+            placeholder="Search song or paste URL..."
+            value={formData.youtubeUrl || ""}
+            onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
+            onKeyDown={(e) => e.key === 'Enter' && performYoutubeDiscovery(formData.youtubeUrl || '')}
+            className="flex-1 bg-slate-900 border-white/10 h-14 px-6 rounded-xl text-white placeholder:text-slate-600"
+          />
+          {song?.extraction_status === 'completed' && song?.audio_url && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-950/40 border border-amber-800/30 rounded-lg">
+              <CheckCircle2 className="w-3 h-3 text-amber-400 shrink-0" />
+              <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">
+                Audio extracted — pasting a new URL and re-queuing will replace it
+              </span>
+            </div>
+          )}
+        </div>
         <div className="flex gap-3">
           <Button
             variant="default"
@@ -221,10 +240,20 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           <Button
             onClick={() => handleQueueExtraction()} 
             disabled={isSearchingYoutube || isQueuingExtraction || !formData.youtubeUrl}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg shadow-indigo-600/20"
+            className={cn(
+              "h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg",
+              song?.extraction_status === 'completed' && song?.audio_url
+                ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20"
+                : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
+            )}
           >
             {isQueuingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} 
-            {isQueuingExtraction ? 'QUEUING...' : 'QUEUE BACKGROUND EXTRACT'}
+            {isQueuingExtraction 
+              ? 'QUEUING...' 
+              : (song?.extraction_status === 'completed' && song?.audio_url 
+                  ? 'RE-EXTRACT' 
+                  : 'QUEUE BACKGROUND EXTRACT')
+            }
           </Button>
         </div>
       </div>

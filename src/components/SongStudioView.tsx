@@ -419,6 +419,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           duration={audio.duration}
           togglePlayback={audio.togglePlayback}
           stopPlayback={audio.stopPlayback}
+          onRefreshSong={fetchData}
         />
       </div>
     </div>

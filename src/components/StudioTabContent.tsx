@@ -44,6 +44,7 @@ interface StudioTabContentProps {
   duration: number;
   togglePlayback: () => void;
   stopPlayback: () => void;
+  onRefreshSong?: () => Promise<void>;
 }
 
 const StudioTabContent: React.FC<StudioTabContentProps> = ({
@@ -77,6 +78,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   duration,
   togglePlayback,
   stopPlayback,
+  onRefreshSong,
 }) => {
   switch (activeTab) {
     case 'config':
@@ -170,6 +172,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
             onOpenAdmin={() => {}}
             onLoadAudioFromUrl={audioEngine.loadFromUrl}
             onSwitchTab={onSwitchTab}
+            onRefreshSong={onRefreshSong}
           />
           <div className={cn("flex-1 bg-slate-900 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden relative min-h-[300px]", !formData.youtubeUrl && "flex flex-col items-center justify-center")}>
             {formData.youtubeUrl ? 
