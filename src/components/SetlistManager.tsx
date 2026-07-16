@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useMemo, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle,
@@ -422,11 +423,18 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         setSearchTerm={setSearchTerm}
       />
 
-      {isFilterOpen && (
-        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-          <SetlistFilters activeFilters={activeFilters} onFilterChange={setActiveFilters} />
-        </div>
-      )}
+      <AnimatePresence>
+        {isFilterOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.2 }}
+          >
+            <SetlistFilters activeFilters={activeFilters} onFilterChange={setActiveFilters} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {energyFatigueIndices.length > 0 && (
         <div className="p-6 bg-red-600/10 border border-red-500/20 rounded-[2.5rem] flex items-start gap-6 shadow-2xl shadow-red-900/10">
@@ -565,7 +573,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 {processedSongs.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-40 text-center">
-                      <div className="flex flex-col items-center justify-center space-y-6 opacity-30">
+                      <div className="flex flex-col items-center justify-center space-y-6 opacity-70">
                         <Library className="w-20 h-20 text-indigo-500" />
                         <div>
                           <p className="text-2xl font-black uppercase tracking-tight">Setlist Empty</p>

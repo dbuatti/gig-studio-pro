@@ -85,9 +85,9 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
 
       <td className="px-8 text-left">
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-4">
-            <span className="text-[11px] font-mono font-black text-slate-600 min-w-[24px]">{(idx + 1).toString().padStart(2, '0')}</span>
-            <h4 className={cn("text-xl font-black tracking-tight leading-none flex items-center gap-3 text-white", song.isPlayed && "line-through text-slate-500")}>
+          <div className="flex items-center gap-4 min-w-0">
+            <span className="text-[11px] font-mono font-black text-slate-600 min-w-[24px] shrink-0">{(idx + 1).toString().padStart(2, '0')}</span>
+            <h4 className={cn("text-xl font-black tracking-tight leading-none flex items-center gap-3 text-white truncate", song.isPlayed && "line-through text-slate-500")}>
               {song.name}
               {isFullyReady && <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-500/20" />}
               {isProcessing && <CloudDownload className="w-5 h-5 text-indigo-500 animate-bounce" />}
@@ -96,7 +96,7 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
             {song.isMetadataConfirmed && <ShieldCheck className="w-4.5 h-4.5 text-indigo-500" />}
           </div>
           <div className="flex items-center gap-3 ml-[38px]">
-            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">{song.artist || "Unknown Artist"}</span>
+            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none truncate">{song.artist || "Unknown Artist"}</span>
             <span className="text-slate-700 text-[8px]">•</span>
             <span className="text-[11px] font-mono font-bold text-slate-500 flex items-center gap-2">
               <Clock className="w-4 h-4" />
@@ -160,7 +160,7 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
           <Button
             variant="ghost"
             size="icon"
-            className={cn("h-9 w-9 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-700 opacity-20 cursor-not-allowed")}
+            className={cn("h-9 w-9 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-600 opacity-40 cursor-not-allowed")}
             onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }}
             disabled={!isReorderingEnabled}
             aria-label="Move song up"
@@ -170,7 +170,7 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
           <Button
             variant="ghost"
             size="icon"
-            className={cn("h-9 w-9 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-700 opacity-20 cursor-not-allowed")}
+            className={cn("h-9 w-9 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-600 opacity-40 cursor-not-allowed")}
             onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }}
             disabled={!isReorderingEnabled}
             aria-label="Move song down"

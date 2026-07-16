@@ -44,8 +44,8 @@ const SetlistMobileCard: React.FC<SetlistMobileCardProps> = ({
     <div
       onClick={() => onEdit(song)}
       className={cn(
-        "bg-slate-900/40 rounded-[2rem] border-2 transition-all p-5 flex flex-col gap-4 shadow-xl relative overflow-hidden",
-        isSelected ? "border-indigo-500 bg-indigo-500/5 shadow-indigo-500/10" : "border-white/5",
+        "bg-slate-900/40 rounded-[2rem] border-2 transition-all p-5 flex flex-col gap-4 shadow-xl relative overflow-hidden cursor-pointer",
+        isSelected ? "border-indigo-500 bg-indigo-500/5 shadow-indigo-500/10" : "border-white/5 hover:border-white/20 hover:bg-white/[0.03]",
         song.isPlayed && "opacity-50 grayscale-[0.2]",
         getHeatmapClass(song)
       )}

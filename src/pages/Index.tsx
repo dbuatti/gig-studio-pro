@@ -14,10 +14,17 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { autoVibeCheck } from '@/utils/vibeUtils';
 
 // UI Components
-import { Plus, Music2, Calendar, Sparkles } from 'lucide-react';
+import { Plus, Music2, Calendar, Sparkles, Edit3, Trash2 } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Custom Components
 import SetlistManager, { SetlistSong, Setlist, EnergyZone } from '@/components/SetlistManager';
@@ -72,6 +79,11 @@ const Index = () => {
     try { return saved ? { ...DEFAULT_FILTERS, ...JSON.parse(saved) } : DEFAULT_FILTERS; } catch { return DEFAULT_FILTERS; }
   });
   const [showHeatmap, setShowHeatmap] = useState(() => localStorage.getItem('gig_show_heatmap') === 'true');
+
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newSetlistName, setNewSetlistName] = useState("");
+  const [renameTarget, setRenameTarget] = useState<{ id: string; currentName: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const filteredAndSortedSongs = useMemo(() => {
     if (!activeSetlist) return [];
@@ -366,15 +378,20 @@ const Index = () => {
 
   const handleCreateSetlist = async () => {
     if (!userId) return;
-    const name = prompt("Enter setlist name:");
-    if (!name) return;
+    setIsCreateDialogOpen(true);
+  };
+
+  const doCreateSetlist = async () => {
+    if (!userId || !newSetlistName.trim()) return;
     try {
       const { data, error } = await supabase
         .from('setlists')
-        .insert({ user_id: userId, name })
+        .insert({ user_id: userId, name: newSetlistName.trim() })
         .select()
         .single();
       if (error) throw new Error(error.message || "Unknown error");
+      setNewSetlistName("");
+      setIsCreateDialogOpen(false);
       await fetchSetlistsAndRepertoire();
       setActiveSetlistId(data.id);
       showSuccess("Setlist created");
@@ -383,15 +400,21 @@ const Index = () => {
     }
   };
 
-  const handleRenameSetlist = async (id: string) => {
-    const newName = prompt("Enter new setlist name:");
-    if (!newName) return;
+  const handleRenameSetlist = (id: string) => {
+    const list = allSetlists.find(s => s.id === id);
+    if (!list) return;
+    setRenameTarget({ id, currentName: list.name });
+  };
+
+  const doRenameSetlist = async () => {
+    if (!renameTarget || !renameTarget.currentName.trim()) return;
     try {
       const { error } = await supabase
         .from('setlists')
-        .update({ name: newName })
-        .eq('id', id);
+        .update({ name: renameTarget.currentName.trim() })
+        .eq('id', renameTarget.id);
       if (error) throw new Error(error.message || "Unknown error");
+      setRenameTarget(null);
       await fetchSetlistsAndRepertoire();
       showSuccess("Setlist renamed");
     } catch (err: unknown) {
@@ -399,20 +422,24 @@ const Index = () => {
     }
   };
 
-  const handleDeleteSetlist = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this setlist?")) return;
+  const handleDeleteSetlist = (id: string) => {
+    setDeleteTarget(id);
+  };
+
+  const doDeleteSetlist = async () => {
+    if (!deleteTarget) return;
     try {
       const { error } = await supabase
         .from('setlists')
         .delete()
-        .eq('id', id);
+        .eq('id', deleteTarget);
       if (error) throw new Error(error.message || "Unknown error");
       
-      if (activeSetlistId === id) {
+      if (activeSetlistId === deleteTarget) {
         setActiveSetlistId(null);
         localStorage.removeItem('active_setlist_id');
       }
-      
+      setDeleteTarget(null);
       await fetchSetlistsAndRepertoire();
       showSuccess("Setlist deleted");
     } catch (err: unknown) {
@@ -731,6 +758,63 @@ const Index = () => {
         onOpenPerformance={() => setIsPerformanceOverlayOpen(true)} 
         hasReadableChart={!!activeSong} 
       />
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={(open) => { if (!open) setIsCreateDialogOpen(false); }}>
+        <DialogContent className="max-w-md bg-slate-950 border-white/10 text-white rounded-[2rem] p-8 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">Create Setlist</DialogTitle>
+            <DialogDescription className="text-slate-400 font-medium">Enter a name for your new setlist.</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={newSetlistName}
+            onChange={(e) => setNewSetlistName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && doCreateSetlist()}
+            placeholder="Setlist name..."
+            className="bg-slate-900 border-white/10 h-12 px-5 rounded-xl text-white placeholder:text-slate-600 mt-2"
+            autoFocus
+          />
+          <DialogFooter className="mt-4">
+            <Button onClick={() => setIsCreateDialogOpen(false)} variant="ghost" className="h-12 px-6 rounded-xl text-slate-400 hover:text-white">Cancel</Button>
+            <Button onClick={doCreateSetlist} disabled={!newSetlistName.trim()} className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest">Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!renameTarget} onOpenChange={(open) => { if (!open) setRenameTarget(null); }}>
+        <DialogContent className="max-w-md bg-slate-950 border-white/10 text-white rounded-[2rem] p-8 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">Rename Setlist</DialogTitle>
+            <DialogDescription className="text-slate-400 font-medium">Enter a new name for this setlist.</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={renameTarget?.currentName || ""}
+            onChange={(e) => setRenameTarget(prev => prev ? { ...prev, currentName: e.target.value } : null)}
+            onKeyDown={(e) => e.key === 'Enter' && doRenameSetlist()}
+            placeholder="Setlist name..."
+            className="bg-slate-900 border-white/10 h-12 px-5 rounded-xl text-white placeholder:text-slate-600 mt-2"
+            autoFocus
+          />
+          <DialogFooter className="mt-4">
+            <Button onClick={() => setRenameTarget(null)} variant="ghost" className="h-12 px-6 rounded-xl text-slate-400 hover:text-white">Cancel</Button>
+            <Button onClick={doRenameSetlist} disabled={!renameTarget?.currentName.trim()} className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest">Rename</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent className="max-w-md bg-slate-950 border-white/10 text-white rounded-[2rem] p-8 shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Delete Setlist?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400 font-medium">
+              This will permanently delete this setlist and all its song associations. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6">
+            <AlertDialogCancel className="h-12 px-6 rounded-xl bg-white/10 text-white hover:bg-white/20 border-none font-black text-[10px] uppercase tracking-widest">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doDeleteSetlist} className="h-12 px-6 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <DashboardModals
         userId={userId}

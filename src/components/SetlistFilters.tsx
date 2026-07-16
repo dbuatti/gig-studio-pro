@@ -4,6 +4,10 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 import { 
   Filter, Music, Youtube, FileText, CheckCircle2, 
   X, Star, Save, Trash2, Headphones, Sparkles, Hash,
@@ -62,6 +66,8 @@ interface SetlistFiltersProps {
 }
 
 const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeFilters }) => {
+  const [isSavePresetOpen, setIsSavePresetOpen] = useState(false);
+  const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<SavedPreset[]>(() => {
     const saved = localStorage.getItem('gig_filter_presets');
     return saved ? JSON.parse(saved) : [
@@ -71,12 +77,18 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
   });
 
   const savePreset = () => {
-    const name = prompt("Enter preset name:");
-    if (!name) return;
-    const newPreset = { id: Date.now().toString(), name, filters: { ...activeFilters } };
+    setIsSavePresetOpen(true);
+    setPresetName("");
+  };
+
+  const doSavePreset = () => {
+    if (!presetName.trim()) return;
+    const newPreset = { id: Date.now().toString(), name: presetName.trim(), filters: { ...activeFilters } };
     const updated = [...presets, newPreset];
     setPresets(updated);
     localStorage.setItem('gig_filter_presets', JSON.stringify(updated));
+    setIsSavePresetOpen(false);
+    setPresetName("");
   };
 
   const deletePreset = (id: string, e: React.MouseEvent) => {
@@ -208,6 +220,27 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
           </div>
         )}
       </div>
+
+      <Dialog open={isSavePresetOpen} onOpenChange={(open) => { if (!open) setIsSavePresetOpen(false); }}>
+        <DialogContent className="max-w-md bg-slate-950 border-white/10 text-white rounded-[2rem] p-8 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">Save Filter View</DialogTitle>
+            <DialogDescription className="text-slate-400 font-medium">Name this filter configuration for quick access.</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && doSavePreset()}
+            placeholder="Preset name..."
+            className="bg-slate-900 border-white/10 h-12 px-5 rounded-xl text-white placeholder:text-slate-600 mt-2"
+            autoFocus
+          />
+          <DialogFooter className="mt-4">
+            <Button onClick={() => setIsSavePresetOpen(false)} variant="ghost" className="h-12 px-6 rounded-xl text-slate-400 hover:text-white">Cancel</Button>
+            <Button onClick={doSavePreset} disabled={!presetName.trim()} className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest">Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -220,14 +221,21 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             </div>
           </div>
           
-          {isFilterOpen && (
-            <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-              <SetlistFilters 
-                activeFilters={activeFilters} 
-                onFilterChange={setActiveFilters} 
-              />
-            </div>
-          )}
+          <AnimatePresence>
+            {isFilterOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SetlistFilters 
+                  activeFilters={activeFilters} 
+                  onFilterChange={setActiveFilters} 
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         <div className="lg:col-span-1">
           <SetlistExporter 
@@ -331,18 +339,18 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                         )}
                       >
                         <TableCell className="py-5 px-10 text-left">
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-4">
-                              <h4 className="text-xl font-black tracking-tight leading-none flex items-center gap-3 text-white">
+                          <div className="flex flex-col gap-2 min-w-0">
+                            <div className="flex items-center gap-4 min-w-0">
+                              <h4 className="text-xl font-black tracking-tight leading-none flex items-center gap-3 text-white truncate">
                                 {song.name}
-                                {isFullyReady && <Check className="w-5 h-5 text-emerald-500 fill-emerald-500/20" />}
-                                {isProcessing && <CloudDownload className="w-5 h-5 text-indigo-500 animate-bounce" />}
-                                {isExtractionFailed && <AlertTriangle className="w-5 h-5 text-red-500" />}
+                                {isFullyReady && <Check className="w-5 h-5 text-emerald-500 fill-emerald-500/20 shrink-0" />}
+                                {isProcessing && <CloudDownload className="w-5 h-5 text-indigo-500 animate-bounce shrink-0" />}
+                                {isExtractionFailed && <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />}
                               </h4>
-                              {song.isMetadataConfirmed && <ShieldCheck className="w-4.5 h-4.5 text-indigo-500" />}
+                              {song.isMetadataConfirmed && <ShieldCheck className="w-4.5 h-4.5 text-indigo-500 shrink-0" />}
                             </div>
                             <div className="flex items-center gap-3">
-                              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none truncate">
                                 {song.artist || "Unknown Artist"}
                               </span>
                             </div>
