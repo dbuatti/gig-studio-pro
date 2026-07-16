@@ -73,7 +73,7 @@ export interface SetlistSong {
   volume?: number;
   isApproved?: boolean;
   is_ready_to_sing?: boolean;
-  preferred_reader?: 'ug' | 'ls' | 'fn' | null;
+  preferred_reader?: 'ug' | 'ls' | 'fn' | 'fs' | 'unsure' | null;
   ug_chords_text?: string;
   ug_chords_config?: UGChordsConfig;
   is_ug_chords_present?: boolean;
@@ -104,6 +104,7 @@ export interface SetlistSong {
   energy_level?: EnergyZone;
   set_group?: number;
   sort_order?: number;
+  readiness_checklist?: string[];
 }
 
 export interface Setlist {
@@ -553,20 +554,20 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             <table className="w-full border-collapse min-w-[1200px]">
               <thead>
                 <tr className="bg-slate-900/90 border-b border-white/10">
-                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-24 text-center">Status</th>
-                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 text-left">Track Details</th>
-                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-36 text-center">Energy</th>
-                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-40 text-center">Mastery</th>
-                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-28 text-center cursor-pointer hover:text-indigo-400 transition-colors" onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}>
-                    <div className="flex items-center justify-center gap-1.5">
-                      Ready
-                      {sortMode === 'ready' && <ChevronDown className="w-3.5 h-3.5" />}
-                      {sortMode === 'work' && <ChevronUp className="w-3.5 h-3.5" />}
+                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-12 text-center">#</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-left">Song</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-16 text-center">Eng</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-20 text-center">Mstr</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-16 text-center cursor-pointer hover:text-indigo-400 transition-colors" onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Rdy
+                      {sortMode === 'ready' && <ChevronDown className="w-3 h-3" />}
+                      {sortMode === 'work' && <ChevronUp className="w-3 h-3" />}
                     </div>
                   </th>
-                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-32 text-center">Order</th>
-                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-64 text-center">Harmonic Map</th>
-                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-56 text-right pr-14">Command</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-14 text-center">Ord</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-32 text-center">Key</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-40 text-right">Act</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">

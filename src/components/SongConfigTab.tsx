@@ -37,6 +37,7 @@ interface SongConfigTabProps {
   stopPlayback: () => void;
   isMobile: boolean;
   onOpenInApp?: (app: string, url?: string) => void;
+  onSwitchTab?: (tab: string) => void;
 }
 
 const SongConfigTab: React.FC<SongConfigTabProps> = ({
@@ -60,7 +61,8 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   togglePlayback,
   stopPlayback,
   isMobile,
-  onOpenInApp
+  onOpenInApp,
+  onSwitchTab
 }) => {
   const { keyPreference: globalPreference, preventStageKeyOverwrite } = useSettings(); 
   
@@ -178,14 +180,16 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
                 <div className="flex items-center justify-center gap-6 md:gap-8">
                   <button 
                     onClick={stopPlayback}
-                    className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 transition-all active:scale-90"
+                    aria-label="Stop and reset playback"
+                    className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-white/5 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 flex items-center justify-center text-slate-400 transition-all active:scale-90"
                   >
                     <RotateCcw className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
 
                   <button 
                     onClick={togglePlayback}
-                    className="h-16 w-16 md:h-20 md:w-20 rounded-2xl md:rounded-[2rem] bg-indigo-600 hover:bg-indigo-700 shadow-2xl shadow-indigo-600/20 flex items-center justify-center text-white transition-all active:scale-95"
+                    aria-label={isPlaying ? "Pause playback" : "Play audio"}
+                    className="h-16 w-16 md:h-20 md:w-20 rounded-2xl md:rounded-[2rem] bg-indigo-600 hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shadow-2xl shadow-indigo-600/20 flex items-center justify-center text-white transition-all active:scale-95"
                   >
                     {isPlaying ? <Pause className="w-8 h-8 md:w-10 md:h-10 fill-current" /> : <Play className="w-8 h-8 md:w-10 md:h-10 fill-current ml-1 md:ml-1.5" />}
                   </button>

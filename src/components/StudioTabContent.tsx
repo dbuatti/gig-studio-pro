@@ -83,88 +83,99 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   switch (activeTab) {
     case 'config':
       return (
-        <SongConfigTab 
-          song={song}
-          formData={formData}
-          handleAutoSave={handleAutoSave}
-          pitch={pitch}
-          setPitch={setPitch}
-          targetKey={targetKey}
-          setTargetKey={setTargetKey}
-          isPitchLinked={isPitchLinked}
-          setIsPitchLinked={setIsPitchLinked}
-          setTempo={setTempo}
-          setVolume={setVolume}
-          setFineTune={setFineTune}
-          currentBuffer={currentBuffer}
-          isPlaying={isPlaying}
-          progress={progress}
-          duration={duration}
-          setProgress={audioEngine.setProgress}
-          togglePlayback={togglePlayback}
-          stopPlayback={stopPlayback}
-          isMobile={isMobile}
-        />
+        <div id="studio-panel-config">
+          <SongConfigTab 
+            song={song}
+            formData={formData}
+            handleAutoSave={handleAutoSave}
+            pitch={pitch}
+            setPitch={setPitch}
+            targetKey={targetKey}
+            setTargetKey={setTargetKey}
+            isPitchLinked={isPitchLinked}
+            setIsPitchLinked={setIsPitchLinked}
+            setTempo={setTempo}
+            setVolume={setVolume}
+            setFineTune={setFineTune}
+            currentBuffer={currentBuffer}
+            isPlaying={isPlaying}
+            progress={progress}
+            duration={duration}
+            setProgress={audioEngine.setProgress}
+            togglePlayback={togglePlayback}
+            stopPlayback={stopPlayback}
+            isMobile={isMobile}
+            onSwitchTab={onSwitchTab}
+          />
+        </div>
       );
     case 'audio':
       return (
-        <SongAudioPlaybackTab 
-          song={song}
-          formData={formData}
-          audioEngine={audioEngine}
-          isMobile={isMobile}
-          onLoadAudioFromUrl={onLoadAudioFromUrl}
-          onSave={handleAutoSave}
-          onUpdateKey={setTargetKey}
-          transposeKey={transposeKey}
-          pitch={pitch}
-          setPitch={setPitch}
-          targetKey={targetKey}
-          setTargetKey={setTargetKey}
-          isPitchLinked={isPitchLinked}
-          setIsPitchLinked={setIsPitchLinked}
-        />
+        <div id="studio-panel-audio">
+          <SongAudioPlaybackTab 
+            song={song}
+            formData={formData}
+            audioEngine={audioEngine}
+            isMobile={isMobile}
+            onLoadAudioFromUrl={onLoadAudioFromUrl}
+            onSave={handleAutoSave}
+            onUpdateKey={setTargetKey}
+            transposeKey={transposeKey}
+            pitch={pitch}
+            setPitch={setPitch}
+            targetKey={targetKey}
+            setTargetKey={setTargetKey}
+            isPitchLinked={isPitchLinked}
+            setIsPitchLinked={setIsPitchLinked}
+          />
+        </div>
       );
     case 'details':
       return (
-        <SongDetailsTab 
-          formData={formData} 
-          handleAutoSave={handleAutoSave} 
-          isMobile={isMobile} 
-        />
+        <div id="studio-panel-details">
+          <SongDetailsTab 
+            formData={formData} 
+            handleAutoSave={handleAutoSave} 
+            isMobile={isMobile} 
+          />
+        </div>
       );
     case 'charts':
       return (
-        <SongChartsTab 
-          formData={formData}
-          handleAutoSave={handleAutoSave}
-          isMobile={isMobile}
-          setPreviewPdfUrl={setPreviewPdfUrl}
-          isFramable={isFramable}
-          activeChartType={activeChartType}
-          setActiveChartType={setActiveChartType}
-          handleUgPrint={handleUgPrint}
-          pitch={pitch}
-          setPitch={setPitch}
-          targetKey={targetKey}
-          setTargetKey={setTargetKey}
-          isPitchLinked={isPitchLinked}
-          setIsPitchLinked={setIsPitchLinked}
-        />
+        <div id="studio-panel-charts" className="h-full flex flex-col">
+          <SongChartsTab 
+            formData={formData}
+            handleAutoSave={handleAutoSave}
+            isMobile={isMobile}
+            setPreviewPdfUrl={setPreviewPdfUrl}
+            isFramable={isFramable}
+            activeChartType={activeChartType}
+            setActiveChartType={setActiveChartType}
+            handleUgPrint={handleUgPrint}
+            pitch={pitch}
+            setPitch={setPitch}
+            targetKey={targetKey}
+            setTargetKey={setTargetKey}
+            isPitchLinked={isPitchLinked}
+            setIsPitchLinked={setIsPitchLinked}
+          />
+        </div>
       );
     case 'lyrics':
       return (
-        <LyricsEngine 
-          lyrics={formData.lyrics || ""} 
-          onUpdate={(newLyrics) => handleAutoSave({ lyrics: newLyrics })} 
-          artist={formData.artist} 
-          title={formData.name} 
-          isMobile={isMobile} 
-        />
+        <div id="studio-panel-lyrics" className="h-full flex flex-col">
+          <LyricsEngine 
+            lyrics={formData.lyrics || ""} 
+            onUpdate={(newLyrics) => handleAutoSave({ lyrics: newLyrics })} 
+            artist={formData.artist} 
+            title={formData.name} 
+            isMobile={isMobile} 
+          />
+        </div>
       );
     case 'visual':
       return (
-        <div className="space-y-10 animate-in fade-in duration-500 h-full flex flex-col">
+        <div id="studio-panel-visual" className="space-y-10 animate-in fade-in duration-200 h-full flex flex-col">
           <YoutubeMediaManager 
             song={song}
             formData={formData}
@@ -185,20 +196,28 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
                 allowFullScreen 
                 className="w-full h-full"
               /> : 
-              <Youtube className="w-32 h-32 text-slate-800" />
+              <div className="flex flex-col items-center gap-4">
+                <Youtube className="w-20 h-20 text-slate-700" />
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-widest">No Video Linked</p>
+                <p className="text-[10px] text-slate-700 max-w-xs text-center leading-relaxed">
+                  Paste a YouTube URL above to watch the reference video alongside your rehearsal.
+                </p>
+              </div>
             }
           </div>
         </div>
       );
     case 'library':
       return (
-        <LibraryEngine 
+        <div id="studio-panel-library">
+          <LibraryEngine 
           formData={formData} 
           handleDownloadAll={handleDownloadAll} 
           isMobile={isMobile}
           setPreviewPdfUrl={setPreviewPdfUrl}
           handleUgPrint={handleUgPrint}
         />
+        </div>
       );
     default:
       return null;

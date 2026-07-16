@@ -52,7 +52,8 @@ const Index = () => {
     isFetchingSettings, 
     isGoalTrackerEnabled, 
     defaultDashboardView, 
-    preventStageKeyOverwrite 
+    preventStageKeyOverwrite,
+    wizardMode
   } = useSettings();
 
   const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
@@ -142,6 +143,7 @@ const Index = () => {
         energy_level: d.energy_level as EnergyZone,
         comfort_level: (d.comfort_level !== null && d.comfort_level <= 5) ? d.comfort_level * 20 : (d.comfort_level ?? 0),
         needs_improvement: d.needs_improvement ?? false,
+        readiness_checklist: d.readiness_checklist || [],
       }));
       setMasterRepertoire(mappedRepertoire);
 
@@ -182,6 +184,8 @@ const Index = () => {
   const [isPerformanceOverlayOpen, setIsPerformanceOverlayOpen] = useState(false);
   const [isSetlistSortModalOpen, setIsSetlistSortModalOpen] = useState(false);
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
+  const [isWizardStandaloneOpen, setIsWizardStandaloneOpen] = useState(false);
+  const [wizardStandaloneSong, setWizardStandaloneSong] = useState<SetlistSong | null>(null);
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [isMDAuditOpen, setIsMDAuditOpen] = useState(false);
   const [isGigPlannerOpen, setIsGigPlannerOpen] = useState(false);
@@ -230,11 +234,36 @@ const Index = () => {
   };
 
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
-    setSongStudioModalSongId(song.master_id || song.id);
-    setSongStudioModalGigId(activeDashboardView === 'gigs' ? activeSetlistId : 'library');
-    setSongStudioVisibleSongs(activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire);
-    setIsSongStudioModalOpen(true);
-    setSongStudioDefaultTab(defaultTab || 'config');
+    if (wizardMode) {
+      setWizardStandaloneSong(song);
+      setIsWizardStandaloneOpen(true);
+    } else {
+      setSongStudioModalSongId(song.master_id || song.id);
+      setSongStudioModalGigId(activeDashboardView === 'gigs' ? activeSetlistId : 'library');
+      setSongStudioVisibleSongs(activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire);
+      setIsSongStudioModalOpen(true);
+      setSongStudioDefaultTab(defaultTab || 'config');
+    }
+  };
+
+  const handleWizardAutoSave = useCallback(async (updates: Partial<SetlistSong>) => {
+    if (!userId || !wizardStandaloneSong) return;
+    setWizardStandaloneSong(prev => prev ? { ...prev, ...updates } : null);
+    try {
+      await syncToMasterRepertoire(userId, [{ ...updates, id: wizardStandaloneSong.master_id || wizardStandaloneSong.id, name: wizardStandaloneSong.name, artist: wizardStandaloneSong.artist }]);
+      await fetchSetlistsAndRepertoire();
+    } catch (err: unknown) { showError(`Save failed: ${err instanceof Error ? err.message : String(err)}`); }
+  }, [userId, wizardStandaloneSong, fetchSetlistsAndRepertoire]);
+
+  const handleWizardGoToTab = (tab: string) => {
+    setIsWizardStandaloneOpen(false);
+    if (wizardStandaloneSong) {
+      setSongStudioModalSongId(wizardStandaloneSong.master_id || wizardStandaloneSong.id);
+      setSongStudioModalGigId(activeDashboardView === 'gigs' ? activeSetlistId : 'library');
+      setSongStudioVisibleSongs(activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire);
+      setIsSongStudioModalOpen(true);
+      setSongStudioDefaultTab(tab as StudioTab);
+    }
   };
 
   const handleUpdateSongInSetlist = useCallback(async (songId: string, updates: Partial<SetlistSong>) => {
@@ -514,6 +543,73 @@ const Index = () => {
     } catch (err: unknown) { showError(`Failed to update setlist: ${err instanceof Error ? err.message : String(err)}`); }
   }, [fetchSetlistsAndRepertoire, allSetlists]);
 
+  const handleAutoLink = useCallback(async () => {
+    const missing = masterRepertoire.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === "");
+    if (missing.length === 0) {
+      showInfo("All tracks already have YouTube links.");
+      return;
+    }
+    showInfo(`Initiating YouTube discovery for ${missing.length} tracks...`);
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
+        body: { songIds: missing.map(s => s.master_id || s.id) }
+      });
+      if (error) throw error;
+      showSuccess(`Discovery pipeline active — ${missing.length} tracks queued.`);
+      fetchSetlistsAndRepertoire();
+    } catch (err: unknown) {
+      showError(`Discovery Failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [masterRepertoire, fetchSetlistsAndRepertoire]);
+
+  const retryFailedCount = useMemo(
+    () => masterRepertoire.filter(s => s.extraction_status === 'failed').length,
+    [masterRepertoire]
+  );
+
+  const handleRetryFailed = useCallback(async () => {
+    const failed = masterRepertoire.filter(s => s.extraction_status === 'failed' && s.name && s.artist);
+    if (failed.length === 0) {
+      showInfo("No failed extractions to retry.");
+      return;
+    }
+    showInfo(`Re-discovering YouTube links for ${failed.length} failed tracks...`);
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
+        body: { songIds: failed.map(s => s.master_id || s.id) }
+      });
+      if (error) throw error;
+      showSuccess(`YouTube links updated for ${failed.length} tracks. Re-queuing extraction...`);
+      for (const song of failed) {
+        const songId = song.master_id || song.id;
+        await supabase.from('repertoire').update({ extraction_status: 'queued' }).eq('id', songId);
+      }
+      showSuccess(`Re-queued extraction for ${failed.length} tracks.`);
+      fetchSetlistsAndRepertoire();
+    } catch (err: unknown) {
+      showError(`Retry failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [masterRepertoire, fetchSetlistsAndRepertoire]);
+
+  const handleClearAutoLinks = useCallback(async () => {
+    const autoLinked = masterRepertoire.filter(s => s.metadata_source === 'auto_populated');
+    if (autoLinked.length === 0) {
+      showInfo("No auto-populated links to clear.");
+      return;
+    }
+    try {
+      const { error } = await supabase.from('repertoire')
+        .update({ youtube_url: null, metadata_source: null })
+        .eq('metadata_source', 'auto_populated')
+        .eq('user_id', userId);
+      if (error) throw error;
+      showSuccess(`Cleared ${autoLinked.length} auto-populated links.`);
+      fetchSetlistsAndRepertoire();
+    } catch (err: unknown) {
+      showError(`Clear failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [userId, masterRepertoire, fetchSetlistsAndRepertoire]);
+
   const handleBulkVibeCheck = async () => {
     const songsToVibeCheck = masterRepertoire.filter(s => !s.energy_level && s.name && s.artist);
     if (songsToVibeCheck.length === 0) {
@@ -734,6 +830,10 @@ const Index = () => {
               onOpenAdmin={() => setIsAdminPanelOpen(true)} 
               activeSetlistId={activeSetlistId} 
               onBulkVibeCheck={handleBulkVibeCheck} 
+              onAutoLink={handleAutoLink}
+              onClearAutoLinks={handleClearAutoLinks}
+              onRetryFailed={handleRetryFailed}
+              retryFailedCount={retryFailedCount}
             />
           </TabsContent>
         </Tabs>
@@ -860,6 +960,11 @@ const Index = () => {
         setActiveSetGroup={setActiveSetGroup}
         auditData={auditData}
         isAuditLoading={isAuditLoading}
+        isWizardStandaloneOpen={isWizardStandaloneOpen}
+        wizardStandaloneSong={wizardStandaloneSong}
+        onWizardClose={() => { setIsWizardStandaloneOpen(false); setWizardStandaloneSong(null); }}
+        onWizardAutoSave={handleWizardAutoSave}
+        onWizardGoToTab={handleWizardGoToTab}
         onSelectSong={handleSelectSong}
         onUpdateSongInSetlist={handleUpdateSongInSetlist}
         onUpdateSetlistSongs={handleUpdateSetlistSongs}

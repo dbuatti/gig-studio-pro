@@ -37,13 +37,13 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   };
 
   const handleSearchChart = () => {
-    const query = encodeURIComponent(`${formData.name} ${formData.artist} sheet music pdf free`);
+    const query = encodeURIComponent(`${formData.name} ${formData.artist} sheet music filetype:pdf`);
     window.open(`https://www.google.com/search?q=${query}`, '_blank');
   };
 
   return (
     <div className={cn(
-      "space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12",
+      "space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-12",
       isMobile ? "px-0" : ""
     )}>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
@@ -198,6 +198,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
               onRemove={handleRemoveFile}
               songId={formData.master_id || formData.id}
               songTitle={formData.name}
+              songArtist={formData.artist}
             />
 
             <div className="space-y-3 md:space-y-4 pt-3 md:pt-4 border-t border-white/5">

@@ -1,10 +1,13 @@
 "use client";
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
-import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize, Eye, Globe } from 'lucide-react';
+import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize, Eye, Globe, Upload, Loader2, FileType } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
+import { useAuth } from '@/components/AuthProvider';
+import { r2Storage } from '@/utils/r2Storage';
 import UGChordsEditor from './UGChordsEditor';
 import UGChordsReader from './UGChordsReader';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
@@ -45,8 +48,42 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   isPitchLinked,
   setIsPitchLinked,
 }) => {
+  const { user } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
   const [isReaderExpanded, setIsReaderExpanded] = useState(false);
+  const [isDropping, setIsDropping] = useState(false);
+
+  const onDropPdf = useCallback(async (acceptedFiles: File[]) => {
+    if (!user || acceptedFiles.length === 0) return;
+    const file = acceptedFiles[0];
+    if (file.type !== 'application/pdf') {
+      showError("Only PDF files are supported.");
+      return;
+    }
+    setIsDropping(true);
+    try {
+      const sanitize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').trim();
+      const artist = sanitize(formData.artist || 'artist');
+      const title = sanitize(formData.name || 'track');
+      const fileName = `${artist}_${title}_score.pdf`;
+      const filePath = `${user.id}/${formData.master_id || formData.id}_${artist}_${title}/${fileName}`;
+      const publicUrl = await r2Storage.upload(filePath, file);
+      handleAutoSave({ pdfUrl: publicUrl, leadsheetUrl: undefined });
+      showSuccess("PDF uploaded and linked.");
+    } catch (err: unknown) {
+      showError(`Upload failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsDropping(false);
+    }
+  }, [user, formData, handleAutoSave]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: onDropPdf,
+    accept: { 'application/pdf': ['.pdf'] },
+    multiple: false,
+    disabled: isDropping,
+    noClick: true,
+  });
   
   const currentChartUrl = useMemo(() => {
     switch(activeChartType) {
@@ -71,7 +108,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   }, [activeChartType, formData.ugUrl, currentChartUrl, isFramable]);
 
   const handleSearchChart = () => {
-    const query = encodeURIComponent(`${formData.name} ${formData.artist} sheet music pdf free`);
+    const query = encodeURIComponent(`${formData.name} ${formData.artist} sheet music filetype:pdf`);
     window.open(`https://www.google.com/search?q=${query}`, '_blank');
   };
 
@@ -195,19 +232,40 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                 </div>
               )
             ) : (
-              <div className="h-full flex flex-col items-center justify-center p-8 bg-slate-100 text-center">
-                <div className="bg-indigo-600/10 p-6 rounded-[2rem] mb-6">
-                  <Globe className="w-12 h-12 text-indigo-600" />
-                </div>
-                <h4 className="text-lg font-black text-slate-900 uppercase">No Active Chart</h4>
-                <p className="text-sm text-slate-500 mt-2 mb-8 max-w-xs mx-auto">Link a PDF, Lead Sheet, or Ultimate Guitar tab in the details tab to view it here.</p>
-                <Button 
-                  onClick={handleSearchChart}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-indigo-600/20 gap-3"
-                >
-                  <Search className="w-4 h-4" />
-                  Search Web for PDF
-                </Button>
+              <div {...getRootProps()} className={cn(
+                "h-full flex flex-col items-center justify-center p-8 text-center transition-all duration-200",
+                isDragActive ? "bg-indigo-600/20 border-2 border-dashed border-indigo-500" : "bg-slate-100",
+                isDropping && "opacity-50 pointer-events-none"
+              )}>
+                <input {...getInputProps()} />
+                {isDropping ? (
+                  <>
+                    <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-6" />
+                    <h4 className="text-lg font-black text-slate-900 uppercase">Uploading...</h4>
+                  </>
+                ) : isDragActive ? (
+                  <>
+                    <div className="bg-indigo-600 p-6 rounded-[2rem] mb-6">
+                      <Upload className="w-12 h-12 text-white" />
+                    </div>
+                    <h4 className="text-lg font-black text-slate-900 uppercase">Drop PDF to Link</h4>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-indigo-600/10 p-6 rounded-[2rem] mb-6">
+                      <Globe className="w-12 h-12 text-indigo-600" />
+                    </div>
+                    <h4 className="text-lg font-black text-slate-900 uppercase">No Active Chart</h4>
+                    <p className="text-sm text-slate-500 mt-2 mb-8 max-w-xs mx-auto">Drag & drop a PDF here, or search the web for one.</p>
+                    <Button 
+                      onClick={handleSearchChart}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-indigo-600/20 gap-3"
+                    >
+                      <Search className="w-4 h-4" />
+                      Search Web for PDF
+                    </Button>
+                  </>
+                )}
               </div>
             )}
           </div>

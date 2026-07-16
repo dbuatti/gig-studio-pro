@@ -29,6 +29,7 @@ export interface GlobalSettings {
   preventStageKeyOverwrite: boolean;
   linkSize: 'small' | 'medium' | 'large' | 'extra-large';
   disablePortraitPdfScroll: boolean;
+  wizardMode: boolean;
 }
 
 const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
@@ -53,6 +54,7 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   preventStageKeyOverwrite: false,
   linkSize: 'medium',
   disablePortraitPdfScroll: false,
+  wizardMode: false,
 };
 
 export function useSettings() {
@@ -81,7 +83,7 @@ export function useSettings() {
               goal_original_key_count, goal_target_key_count, goal_pdfs_count, default_dashboard_view,
               ug_chords_font_family, ug_chords_font_size, ug_chords_chord_bold, ug_chords_chord_color,
               ug_chords_line_spacing, ug_chords_text_align, prevent_stage_key_overwrite,
-              link_size, disable_portrait_pdf_scroll
+              link_size, disable_portrait_pdf_scroll, wizard_mode
             `)
             .eq('id', user.id)
             .single();
@@ -112,6 +114,7 @@ export function useSettings() {
             if (data.prevent_stage_key_overwrite !== undefined) loadedSettings.preventStageKeyOverwrite = data.prevent_stage_key_overwrite;
             if (data.link_size) loadedSettings.linkSize = data.link_size as 'small' | 'medium' | 'large' | 'extra-large';
             if (data.disable_portrait_pdf_scroll !== undefined) loadedSettings.disablePortraitPdfScroll = data.disable_portrait_pdf_scroll;
+            if (data.wizard_mode !== undefined) loadedSettings.wizardMode = data.wizard_mode;
             
             setSettings(prev => {
               const newSettings = { ...prev, ...loadedSettings };
@@ -180,6 +183,7 @@ export function useSettings() {
           preventStageKeyOverwrite: 'prevent_stage_key_overwrite',
           linkSize: 'link_size',
           disablePortraitPdfScroll: 'disable_portrait_pdf_scroll',
+          wizardMode: 'wizard_mode',
         };
         const dbColumn = dbKeyMap[key];
         await supabase
@@ -226,6 +230,7 @@ export function useSettings() {
     setPreventStageKeyOverwrite: (prevent: boolean) => updateSetting('preventStageKeyOverwrite', prevent),
     setLinkSize: (size: 'small' | 'medium' | 'large' | 'extra-large') => updateSetting('linkSize', size),
     setDisablePortraitPdfScroll: (disable: boolean) => updateSetting('disablePortraitPdfScroll', disable),
+    setWizardMode: (enabled: boolean) => updateSetting('wizardMode', enabled),
     updateAllSheetLinksSize,
     isFetchingSettings,
   };

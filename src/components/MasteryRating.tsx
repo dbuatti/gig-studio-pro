@@ -44,8 +44,8 @@ const MasteryRating: React.FC<MasteryRatingProps> = ({
               e.preventDefault();
               e.stopPropagation();
               if (!readonly && onChange) {
-                // Convert 1-5 back to 0-100
-                onChange(star * 20);
+                const newVal = star * 20;
+                onChange(newVal === displayValue * 20 ? 0 : newVal);
               }
             }}
             className={cn(

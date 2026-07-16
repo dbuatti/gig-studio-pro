@@ -8,23 +8,30 @@ export const r2Storage = {
    * Gets a presigned URL and uploads a file directly to R2.
    */
   async upload(path: string, file: File): Promise<string> {
-    const { data, error } = await supabase.functions.invoke('r2-storage', {
-      body: { action: 'getUploadUrl', path, contentType: file.type }
-    });
+    const formData = new FormData();
+    formData.append('action', 'uploadDirect');
+    formData.append('path', path);
+    formData.append('file', file);
 
-    if (error) throw new Error(error.message || "Unknown error");
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token;
 
-    const uploadRes = await fetch(data.url, {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': file.type }
-    });
+    const res = await fetch(
+      `https://rqesjpnhrjdjnrzdhzgw.supabase.co/functions/v1/r2-storage`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      }
+    );
 
-    if (!uploadRes.ok) throw new Error("Failed to upload to R2");
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(errBody || `Upload failed (${res.status})`);
+    }
 
-    // Construct the public URL using the base URL returned from the Edge Function
-    const publicBaseUrl = data.publicBaseUrl.replace(/\/$/, '');
-    return `${publicBaseUrl}/${path}`;
+    const data = await res.json();
+    return data.url;
   },
 
   /**

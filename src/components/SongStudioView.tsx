@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Check, Sparkles, Loader2, AlertCircle, ShieldAlert, Globe, X } from 'lucide-react'; 
+import { ArrowLeft, Check, Sparkles, Loader2, AlertCircle, ShieldAlert, Globe, X, Target } from 'lucide-react'; 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -18,6 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
+import ReadinessWizardModal from './ReadinessWizardModal';
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { extractKeyFromChords } from '@/utils/chordUtils';
@@ -66,7 +67,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
-  const { keyPreference: globalKeyPreference } = useSettings();
+  const { keyPreference: globalKeyPreference, wizardMode } = useSettings();
   
   const internalAudio = useToneAudio();
   const audio = externalAudioEngine || internalAudio;
@@ -77,7 +78,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
-  const [isProSyncOpen, setIsProSyncOpen] = useState(false); 
+  const [isProSyncOpen, setIsProSyncOpen] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastPendingUpdatesRef = useRef<Partial<SetlistSong>>({});
@@ -241,6 +243,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         extraction_status: data.extraction_status,
         energy_level: data.energy_level as EnergyZone,
         comfort_level: (data.comfort_level !== null && data.comfort_level <= 5) ? data.comfort_level * 20 : (data.comfort_level ?? 0),
+        readiness_checklist: data.readiness_checklist || [],
       };
       
       setSong(targetSong);
@@ -264,6 +267,13 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   useEffect(() => {
     fetchData();
   }, [songId, gigId]);
+
+  // Auto-open wizard when song loads and wizard mode is on
+  useEffect(() => {
+    if (!loading && formData.id && wizardMode) {
+      setIsWizardOpen(true);
+    }
+  }, [loading, formData.id, wizardMode]);
 
   useEffect(() => {
     if (loading || !song) return;
@@ -340,7 +350,12 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     return !blockedSites.some(site => url.includes(site));
   }, []);
 
-  if (loading) return <div className="h-full flex items-center justify-center bg-slate-950"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
+  if (loading) return (
+    <div className="h-full flex items-center justify-center bg-slate-950" role="status" aria-label="Loading song">
+      <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
+      <span className="sr-only">Loading song data...</span>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full bg-slate-950 overflow-hidden">
@@ -387,7 +402,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         onTabChange={setActiveTab}
       />
       
-      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
         <StudioTabContent
           activeTab={activeTab}
           song={song}
@@ -422,6 +437,26 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           onRefreshSong={fetchData}
         />
       </div>
+
+      {/* Wizard reopen button */}
+      {wizardMode && !isWizardOpen && formData.id && (
+        <button
+          onClick={() => setIsWizardOpen(true)}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-2xl shadow-indigo-600/30 text-[9px] font-black uppercase tracking-widest text-white transition-all active:scale-95"
+        >
+          <Target className="w-4 h-4" />
+          Open Wizard
+        </button>
+      )}
+
+      {/* Wizard Modal */}
+      <ReadinessWizardModal
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        formData={formData}
+        handleAutoSave={activeAutoSave}
+        onSwitchTab={setActiveTab}
+      />
     </div>
   );
 };

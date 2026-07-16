@@ -32,6 +32,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
   const { 
     keyPreference, setKeyPreference, 
     setIsSafePitchEnabled,
+    wizardMode, setWizardMode,
     isGoalTrackerEnabled, setIsGoalTrackerEnabled,
     goalLyricsCount, setGoalLyricsCount,
     goalUgChordsCount, setGoalUgChordsCount,
@@ -98,7 +99,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-slate-950 text-white border-white/10 rounded-[2.5rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+      <DialogContent className="max-w-md bg-slate-950 text-white border-white/10 rounded-[2.5rem] p-0 overflow-hidden flex flex-col shadow-2xl max-h-[85vh]">
         <div className="p-8 bg-indigo-600 shrink-0 relative">
           <button 
             onClick={onClose}
@@ -254,6 +255,18 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                   checked={preventStageKeyOverwrite} 
                   onCheckedChange={setPreventStageKeyOverwrite}
                   className="data-[state=checked]:bg-emerald-600"
+                />
+              </div>
+
+              <div className="p-5 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-black uppercase text-white">Readiness Wizard</p>
+                  <p className="text-[9px] text-slate-500 uppercase font-bold">Step-through guided preparation</p>
+                </div>
+                <Switch 
+                  checked={wizardMode} 
+                  onCheckedChange={setWizardMode}
+                  className="data-[state=checked]:bg-indigo-600"
                 />
               </div>
 

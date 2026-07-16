@@ -40,6 +40,8 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const [isQueuingExtraction, setIsQueuingExtraction] = useState(false); 
   const [lastQuery, setLastQuery] = useState("");
 
+  const hasExistingAudio = song?.extraction_status === 'completed' && !!(song?.audio_url || song?.previewUrl);
+
   const currentVideoId = useMemo(() => {
     if (!formData.youtubeUrl) return null;
     const match = formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/);
@@ -160,8 +162,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       return;
     }
 
-    const isOverride = song?.extraction_status === 'completed' && song?.audio_url;
-
     handleAutoSave({ youtubeUrl: targetVideoUrl });
     setIsQueuingExtraction(true); 
 
@@ -172,7 +172,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         last_sync_log: 'Queued for background audio extraction.'
       };
 
-      if (isOverride) {
+      if (hasExistingAudio) {
         dbUpdates.audio_url = null;
         dbUpdates.last_sync_log = 'Re-queued — manual override with new YouTube source.';
       }
@@ -184,7 +184,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 
       if (error) throw new Error(error.message || "Unknown error");
 
-      if (isOverride && onRefreshSong) {
+      if (hasExistingAudio && onRefreshSong) {
         await onRefreshSong();
         showSuccess("Audio re-queued with new YouTube source. Old extraction cleared.");
       } else {
@@ -219,7 +219,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             onKeyDown={(e) => e.key === 'Enter' && performYoutubeDiscovery(formData.youtubeUrl || '')}
             className="flex-1 bg-slate-900 border-white/10 h-14 px-6 rounded-xl text-white placeholder:text-slate-600"
           />
-          {song?.extraction_status === 'completed' && song?.audio_url && (
+          {hasExistingAudio && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-950/40 border border-amber-800/30 rounded-lg">
               <CheckCircle2 className="w-3 h-3 text-amber-400 shrink-0" />
               <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">
@@ -242,7 +242,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             disabled={isSearchingYoutube || isQueuingExtraction || !formData.youtubeUrl}
             className={cn(
               "h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg",
-              song?.extraction_status === 'completed' && song?.audio_url
+              hasExistingAudio
                 ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20"
                 : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
             )}
@@ -250,9 +250,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             {isQueuingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} 
             {isQueuingExtraction 
               ? 'QUEUING...' 
-              : (song?.extraction_status === 'completed' && song?.audio_url 
-                  ? 'RE-EXTRACT' 
-                  : 'QUEUE BACKGROUND EXTRACT')
+              : (hasExistingAudio ? 'RE-EXTRACT' : 'QUEUE BACKGROUND EXTRACT')
             }
           </Button>
         </div>

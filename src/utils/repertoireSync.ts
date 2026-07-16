@@ -14,41 +14,67 @@ const isValidUuid = (uuid: string | undefined | null): boolean => {
 };
 
 /**
- * Calculates a granular readiness score (0-100).
- * 70% is based on objective metadata/files.
- * 30% is based on subjective 'comfort_level' (Mastery).
+ * Sub-task level validators for readiness scoring.
+ * Each individual sub-task contributes equally to the total percentage.
+ */
+const SUBTASK_VALIDATORS: Record<string, (song: Partial<SetlistSong>) => boolean> = {
+  reader_ready_1: (s) => !!(s.pdfUrl || s.leadsheetUrl),
+  reader_ready_2: (s) => !!s.preferred_reader && s.preferred_reader !== 'unsure',
+  key_1: (s) => !!s.originalKey && s.originalKey !== 'TBC',
+  key_2: (s) => !!s.targetKey,
+  key_3: (s) => !!s.highest_note_original && /^[A-G][#b]?[0-8]$/.test(s.highest_note_original),
+  key_4: (s) => !!s.isKeyConfirmed,
+  lyrics_1: (s) => !!(s.lyrics && s.lyrics.length > 20),
+  structure_1: (s) => !!(s.ug_chords_text && s.ug_chords_text.length > 10),
+  tricky_1: (s) => !!(s.notes && s.notes.length > 5),
+  confidence: (s) => (s.comfort_level || 0) > 0,
+  ready: (s) => s.is_ready_to_sing === true,
+};
+const TOTAL_SUBTASKS = Object.keys(SUBTASK_VALIDATORS).length;
+
+/**
+ * Calculates readiness score (0-100) based on individual sub-task completion.
+ * Each sub-task contributes an equal share. "Unsure", "TBC" don't count.
+ * Falls back to legacy scoring if checklist hasn't been initialized.
  */
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
+  if (song.readiness_checklist !== undefined) {
+    const weight = 100 / TOTAL_SUBTASKS;
+    let earned = 0;
+    const results = Object.entries(SUBTASK_VALIDATORS).map(([id, validator]) => {
+      if (id === 'confidence') {
+        return weight * Math.min(1, (song.comfort_level || 0) / 100);
+      }
+      return validator(song) ? weight : 0;
+    });
+    earned = results.reduce((a, b) => a + b, 0);
+    return Math.round(Math.min(100, earned));
+  }
+
+  // Fallback: legacy granular scoring for songs without checklist
   let objectiveScore = 0;
   
-  // 1. Audio Quality (20%)
   const status = (song.extraction_status || "").toLowerCase();
   if (song.audio_url && status === 'completed') objectiveScore += 20;
   else if (song.previewUrl) objectiveScore += 5;
 
-  // 2. Charts & Lyrics (20%)
   const hasLyrics = (song.lyrics || "").length > 50;
   const hasChordsText = (song.ug_chords_text || "").length > 20;
   if (hasLyrics && hasChordsText) objectiveScore += 20;
   else if (hasLyrics || hasChordsText) objectiveScore += 10;
 
-  // 3. Technical Confirmation (20%)
   if (song.isKeyConfirmed) objectiveScore += 10;
   if (song.bpm && song.bpm !== "0") objectiveScore += 10;
 
-  // 4. Metadata & Resources (10%)
   const hasSheetLink = (song.pdfUrl || song.leadsheetUrl || song.sheet_music_url || "").length > 0;
   if (hasSheetLink) objectiveScore += 5;
   if (song.isMetadataConfirmed) objectiveScore += 5;
 
-  // 5. Subjective Mastery (30%)
-  // comfort_level is 0-100%.
   const comfortLevel = song.comfort_level || 0;
   const subjectiveScore = (comfortLevel / 100) * 30;
 
   let totalScore = objectiveScore + subjectiveScore;
 
-  // Penalties
   if (song.is_ready_to_sing === false) totalScore -= 50;
 
   return Math.max(0, Math.min(100, Math.round(totalScore)));
@@ -137,6 +163,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.resources !== undefined) dbUpdates.resources = song.resources;
     if (song.user_tags !== undefined) dbUpdates.user_tags = song.user_tags;
     if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config;
+    if (song.readiness_checklist !== undefined) dbUpdates.readiness_checklist = song.readiness_checklist;
     
     let result;
     let error;
@@ -210,6 +237,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       energy_level: result.energy_level as EnergyZone,
       comfort_level: (result.comfort_level !== null && result.comfort_level <= 5) ? result.comfort_level * 20 : (result.comfort_level ?? 0),
       needs_improvement: result.needs_improvement ?? false,
+      readiness_checklist: result.readiness_checklist || [],
     } as SetlistSong);
     } catch (err) {
       console.error(`[repertoireSync] Unexpected error syncing song ${song.name}:`, err);

@@ -38,6 +38,8 @@ interface SetlistExporterProps {
   isBulkDownloading?: boolean;
   missingAudioCount?: number;
   onOpenAdmin?: () => void;
+  onRetryFailed?: () => Promise<void>;
+  retryFailedCount?: number;
 }
 
 const SetlistExporter: React.FC<SetlistExporterProps> = ({ 
@@ -49,12 +51,15 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
   onBulkVibeCheck,
   isBulkDownloading,
   missingAudioCount = 0,
-  onOpenAdmin
+  onOpenAdmin,
+  onRetryFailed,
+  retryFailedCount = 0,
 }) => {
   const [isLinking, setIsLinking] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isVibeChecking, setIsVibeChecking] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const isMissingLink = (url?: string) => {
     if (!url) return true;
@@ -74,7 +79,8 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
     return songs.filter(s => !s.energy_level && s.name && s.artist && s.bpm).length;
   }, [songs]);
 
-  const handleAction = async (action: () => Promise<void>, setter: (v: boolean) => void, successMsg: string) => {
+  const handleAction = async (action: (() => Promise<void>) | undefined, setter: (v: boolean) => void, successMsg: string) => {
+    if (!action) return;
     setter(true);
     try {
       await action();
@@ -115,13 +121,15 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
             >
               <RefreshCcw className="w-4 h-4 mr-2" /> Force Refresh All Audio
             </DropdownMenuItem>
-            <DropdownMenuItem 
-              disabled={autoPopulatedCount === 0 || isClearing}
-              onClick={() => handleAction(onClearAutoLinks!, setIsClearing, "Auto-links cleared")}
-              className="cursor-pointer"
-            >
-              <Undo2 className="w-4 h-4 mr-2" /> Clear Auto-Links ({autoPopulatedCount})
-            </DropdownMenuItem>
+            {onClearAutoLinks && (
+              <DropdownMenuItem 
+                disabled={autoPopulatedCount === 0 || isClearing}
+                onClick={() => handleAction(onClearAutoLinks, setIsClearing, "Auto-links cleared")}
+                className="cursor-pointer"
+              >
+                <Undo2 className="w-4 h-4 mr-2" /> Clear Auto-Links ({autoPopulatedCount})
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -134,7 +142,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  onClick={() => handleAction(onBulkVibeCheck!, setIsVibeChecking, "Bulk Vibe Check Complete")}
+                  onClick={() => handleAction(onBulkVibeCheck, setIsVibeChecking, "Bulk Vibe Check Complete")}
                   disabled={isVibeChecking || missingEnergyCount === 0}
                   className={cn(
                     "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
@@ -154,46 +162,50 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
           </Tooltip>
         </TooltipProvider>
 
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => handleAction(onGlobalAutoSync!, setIsSyncing, "Global Auto-Sync Pipeline Complete")}
-          disabled={isSyncing || songs.length === 0}
-          className={cn(
-            "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
-            isSyncing ? "bg-purple-50 text-purple-600" : "text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20"
-          )}
-        >
-          {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          {isSyncing ? "Syncing Metadata..." : "Global Auto-Sync"}
-        </Button>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="w-full">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => handleAction(onAutoLink!, setIsLinking, "AI Discovery Pipeline Complete")}
-                  disabled={isLinking || missingYoutubeLinkCount === 0}
-                  className={cn(
-                    "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
-                    isLinking ? "bg-indigo-50 text-indigo-400" : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
-                  )}
-                >
-                  {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Youtube className="w-4 h-4" />}
-                  Smart-Link Missing YouTube ({missingYoutubeLinkCount})
-                </Button>
-              </div>
-            </TooltipTrigger>
-            {missingYoutubeLinkCount === 0 && (
-              <TooltipContent className="bg-popover text-foreground border-border text-[10px] font-black uppercase">
-                All songs already have YouTube links bound.
-              </TooltipContent>
+        {onGlobalAutoSync && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => handleAction(onGlobalAutoSync, setIsSyncing, "Global Auto-Sync Pipeline Complete")}
+            disabled={isSyncing || songs.length === 0}
+            className={cn(
+              "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
+              isSyncing ? "bg-purple-50 text-purple-600" : "text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20"
             )}
-          </Tooltip>
-        </TooltipProvider>
+          >
+            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {isSyncing ? "Syncing Metadata..." : "Global Auto-Sync"}
+          </Button>
+        )}
+
+        {onAutoLink && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="w-full">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleAction(onAutoLink, setIsLinking, "AI Discovery Pipeline Complete")}
+                    disabled={isLinking || missingYoutubeLinkCount === 0}
+                    className={cn(
+                      "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
+                      isLinking ? "bg-indigo-50 text-indigo-400" : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                    )}
+                  >
+                    {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Youtube className="w-4 h-4" />}
+                    Smart-Link Missing YouTube ({missingYoutubeLinkCount})
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              {missingYoutubeLinkCount === 0 && (
+                <TooltipContent className="bg-popover text-foreground border-border text-[10px] font-black uppercase">
+                  All songs already have YouTube links bound.
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        )}
 
         <Button 
           variant="ghost" 
@@ -205,6 +217,19 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
           {isBulkDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           Queue Audio ({missingAudioCount} Missing Full Audio)
         </Button>
+
+        {onRetryFailed && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => handleAction(onRetryFailed, setIsRetrying, "Retry complete")}
+            disabled={isRetrying || retryFailedCount === 0}
+            className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl gap-3 relative overflow-hidden"
+          >
+            {isRetrying ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
+            Retry Failed ({retryFailedCount})
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -178,7 +178,8 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
       loadAudioBuffer(audioBuffer, initialPitch);
     } catch (err) {
       console.error("[AudioEngine] Error loadFromUrl:", err);
-      showError("Audio load failed.");
+      const isStaleUrl = url.includes('supabase.co/storage');
+      showError(isStaleUrl ? "Audio file not found — needs re-extraction. Go to Visual tab and click RE-EXTRACT." : "Audio load failed.");
       currentUrlRef.current = "";
       setCurrentUrlState("");
       isLoadingAudioRef.current = false;

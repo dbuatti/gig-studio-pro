@@ -22,6 +22,7 @@ import SetlistExporter from './SetlistExporter';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import RepertoireSuggestions from './RepertoireSuggestions';
 import { filterAndSortRepertoire } from '@/utils/repertoireFilters';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -48,6 +49,8 @@ interface RepertoireViewProps {
   isBulkDownloading?: boolean;
   missingAudioCount?: number;
   onOpenAdmin?: () => void;
+  onRetryFailed?: () => Promise<void>;
+  retryFailedCount?: number;
   onDeleteSong: (songId: string) => Promise<void>;
   activeSetlistId?: string | null;
 }
@@ -73,6 +76,8 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   isBulkDownloading,
   missingAudioCount,
   onOpenAdmin,
+  onRetryFailed,
+  retryFailedCount,
   onDeleteSong,
   activeSetlistId,
 }) => {
@@ -248,6 +253,8 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             isBulkDownloading={false}
             missingAudioCount={missingAudioCount}
             onOpenAdmin={onOpenAdmin}
+            onRetryFailed={onRetryFailed}
+            retryFailedCount={retryFailedCount}
           />
         </div>
       </div>
@@ -291,10 +298,10 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             <Table>
               <TableHeader className="sticky top-0 bg-slate-900/90 backdrop-blur-md z-10 border-b border-white/10">
                 <TableRow className="hover:bg-transparent border-none">
-                  <TableHead className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-[40%]">Song / Artist</TableHead>
-                  <TableHead className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-[20%] text-center">Readiness</TableHead>
-                  <TableHead className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-[20%] text-center">Harmonic Data</TableHead>
-                  <TableHead className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-[20%] text-right pr-14">Actions</TableHead>
+                  <TableHead className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-[45%]">Song</TableHead>
+                  <TableHead className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-[15%] text-center">Rdy</TableHead>
+                  <TableHead className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-[20%] text-center">Key</TableHead>
+                  <TableHead className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-[20%] text-right">Act</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -334,85 +341,72 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                         key={song.id}
                         onClick={() => onEditSong(song, 'details')}
                         className={cn(
-                          "transition-all group relative cursor-pointer h-[100px] border-b border-white/5",
+                          "transition-all group relative cursor-pointer h-[56px] border-b border-white/5",
                           "hover:bg-white/[0.02]"
                         )}
                       >
-                        <TableCell className="py-5 px-10 text-left">
-                          <div className="flex flex-col gap-2 min-w-0">
-                            <div className="flex items-center gap-4 min-w-0">
-                              <h4 className="text-xl font-black tracking-tight leading-none flex items-center gap-3 text-white truncate">
-                                {song.name}
-                                {isFullyReady && <Check className="w-5 h-5 text-emerald-500 fill-emerald-500/20 shrink-0" />}
-                                {isProcessing && <CloudDownload className="w-5 h-5 text-indigo-500 animate-bounce shrink-0" />}
-                                {isExtractionFailed && <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />}
-                              </h4>
-                              {song.isMetadataConfirmed && <ShieldCheck className="w-4.5 h-4.5 text-indigo-500 shrink-0" />}
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none truncate">
-                                {song.artist || "Unknown Artist"}
-                              </span>
-                            </div>
-                            {isExtractionFailed && song.last_sync_log && (
-                              <p className="text-[9px] text-red-400 mt-1.5 truncate max-w-[250px] font-medium">Error: {song.last_sync_log}</p>
-                            )}
+                        <TableCell className="py-2 px-3 text-left min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <h4 className="text-sm font-black tracking-tight leading-none flex items-center gap-1.5 text-white truncate max-w-[260px]">
+                              {song.name}
+                              {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce shrink-0" />}
+                              {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+                            </h4>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate shrink-0 max-w-[100px]">{song.artist || "Unknown Artist"}</span>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-slate-900 text-white border-white/10 text-xs font-medium">
+                                  {song.name} — {song.artist || "Unknown Artist"}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            {isFullyReady && <Check className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/20 shrink-0" />}
+                            {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
                           </div>
                         </TableCell>
-                        <TableCell className="py-5 px-10 text-center">
-                          <div className="flex flex-col items-center justify-center h-full gap-2">
-                            <span className={cn(
-                              "text-xs font-mono font-black px-4 py-1.5 rounded-xl flex items-center gap-2.5 shadow-lg",
-                              readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-indigo-600/20 text-indigo-400 border border-indigo-500/20"
+                        <TableCell className="py-2 px-3 text-center w-16">
+                          <span className={cn(
+                            "text-[10px] font-mono font-black px-2 py-0.5 rounded-lg inline-flex items-center gap-1 border",
+                            readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/20" : "bg-indigo-600/20 text-indigo-400 border-indigo-500/20"
+                          )}>
+                            {readinessScore}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-2 px-3 text-center w-32">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="text-[10px] font-mono font-bold text-slate-500">{displayOrigKey}</span>
+                            <ArrowRight className="w-3 h-3 text-slate-600" />
+                            <div className={cn(
+                              "font-mono font-black text-[10px] px-2 py-0.5 rounded-lg flex items-center gap-1 leading-none border",
+                              song.isKeyConfirmed ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/20" : "bg-indigo-600/20 text-indigo-400 border-indigo-500/20"
                             )}>
-                              {readinessScore}%
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-5 px-10 text-center">
-                          <div className="flex items-center justify-center gap-8 h-full">
-                            <div className="text-center min-w-[45px]">
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Orig</p>
-                              <span className="text-base font-mono font-bold text-slate-300">{displayOrigKey}</span>
-                            </div>
-                            <div className="flex flex-col items-center justify-center opacity-20">
-                              <ArrowRight className="w-5 h-5 text-slate-400 mb-1" />
-                              <div className="h-px w-10 bg-white/20" />
-                            </div>
-                            <div className="text-center min-w-[45px] relative">
-                              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">Stage</p>
-                              <div className={cn(
-                                "font-mono font-black text-base px-4 py-2 rounded-xl shadow-2xl flex items-center justify-center gap-2.5 leading-none border transition-all",
-                                song.isKeyConfirmed ? "bg-emerald-600 text-white border-emerald-400 shadow-emerald-500/20" : "bg-indigo-600 text-white border-indigo-400 shadow-indigo-500/20"
-                              )}>
-                                {displayTargetKey}
-                                {song.isKeyConfirmed && <Check className="w-4 h-4" />}
-                              </div>
+                              {displayTargetKey}
+                              {song.isKeyConfirmed && <Check className="w-2.5 h-2.5" />}
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="py-5 px-10 text-right pr-14">
-                          <div className="flex items-center justify-end gap-4 h-full">
+                        <TableCell className="py-2 px-3 text-right pr-3 w-40">
+                          <div className="flex items-center justify-end gap-1">
                             <SetlistMultiSelector
                               songMasterId={song.id}
                               allSetlists={allSetlists}
                               songToAssign={song}
                               onUpdateSetlistSongs={onUpdateSetlistSongs}
                             />
-                            <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song); }}>
-                              <Edit3 className="w-6 h-6" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-12 w-12 rounded-2xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all inline-flex items-center justify-center"
+                            <button className="h-8 w-8 rounded-xl text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song); }}>
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              className="h-8 w-8 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all inline-flex items-center justify-center"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDeleteConfirmId(song.id);
                               }}
                             >
-                              <Trash2 className="w-6 h-6" />
-                            </Button>
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </TableCell>
                       </TableRow>

@@ -89,7 +89,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   const audioSourceUrl = formData.extraction_status === 'completed' && formData.audio_url ? formData.audio_url : formData.previewUrl;
 
   return (
-    <div className="space-y-6 md:space-y-12 animate-in fade-in duration-500 pb-12">
+    <div className="space-y-6 md:space-y-12 animate-in fade-in duration-200 pb-12">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h3 className="text-xs md:text-lg font-black uppercase tracking-[0.2em] text-indigo-400">
@@ -135,7 +135,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
             </div>
             
             <div className="flex items-center justify-center gap-6 md:gap-12">
-              <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-10 w-10 md:h-20 md:w-20 rounded-full border border-white/5">
+              <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-10 w-10 md:h-20 md:w-20 rounded-full border border-white/5" aria-label="Stop and reset playback">
                 <RotateCcw className="w-4 h-4 md:w-8 md:h-8" />
               </Button>
               
@@ -143,6 +143,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
                 size="lg" 
                 onClick={togglePlayback} 
                 disabled={isLoadingAudio}
+                aria-label={isPlaying ? "Pause playback" : "Play audio"}
                 className={cn(
                   "h-16 w-16 md:h-32 md:w-32 rounded-full shadow-2xl flex items-center justify-center transition-all",
                   isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"

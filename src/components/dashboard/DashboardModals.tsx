@@ -15,6 +15,7 @@ import MDAuditModal from "@/components/MDAuditModal";
 import GigPlannerModal from "@/components/GigPlannerModal";
 import ShortcutCheatSheet from "@/components/ShortcutCheatSheet";
 import StorageAuditModal from "@/components/StorageAuditModal";
+import ReadinessWizardModal from "@/components/ReadinessWizardModal";
 import { StudioTab } from "@/components/SongStudioView";
 import { syncToMasterRepertoire } from "@/utils/repertoireSync";
 import { calculateSemitones } from "@/utils/keyUtils";
@@ -67,6 +68,13 @@ interface DashboardModalsProps {
   setActiveSetGroup: (v: number | null) => void;
   auditData: Record<string, unknown> | null;
   isAuditLoading: boolean;
+
+  // Standalone wizard (wizardMode on)
+  isWizardStandaloneOpen: boolean;
+  wizardStandaloneSong: SetlistSong | null;
+  onWizardClose: () => void;
+  onWizardAutoSave: (updates: Partial<SetlistSong>) => void;
+  onWizardGoToTab: (tab: string) => void;
 
   // Handlers
   onSelectSong: (song: SetlistSong) => void;
@@ -128,6 +136,11 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
   setActiveSetGroup,
   auditData,
   isAuditLoading,
+  isWizardStandaloneOpen,
+  wizardStandaloneSong,
+  onWizardClose,
+  onWizardAutoSave,
+  onWizardGoToTab,
   onSelectSong,
   onUpdateSongInSetlist,
   onUpdateSetlistSongs,
@@ -285,6 +298,16 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
         onClose={() => setIsStorageAuditOpen(false)} 
         repertoire={masterRepertoire} 
       />
+
+      {wizardStandaloneSong && (
+        <ReadinessWizardModal
+          isOpen={isWizardStandaloneOpen}
+          onClose={onWizardClose}
+          formData={wizardStandaloneSong}
+          handleAutoSave={onWizardAutoSave}
+          onSwitchTab={onWizardGoToTab}
+        />
+      )}
     </>
   );
 };
