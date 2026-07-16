@@ -35,7 +35,7 @@ const Profile = () => {
     if (!currentUser) return;
     
     try {
-      const { data: profileData, error: pError } = await supabase
+      let { data: profileData, error: pError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
