@@ -650,10 +650,12 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
         const stageKey = formData.targetKey || formData.originalKey || '';
         const keyIndex = ALL_KEYS_SHARP.indexOf(stageKey);
         const hasAudio = !!(formData.audio_url || formData.previewUrl);
+        const isMinor = stageKey.endsWith('m');
         const shiftKey = (direction: 1 | -1) => {
           if (keyIndex === -1 || formData.originalKey === 'TBC' || !formData.originalKey) return;
-          const newIndex = (keyIndex + direction + ALL_KEYS_SHARP.length) % ALL_KEYS_SHARP.length;
-          const newKey = ALL_KEYS_SHARP[newIndex];
+          const baseIndex = isMinor ? keyIndex - 12 : keyIndex;
+          const newBaseIndex = (baseIndex + direction + 12) % 12;
+          const newKey = isMinor ? ALL_KEYS_SHARP[newBaseIndex + 12] : ALL_KEYS_SHARP[newBaseIndex];
           const semitones = calculateSemitones(formData.originalKey, newKey);
           handleAutoSave({ targetKey: newKey, pitch: semitones });
           setAudioPitch(semitones);
@@ -1036,9 +1038,12 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                 <div className="flex items-center justify-center gap-2 flex-wrap">
                   <button onClick={() => {
                     const tk = formData.targetKey || formData.originalKey || '';
+                    const isMinor = tk.endsWith('m');
                     const idx = ALL_KEYS_SHARP.indexOf(tk) >= 0 ? ALL_KEYS_SHARP.indexOf(tk) : ALL_KEYS_FLAT.indexOf(tk);
-                    if (idx > 0 && tk && tk !== 'TBC') {
-                      const newKey = ALL_KEYS_SHARP[idx - 1];
+                    if (idx >= 0 && tk && tk !== 'TBC') {
+                      const baseIdx = isMinor ? idx - 12 : idx;
+                      const newBaseIdx = (baseIdx - 1 + 12) % 12;
+                      const newKey = isMinor ? ALL_KEYS_SHARP[newBaseIdx + 12] : ALL_KEYS_SHARP[newBaseIdx];
                       const semitones = calculateSemitones(formData.originalKey, newKey);
                       handleAutoSave({ targetKey: newKey, pitch: semitones });
                       setAudioPitch(semitones);
@@ -1061,9 +1066,12 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   )}
                   <button onClick={() => {
                     const tk = formData.targetKey || formData.originalKey || '';
+                    const isMinor = tk.endsWith('m');
                     const idx = ALL_KEYS_SHARP.indexOf(tk) >= 0 ? ALL_KEYS_SHARP.indexOf(tk) : ALL_KEYS_FLAT.indexOf(tk);
-                    if (idx >= 0 && idx < ALL_KEYS_SHARP.length - 1 && tk && tk !== 'TBC') {
-                      const newKey = ALL_KEYS_SHARP[idx + 1];
+                    if (idx >= 0 && tk && tk !== 'TBC') {
+                      const baseIdx = isMinor ? idx - 12 : idx;
+                      const newBaseIdx = (baseIdx + 1 + 12) % 12;
+                      const newKey = isMinor ? ALL_KEYS_SHARP[newBaseIdx + 12] : ALL_KEYS_SHARP[newBaseIdx];
                       const semitones = calculateSemitones(formData.originalKey, newKey);
                       handleAutoSave({ targetKey: newKey, pitch: semitones });
                       setAudioPitch(semitones);
