@@ -53,6 +53,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   const requestRef = useRef<number>();
   const compressorRef = useRef<Tone.Compressor | null>(null);
   const onEndedRef = useRef<(() => void) | undefined>(onEnded);
+  const deviceErroredRef = useRef(false);
 
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
@@ -78,6 +79,17 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   }, [compressorThreshold, compressorRatio]);
 
   const ensureAudioContext = useCallback(async () => {
+    if (deviceErroredRef.current) {
+      Tone.setContext(new (Tone.Context)());
+      analyzerRef.current?.dispose();
+      analyzerRef.current = null;
+      compressorRef.current?.dispose();
+      compressorRef.current = null;
+      playerRef.current?.dispose();
+      playerRef.current = null;
+      currentBufferRef.current = null;
+      deviceErroredRef.current = false;
+    }
     if (Tone.getContext().state !== 'running') {
       await Tone.start();
     }
@@ -167,6 +179,19 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
     setCurrentUrlState("");
     isLoadingAudioRef.current = false;
     setIsLoadingAudioState(false);
+  }, []);
+
+  useEffect(() => {
+    const ctx = Tone.getContext().rawContext;
+    const handler = () => {
+      if (ctx.state === 'closed') {
+        deviceErroredRef.current = true;
+      }
+    };
+    ctx.addEventListener('statechange', handler);
+    return () => {
+      ctx.removeEventListener('statechange', handler);
+    };
   }, []);
 
   useEffect(() => {
