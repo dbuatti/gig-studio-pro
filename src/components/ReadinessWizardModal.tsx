@@ -485,7 +485,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
 
   // ── Inline inputs ──
   const renderInlineInput = (subId: string, done: boolean) => {
-    if (done && subId !== 'reader_ready.1') return null;
+    if (done && subId !== 'reader_ready.1' && subId !== 'lyrics.1') return null;
 
     switch (subId) {
       // 1.1 PDF upload
