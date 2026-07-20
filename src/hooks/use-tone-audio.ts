@@ -78,22 +78,26 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
     return true;
   }, [compressorThreshold, compressorRatio]);
 
+  const recreateContext = useCallback(() => {
+    analyzerRef.current?.dispose();
+    analyzerRef.current = null;
+    compressorRef.current?.dispose();
+    compressorRef.current = null;
+    playerRef.current?.dispose();
+    playerRef.current = null;
+    currentBufferRef.current = null;
+    Tone.setContext(new (Tone.Context)());
+  }, []);
+
   const ensureAudioContext = useCallback(async () => {
     if (deviceErroredRef.current) {
-      Tone.setContext(new (Tone.Context)());
-      analyzerRef.current?.dispose();
-      analyzerRef.current = null;
-      compressorRef.current?.dispose();
-      compressorRef.current = null;
-      playerRef.current?.dispose();
-      playerRef.current = null;
-      currentBufferRef.current = null;
+      recreateContext();
       deviceErroredRef.current = false;
     }
     if (Tone.getContext().state !== 'running') {
       await Tone.start();
     }
-  }, []);
+  }, [recreateContext]);
 
   const loadAudioBuffer = useCallback((audioBuffer: AudioBuffer, initialPitch: number = 0) => {
     if (playerRef.current) {
@@ -264,11 +268,15 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
       playbackOffsetRef.current += elapsed;
       setIsPlaying(false);
     } else {
-      const startTime = (progress / 100) * duration;
-      playbackOffsetRef.current = startTime;
-      playbackStartTimeRef.current = Tone.now();
-      playerRef.current.start(0, startTime);
-      setIsPlaying(true);
+      try {
+        const startTime = (progress / 100) * duration;
+        playbackOffsetRef.current = startTime;
+        playbackStartTimeRef.current = Tone.now();
+        playerRef.current.start(0, startTime);
+        setIsPlaying(true);
+      } catch {
+        deviceErroredRef.current = true;
+      }
     }
   }, [isPlaying, progress, duration, tempo, ensureAudioContext, initEngine, loadFromUrl, pitch]);
 
@@ -308,7 +316,11 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
       if (isPlaying) {
         playerRef.current.stop();
         playbackStartTimeRef.current = Tone.now();
-        playerRef.current.start(0, offset);
+        try {
+          playerRef.current.start(0, offset);
+        } catch {
+          deviceErroredRef.current = true;
+        }
       }
     }
   }, [duration, isPlaying]);
