@@ -18,7 +18,7 @@ import { r2Storage } from '@/utils/r2Storage';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { transposeChords } from '@/utils/chordUtils';
-import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
+import { cleanLyrics } from '@/utils/lyricsCleaner';
 
 type StudioTab = 'config' | 'audio' | 'details' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -737,6 +737,15 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white font-medium focus:outline-none focus:border-indigo-500 resize-none"
             />
             <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const cleaned = cleanLyrics(formData.lyrics || '');
+                  handleAutoSave({ lyrics: cleaned });
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-[8px] font-black uppercase tracking-widest transition-all flex-1 justify-center"
+              >
+                ✕ Clean
+              </button>
               <button
                 onClick={() => {
                   const q = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} lyrics`);
