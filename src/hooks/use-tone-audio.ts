@@ -63,9 +63,6 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   }, [onEnded]);
 
   const initEngine = useCallback(async () => {
-    if (Tone.getContext().state !== 'running') {
-      await Tone.start();
-    }
     if (!analyzerRef.current) {
       analyzerRef.current = new Tone.Analyser("fft", 256);
     }
@@ -80,46 +77,11 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
     return true;
   }, [compressorThreshold, compressorRatio]);
 
-  const resetEngine = useCallback(() => {
-    if (playerRef.current) {
-      playerRef.current.stop();
-      playerRef.current.dispose();
-      playerRef.current = null;
+  const ensureAudioContext = useCallback(async () => {
+    if (Tone.getContext().state !== 'running') {
+      await Tone.start();
     }
-    if (requestRef.current) {
-      cancelAnimationFrame(requestRef.current);
-    }
-    setIsPlaying(false);
-    setProgress(0);
-    setDuration(0);
-    playbackOffsetRef.current = 0;
-    currentBufferRef.current = null;
-    currentUrlRef.current = "";
-    setCurrentUrlState("");
-    isLoadingAudioRef.current = false;
-    setIsLoadingAudioState(false);
   }, []);
-
-  useEffect(() => {
-    return () => {
-      resetEngine();
-      analyzerRef.current?.dispose();
-      compressorRef.current?.dispose();
-    };
-  }, [resetEngine]);
-
-  useEffect(() => {
-    if (playerRef.current) {
-      playerRef.current.volume.value = volume;
-    }
-  }, [volume]);
-
-  useEffect(() => {
-    if (compressorRef.current) {
-      compressorRef.current.threshold.value = compressorThreshold;
-      compressorRef.current.ratio.value = compressorRatio;
-    }
-  }, [compressorThreshold, compressorRatio]);
 
   const loadAudioBuffer = useCallback((audioBuffer: AudioBuffer, initialPitch: number = 0) => {
     if (playerRef.current) {
@@ -170,7 +132,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
     setIsLoadingAudioState(true);
     
     try {
-      await initEngine();
+      initEngine();
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Fetch error: ${response.status}`);
       const arrayBuffer = await response.arrayBuffer();
@@ -186,6 +148,47 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
       setIsLoadingAudioState(false);
     } 
   }, [loadAudioBuffer, fineTune, initEngine]);
+
+  const resetEngine = useCallback(() => {
+    if (playerRef.current) {
+      playerRef.current.stop();
+      playerRef.current.dispose();
+      playerRef.current = null;
+    }
+    if (requestRef.current) {
+      cancelAnimationFrame(requestRef.current);
+    }
+    setIsPlaying(false);
+    setProgress(0);
+    setDuration(0);
+    playbackOffsetRef.current = 0;
+    currentBufferRef.current = null;
+    currentUrlRef.current = "";
+    setCurrentUrlState("");
+    isLoadingAudioRef.current = false;
+    setIsLoadingAudioState(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      resetEngine();
+      analyzerRef.current?.dispose();
+      compressorRef.current?.dispose();
+    };
+  }, [resetEngine]);
+
+  useEffect(() => {
+    if (playerRef.current) {
+      playerRef.current.volume.value = volume;
+    }
+  }, [volume]);
+
+  useEffect(() => {
+    if (compressorRef.current) {
+      compressorRef.current.threshold.value = compressorThreshold;
+      compressorRef.current.ratio.value = compressorRatio;
+    }
+  }, [compressorThreshold, compressorRatio]);
 
   const stopPlayback = useCallback(() => {
     if (playerRef.current) {
@@ -223,6 +226,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   }, [isPlaying, animateProgress]);
 
   const togglePlayback = useCallback(async () => {
+    await ensureAudioContext();
     await initEngine();
     if (!playerRef.current && currentUrlRef.current && !isLoadingAudioRef.current) {
       await loadFromUrl(currentUrlRef.current, pitch, true);
@@ -241,7 +245,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
       playerRef.current.start(0, startTime);
       setIsPlaying(true);
     }
-  }, [isPlaying, progress, duration, tempo, initEngine, loadFromUrl, pitch]);
+  }, [isPlaying, progress, duration, tempo, ensureAudioContext, initEngine, loadFromUrl, pitch]);
 
   const setPitch = useCallback((p: number) => {
     setPitchState(p);

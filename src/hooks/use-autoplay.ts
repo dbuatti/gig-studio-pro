@@ -37,7 +37,6 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
     if (isTransitioningRef.current) return;
     
     isTransitioningRef.current = true;
-    if (Tone.getContext().state !== 'running') await Tone.start();
 
     if (forceAutoplay) setIsAutoplayActive(true);
     setActiveSong(song);
@@ -58,11 +57,11 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
         await new Promise(resolve => setTimeout(resolve, 400));
         
         if (forceAutoplay || isAutoplayActive) {
-            Tone.getTransport().start();
+            try { Tone.getTransport().start(); } catch (e) { /* */ }
             await new Promise(resolve => setTimeout(resolve, 100));
             if (Tone.getTransport().state !== 'started' || !audio.isPlaying) {
                 audio.stopPlayback();
-                Tone.getTransport().stop();
+                try { Tone.getTransport().stop(); } catch (e) { /* */ }
                 await new Promise(resolve => setTimeout(resolve, 200));
                 audio.togglePlayback();
             }
