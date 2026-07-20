@@ -97,6 +97,17 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
     if (Tone.getContext().state !== 'running') {
       await Tone.start();
     }
+    // health check: try a silent oscillator to verify the context actually works
+    try {
+      const ctx = Tone.getContext().rawContext;
+      const osc = ctx.createOscillator();
+      osc.start(0);
+      osc.stop(0.001);
+      osc.disconnect();
+    } catch {
+      recreateContext();
+      await Tone.start();
+    }
   }, [recreateContext]);
 
   const loadAudioBuffer = useCallback((audioBuffer: AudioBuffer, initialPitch: number = 0) => {
@@ -193,8 +204,27 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
       }
     };
     ctx.addEventListener('statechange', handler);
+
+    // detect audio output device changes (HDMI plug/unplug)
+    let deviceChangeHandler: (() => void) | null = null;
+    if (navigator.mediaDevices?.addEventListener) {
+      deviceChangeHandler = () => {
+        deviceErroredRef.current = true;
+        if (playerRef.current) {
+          try { playerRef.current.stop(); } catch {}
+        }
+        setIsPlaying(false);
+        setProgress(0);
+        playbackOffsetRef.current = 0;
+      };
+      navigator.mediaDevices.addEventListener('devicechange', deviceChangeHandler);
+    }
+
     return () => {
       ctx.removeEventListener('statechange', handler);
+      if (deviceChangeHandler && navigator.mediaDevices?.removeEventListener) {
+        navigator.mediaDevices.removeEventListener('devicechange', deviceChangeHandler);
+      }
     };
   }, []);
 
