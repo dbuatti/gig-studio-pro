@@ -275,10 +275,11 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
         playerRef.current.start(0, startTime);
         setIsPlaying(true);
       } catch {
+        stopPlayback();
         deviceErroredRef.current = true;
       }
     }
-  }, [isPlaying, progress, duration, tempo, ensureAudioContext, initEngine, loadFromUrl, pitch]);
+  }, [isPlaying, progress, duration, tempo, ensureAudioContext, initEngine, loadFromUrl, pitch, stopPlayback]);
 
   const setPitch = useCallback((p: number) => {
     setPitchState(p);
@@ -319,6 +320,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
         try {
           playerRef.current.start(0, offset);
         } catch {
+          stopPlayback();
           deviceErroredRef.current = true;
         }
       }
