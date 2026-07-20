@@ -125,6 +125,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [displayTime, setDisplayTime] = useState(0);
   const grainPlayerRef = useRef<Tone.GrainPlayer | null>(null);
   const toneStartedRef = useRef(false);
   const isToneBusyRef = useRef(false);
@@ -132,6 +133,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const rafRef = useRef<number>(0);
   const playStartRef = useRef(0);
   const elapsedBeforePauseRef = useRef(0);
+  const isDraggingRef = useRef(false);
   const loadedAudioUrlRef = useRef('');
   const [isSearchingYt, setIsSearchingYt] = useState(false);
   const [ytResults, setYtResults] = useState<Record<string, unknown>[]>([]);
@@ -199,12 +201,13 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     }
   }, [audioUrl, formData.pitch]);
 
-  // Track playback position via manual timer
   useEffect(() => {
     if (!isPlaying) return;
     const tick = () => {
       const elapsed = (performance.now() - playStartRef.current) / 1000 + elapsedBeforePauseRef.current;
-      setCurrentTime(Math.min(elapsed, duration || Infinity));
+      const t = Math.min(elapsed, duration || Infinity);
+      setCurrentTime(t);
+      if (!isDraggingRef.current) setDisplayTime(t);
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -1109,8 +1112,11 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                 </div>
                 {hasAudio && (
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-mono font-bold text-slate-500 w-10 text-right">{formatTime(currentTime)}</span>
-                    <input type="range" min={0} max={duration || 1} step={0.1} value={currentTime} onChange={e => seekTo(parseFloat(e.target.value))}
+                    <span className="text-[9px] font-mono font-bold text-slate-500 w-10 text-right">{formatTime(displayTime)}</span>
+                    <input type="range" min={0} max={duration || 1} step={0.1} value={displayTime}
+                      onPointerDown={() => { isDraggingRef.current = true; }}
+                      onPointerUp={(e) => { isDraggingRef.current = false; seekTo(parseFloat(e.currentTarget.value)); }}
+                      onChange={e => setDisplayTime(parseFloat(e.target.value))}
                       className="flex-1 h-1 appearance-none bg-white/10 rounded-full cursor-pointer accent-indigo-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-400" />
                     <span className="text-[9px] font-mono font-bold text-slate-500 w-10">{formatTime(duration)}</span>
                   </div>
