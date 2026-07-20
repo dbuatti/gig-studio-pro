@@ -175,8 +175,9 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
           cancelAnimationFrame(rafRef.current);
         } else {
           console.log('[slider] starting (was stopped), offset:', elapsedBeforePauseRef.current);
+          grainPlayerRef.current.stop();
           grainPlayerRef.current.detune = targetPitch * 100;
-          grainPlayerRef.current.start(elapsedBeforePauseRef.current);
+          grainPlayerRef.current.start(0, elapsedBeforePauseRef.current);
           playStartRef.current = performance.now();
           setIsPlaying(true);
         }
@@ -193,7 +194,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
         player.onstop = () => { setIsPlaying(false); cancelAnimationFrame(rafRef.current); elapsedBeforePauseRef.current = 0; };
         grainPlayerRef.current = player;
         loadedAudioUrlRef.current = audioUrl;
-        player.start(0);
+        player.start(0, 0);
         playStartRef.current = performance.now();
         elapsedBeforePauseRef.current = 0;
         setCurrentTime(0);
@@ -224,7 +225,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     if (grainPlayerRef.current) {
       const wasPlaying = grainPlayerRef.current.state === 'started';
       grainPlayerRef.current.stop();
-      grainPlayerRef.current.start(time);
+      grainPlayerRef.current.start(0, time);
       elapsedBeforePauseRef.current = time;
       playStartRef.current = performance.now();
       setCurrentTime(time);
