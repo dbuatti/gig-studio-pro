@@ -212,8 +212,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   }, [isPlaying, duration]);
 
   const seekTo = useCallback((time: number) => {
-    if (grainPlayerRef.current && !isToneBusyRef.current) {
-      isToneBusyRef.current = true;
+    if (grainPlayerRef.current) {
       const wasPlaying = grainPlayerRef.current.state === 'started';
       grainPlayerRef.current.stop();
       grainPlayerRef.current.start(time);
@@ -221,7 +220,6 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
       playStartRef.current = performance.now();
       setCurrentTime(time);
       if (!wasPlaying) setIsPlaying(true);
-      setTimeout(() => { isToneBusyRef.current = false; }, 100);
     }
   }, []);
 
