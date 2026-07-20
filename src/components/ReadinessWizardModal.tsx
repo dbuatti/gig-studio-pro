@@ -147,7 +147,6 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const audioUrl = formData.audio_url || formData.previewUrl || '';
 
   const togglePlay = useCallback(async () => {
-    console.log('[slider] togglePlay called, audioUrl:', !!audioUrl, 'isToneBusy:', isToneBusyRef.current, 'player:', !!grainPlayerRef.current, 'playerState:', grainPlayerRef.current?.state, 'isPlaying:', isPlaying);
     if (!audioUrl || isToneBusyRef.current) return;
     isToneBusyRef.current = true;
     try {
@@ -168,13 +167,11 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
 
       if (grainPlayerRef.current) {
         if (grainPlayerRef.current.state === 'started') {
-          console.log('[slider] stopping (was started)');
           grainPlayerRef.current.stop();
           elapsedBeforePauseRef.current += (performance.now() - playStartRef.current) / 1000;
           setIsPlaying(false);
           cancelAnimationFrame(rafRef.current);
         } else {
-          console.log('[slider] starting (was stopped), offset:', elapsedBeforePauseRef.current);
           grainPlayerRef.current.stop();
           grainPlayerRef.current.detune = targetPitch * 100;
           grainPlayerRef.current.start(0, elapsedBeforePauseRef.current);
@@ -182,7 +179,6 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
           setIsPlaying(true);
         }
       } else {
-        console.log('[slider] creating new player from', audioUrl);
         const resp = await fetch(audioUrl);
         const buffer = await resp.arrayBuffer();
         const audioBuffer = await Tone.getContext().decodeAudioData(buffer);
@@ -211,7 +207,6 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     const tick = () => {
       const elapsed = (performance.now() - playStartRef.current) / 1000 + elapsedBeforePauseRef.current;
       const t = Math.min(elapsed, duration || Infinity);
-      if (Math.abs(t - currentTime) > 0.5) console.log('[slider] tick big jump:', currentTime, '->', t);
       setCurrentTime(t);
       if (!isDraggingRef.current) setDisplayTime(t);
       rafRef.current = requestAnimationFrame(tick);
@@ -221,7 +216,6 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   }, [isPlaying, duration]);
 
   const seekTo = useCallback((time: number) => {
-    console.log('[slider] seekTo', time, 'hasPlayer:', !!grainPlayerRef.current, 'playerState:', grainPlayerRef.current?.state, 'isDragging:', isDraggingRef.current);
     if (grainPlayerRef.current) {
       const wasPlaying = grainPlayerRef.current.state === 'started';
       grainPlayerRef.current.stop();
@@ -1121,9 +1115,9 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] font-mono font-bold text-slate-500 w-10 text-right">{formatTime(displayTime)}</span>
                     <input type="range" min={0} max={duration || 1} step={0.1} value={displayTime}
-                      onPointerDown={() => { console.log('[slider] pointerDown', displayTime); isDraggingRef.current = true; }}
-                      onPointerUp={(e) => { const val = parseFloat(e.currentTarget.value); console.log('[slider] pointerUp', val, 'wasPlaying:', grainPlayerRef.current?.state === 'started'); isDraggingRef.current = false; seekTo(val); }}
-                      onChange={e => { const val = parseFloat(e.target.value); console.log('[slider] onChange', val); setDisplayTime(val); }}
+                      onPointerDown={() => { isDraggingRef.current = true; }}
+                      onPointerUp={(e) => { isDraggingRef.current = false; seekTo(parseFloat(e.currentTarget.value)); }}
+                      onChange={e => setDisplayTime(parseFloat(e.target.value))}
                       className="flex-1 h-1 appearance-none bg-white/10 rounded-full cursor-pointer accent-indigo-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-400" />
                     <span className="text-[9px] font-mono font-bold text-slate-500 w-10">{formatTime(duration)}</span>
                   </div>
