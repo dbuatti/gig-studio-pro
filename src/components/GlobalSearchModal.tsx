@@ -77,7 +77,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   onSelectSong={() => {}} 
                   onAddToSetlist={(url, name, artist, yt, ug, apple, gen) => {
                     onAddSong(url, name, artist, yt, ug, apple, gen);
-                    onClose();
                   }}
                 />
               </TabsContent>
@@ -86,7 +85,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 <GlobalLibrary 
                   onImport={(song) => {
                     if (onAddExistingSong) onAddExistingSong(song as SetlistSong);
-                    onClose();
                   }} 
                 />
               </TabsContent>
@@ -99,7 +97,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   }}
                   onAddExistingSong={(song) => {
                     if (onAddExistingSong) onAddExistingSong(song);
-                    onClose();
                   }}
                 />
               </TabsContent>
@@ -109,7 +106,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   repertoire={repertoire} 
                   onAddSong={(song) => {
                     if (onAddExistingSong) onAddExistingSong(song);
-                    onClose();
                   }}
                 />
               </TabsContent>
