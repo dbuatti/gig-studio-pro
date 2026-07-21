@@ -896,7 +896,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               )}
             </div>
             <button
-              onClick={handleQueueExtraction}
+              onClick={() => handleQueueExtraction()}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all",
                 hasAudio
