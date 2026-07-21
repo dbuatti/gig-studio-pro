@@ -245,6 +245,25 @@ const SheetReaderMode: React.FC = () => {
       }));
       setFullMasterRepertoire(masterRepertoireList);
 
+      // Handle random shuffle mode
+      const shuffleParam = searchParams.get('shuffle');
+      if (shuffleParam === '1') {
+        const shuffledIdsJson = sessionStorage.getItem('reader_random_ids');
+        if (shuffledIdsJson) {
+          const shuffledIds: string[] = JSON.parse(shuffledIdsJson);
+          const shuffledSongs = shuffledIds
+            .map(id => masterRepertoireList.find(s => s.id === id))
+            .filter(Boolean) as SetlistSong[];
+          const readableShuffled = shuffledSongs.filter(s => s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url);
+          setAllSongs(readableShuffled);
+          if (targetId) {
+            const idx = readableShuffled.findIndex(s => s.id === targetId || s.master_id === targetId);
+            if (idx !== -1) setCurrentIndex(idx);
+          }
+          return;
+        }
+      }
+
       let currentViewSongs: SetlistSong[] = masterRepertoireList;
       const setParam = searchParams.get('set');
       if (readerViewMode === 'gigs' && readerSetlistId) {
@@ -483,6 +502,13 @@ const SheetReaderMode: React.FC = () => {
             />
           )}
         </AnimatePresence>
+
+        {!isZenMode && currentSong && (
+          <div className="fixed top-3 right-3 z-[100] flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 shadow-lg select-none">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="text-xs font-bold text-emerald-400 tabular-nums">{calculateReadiness(currentSong)}%</span>
+          </div>
+        )}
 
         <div
           ref={chartContainerRef}

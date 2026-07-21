@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Search, Sparkles, ShieldCheck, X, Settings, 
   Play, FileText, Pause, BookOpen, Volume2, ShieldAlert, Zap,
   ChevronRight, ChevronLeft, ChevronUp, ChevronDown, MoreHorizontal, Wrench,
-  Rocket, Activity, Command
+  Rocket, Activity, Command, Shuffle
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,6 +20,7 @@ interface FloatingCommandDockProps {
   onOpenSearch: () => void;
   onOpenPractice: () => void;
   onOpenReader: (initialSongId?: string) => void;
+  onOpenRandomReader: () => void;
   onOpenAdmin: () => void;
   onOpenPreferences: () => void;
   onOpenUserGuide: () => void;
@@ -46,6 +47,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onOpenSearch,
   onOpenPractice,
   onOpenReader,
+  onOpenRandomReader,
   onOpenAdmin,
   onOpenPreferences,
   onToggleHeatmap,
@@ -196,6 +198,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   ];
 
   const secondaryButtons = [
+    { id: 'random-reader', icon: <Shuffle className="w-4 h-4 md:w-5 md:h-5" />, onClick: onOpenRandomReader, tooltip: "Random Reader", className: "bg-emerald-900/40 text-emerald-400 border-emerald-500/30" },
     { id: 'automation', icon: <Zap className="w-4 h-4 md:w-5 md:h-5" />, onClick: onOpenAdmin, tooltip: "Automation Hub", className: "bg-purple-600/20 text-purple-400 border-purple-500/30" },
     { id: 'admin', icon: <ShieldCheck className="w-4 h-4 md:w-5 md:h-5" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-900/40 text-red-400 border-red-500/30" },
     { id: 'heatmap', icon: <Sparkles className="w-4 h-4 md:w-5 md:h-5" />, onClick: onToggleHeatmap, tooltip: "Toggle Heatmap [H]", className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-white/10") },

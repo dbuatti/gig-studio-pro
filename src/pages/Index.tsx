@@ -198,6 +198,19 @@ const Index = () => {
   const [activeSetGroup, setActiveSetGroup] = useState<number | null>(null);
   const [songStudioVisibleSongs, setSongStudioVisibleSongs] = useState<SetlistSong[] | null>(null);
 
+  const handleOpenRandomReader = useCallback(() => {
+    const readableSongs = masterRepertoire.filter(
+      s => s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
+    );
+    if (readableSongs.length === 0) {
+      showWarning("No readable songs in repertoire.");
+      return;
+    }
+    const shuffled = [...readableSongs].sort(() => Math.random() - 0.5);
+    sessionStorage.setItem('reader_random_ids', JSON.stringify(shuffled.map(s => s.id)));
+    navigate(`/sheet-reader/${shuffled[0].id}?shuffle=1`);
+  }, [masterRepertoire, navigate]);
+
   const handleOpenSetReader = (groupNum: number) => {
     const setSongs = filteredAndSortedSongs.filter(s => s.set_group === groupNum);
     if (setSongs.length > 0) {
@@ -843,6 +856,7 @@ const Index = () => {
         onOpenSearch={() => setIsGlobalSearchOpen(true)} 
         onOpenPractice={() => {}} 
         onOpenReader={(id) => navigate(`/sheet-reader/${id || ''}`)} 
+        onOpenRandomReader={handleOpenRandomReader}
         onOpenAdmin={() => setIsAdminPanelOpen(true)} 
         onOpenPreferences={() => setIsPreferencesOpen(true)} 
         onToggleHeatmap={() => setShowHeatmap(!showHeatmap)} 
