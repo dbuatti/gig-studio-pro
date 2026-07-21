@@ -195,10 +195,17 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       tooltip: "Discovery Engine",
       className: "bg-slate-800 text-white border-white/10 hover:bg-indigo-600 shadow-slate-900/30",
     },
+    {
+      id: 'random-reader',
+      icon: <Shuffle className="w-5 h-5 md:w-6 md:h-6" />,
+      onClick: onOpenRandomReader,
+      disabled: false,
+      tooltip: "Random Reader",
+      className: "bg-emerald-600 text-white border-emerald-500 shadow-emerald-600/30",
+    },
   ];
 
   const secondaryButtons = [
-    { id: 'random-reader', icon: <Shuffle className="w-4 h-4 md:w-5 md:h-5" />, onClick: onOpenRandomReader, tooltip: "Random Reader", className: "bg-emerald-900/40 text-emerald-400 border-emerald-500/30" },
     { id: 'automation', icon: <Zap className="w-4 h-4 md:w-5 md:h-5" />, onClick: onOpenAdmin, tooltip: "Automation Hub", className: "bg-purple-600/20 text-purple-400 border-purple-500/30" },
     { id: 'admin', icon: <ShieldCheck className="w-4 h-4 md:w-5 md:h-5" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-900/40 text-red-400 border-red-500/30" },
     { id: 'heatmap', icon: <Sparkles className="w-4 h-4 md:w-5 md:h-5" />, onClick: onToggleHeatmap, tooltip: "Toggle Heatmap [H]", className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-white/10") },
