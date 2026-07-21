@@ -67,6 +67,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onSetMenuOpen,
   isMenuOpen: isMenuOpenProp,
   onOpenPerformance,
+  onToggleLogViewer,
 }) => {
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState<boolean>(() => {
