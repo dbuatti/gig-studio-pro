@@ -295,7 +295,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
       showError('Link a YouTube URL first.');
       return;
     }
-    handleAutoSave({ youtubeUrl: targetUrl });
+    if (!overrideUrl) handleAutoSave({ youtubeUrl: targetUrl });
     setIsQueuingExtraction(true);
     try {
       const { error } = await supabase

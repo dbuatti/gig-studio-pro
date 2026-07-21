@@ -165,6 +165,13 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config;
     if (song.readiness_checklist !== undefined) dbUpdates.readiness_checklist = song.readiness_checklist;
     
+    // Sanitize: strip values that would fail JSON serialization (e.g. DOM elements)
+    try { JSON.stringify(dbUpdates); } catch {
+      for (const key of Object.keys(dbUpdates)) {
+        try { JSON.stringify(dbUpdates[key]); } catch { delete dbUpdates[key]; }
+      }
+    }
+
     let result;
     let error;
 
