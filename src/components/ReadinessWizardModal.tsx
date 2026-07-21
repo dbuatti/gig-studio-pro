@@ -290,7 +290,12 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
 
   const handleQueueExtraction = useCallback(async (overrideUrl?: string) => {
     const songId = formData.master_id || formData.id;
-    const targetUrl = cleanYoutubeUrl(overrideUrl || formData.youtubeUrl || '');
+    const rawUrl = overrideUrl || formData.youtubeUrl || '';
+    if (typeof rawUrl !== 'string') {
+      showError('Invalid YouTube URL.');
+      return;
+    }
+    const targetUrl = cleanYoutubeUrl(rawUrl);
     if (!targetUrl || !user?.id || !songId) {
       showError('Link a YouTube URL first.');
       return;
