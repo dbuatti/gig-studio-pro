@@ -19,6 +19,7 @@ import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { transposeChords } from '@/utils/chordUtils';
 import { cleanLyrics } from '@/utils/lyricsCleaner';
+import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 
 type StudioTab = 'config' | 'audio' | 'details' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -287,13 +288,13 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     setIsSearchingYt(false);
   }, [formData.name, formData.artist]);
 
-  const handleQueueExtraction = useCallback(async () => {
+  const handleQueueExtraction = useCallback(async (overrideUrl?: string) => {
     const songId = formData.master_id || formData.id;
-    if (!formData.youtubeUrl || !user?.id || !songId) {
+    const targetUrl = cleanYoutubeUrl(overrideUrl || formData.youtubeUrl || '');
+    if (!targetUrl || !user?.id || !songId) {
       showError('Link a YouTube URL first.');
       return;
     }
-    const targetUrl = cleanYoutubeUrl(formData.youtubeUrl);
     handleAutoSave({ youtubeUrl: targetUrl });
     setIsQueuingExtraction(true);
     try {
@@ -846,8 +847,11 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
             <div className="relative">
               <button
                 onClick={() => {
-                  if (!hasYoutube || ytFailed) performYtSearch();
-                  else setShowYtResults(!showYtResults);
+                  if (showYtResults) {
+                    setShowYtResults(false);
+                  } else {
+                    performYtSearch();
+                  }
                 }}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all",
@@ -868,6 +872,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                       onClick={() => {
                         const videoId = r.videoId as string;
                         handleAutoSave({ youtubeUrl: `https://youtube.com/watch?v=${videoId}`, extraction_status: 'idle' });
+                        handleQueueExtraction(`https://youtube.com/watch?v=${videoId}`);
                         setShowYtResults(false);
                         setYtResults([]);
                       }}
@@ -879,7 +884,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   ))}
                 </div>
               )}
-              {showYtResults && !isSearchingYt && ytResults.length === 0 && !hasYoutube && (
+              {showYtResults && !isSearchingYt && ytResults.length === 0 && (
                 <div className="absolute top-full left-0 mt-1 w-64 bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-50 p-3 text-[9px] text-slate-500">
                   No results found. Try a different search.
                 </div>
