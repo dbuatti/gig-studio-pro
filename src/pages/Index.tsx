@@ -73,7 +73,7 @@ const Index = () => {
   );
 
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
-  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp'>(() => 
+  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp' | 'artist'>(() => 
     (localStorage.getItem('gig_sort_mode') as string) || 'none'
   );
   const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
@@ -536,7 +536,6 @@ const Index = () => {
       if (activeDashboardView === 'gigs' && activeSetlistId) await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
       else await fetchSetlistsAndRepertoire();
       showSuccess(`"${name}" added to repertoire!`);
-      handleEditSong(song, 'details');
     } catch (err: unknown) { showError("Failed to add discovered song."); }
   };
 

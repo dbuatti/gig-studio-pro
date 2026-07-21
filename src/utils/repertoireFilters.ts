@@ -84,6 +84,8 @@ export const filterAndSortRepertoire = (
     filtered.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
   } else if (sortMode === 'none') {
     filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  } else if (sortMode === 'artist') {
+    filtered.sort((a, b) => (a.artist || '').localeCompare(b.artist || '') || (a.name || '').localeCompare(b.name || ''));
   }
 
   return filtered;

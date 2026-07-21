@@ -37,8 +37,8 @@ interface RepertoireViewProps {
   onAddSong: (song: SetlistSong) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  sortMode: 'none' | 'ready' | 'work' | 'manual';
-  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual') => void;
+  sortMode: 'none' | 'ready' | 'work' | 'manual' | 'artist';
+  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual' | 'artist') => void;
   activeFilters: FilterState;
   setActiveFilters: (filters: FilterState) => void;
   onAutoLink?: () => Promise<void>;
@@ -166,6 +166,16 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   )}
                 >
                   <ListMusic className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Alphabetical</span>
+                </Button>
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={() => setSortMode('artist')}
+                  className={cn(
+                    "h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 shrink-0 rounded-xl transition-all",
+                    sortMode === 'artist' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-400 hover:text-white"
+                  )}
+                >
+                  <Music className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Artist</span>
                 </Button>
                 <Button
                   variant="ghost" size="sm"
