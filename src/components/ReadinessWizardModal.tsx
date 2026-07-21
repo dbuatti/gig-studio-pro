@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   Check, ArrowRight, Target, ShieldCheck,
-  FileText, Music, Mic2, Music2, X, Upload, Loader2, FileType, Search, Play, Pause, Download
+  FileText, Music, Mic2, Music2, X, Upload, Loader2, FileType, Search, Play, Pause, Download, Clock
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import MasteryRating from './MasteryRating';
@@ -140,7 +140,9 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const [ytResults, setYtResults] = useState<Record<string, unknown>[]>([]);
   const [showYtResults, setShowYtResults] = useState(false);
   const [isQueuingExtraction, setIsQueuingExtraction] = useState(false);
+  const [extractionPollStatus, setExtractionPollStatus] = useState<string | null>(null);
   const ytSearchInitiated = useRef(false);
+  const extractionPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const hasYoutube = !!(formData.youtubeUrl || formData.ugUrl);
   const ytFailed = hasYoutube && formData.extraction_status === 'failed';
@@ -321,6 +323,44 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
       setIsQueuingExtraction(false);
     }
   }, [formData.youtubeUrl, formData.master_id, formData.id, user?.id, hasAudio, handleAutoSave]);
+
+  // Poll extraction status from DB when recently queued
+  const songDbId = formData.master_id || formData.id;
+  useEffect(() => {
+    if (!user?.id || !songDbId || formData.extraction_status !== 'queued') {
+      if (extractionPollRef.current) {
+        clearInterval(extractionPollRef.current);
+        extractionPollRef.current = null;
+      }
+      setExtractionPollStatus(null);
+      return;
+    }
+    setExtractionPollStatus('queued');
+    extractionPollRef.current = setInterval(async () => {
+      try {
+        const { data } = await supabase
+          .from('repertoire')
+          .select('extraction_status, audio_url')
+          .eq('id', songDbId)
+          .single();
+        if (data) {
+          setExtractionPollStatus(data.extraction_status);
+          if (data.extraction_status === 'completed' || data.extraction_status === 'failed') {
+            if (extractionPollRef.current) {
+              clearInterval(extractionPollRef.current);
+              extractionPollRef.current = null;
+            }
+          }
+        }
+      } catch {}
+    }, 3000);
+    return () => {
+      if (extractionPollRef.current) {
+        clearInterval(extractionPollRef.current);
+        extractionPollRef.current = null;
+      }
+    };
+  }, [user?.id, songDbId, formData.extraction_status]);
 
   useEffect(() => {
     return () => {
@@ -895,19 +935,52 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                 </div>
               )}
             </div>
-            <button
-              onClick={() => handleQueueExtraction()}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all",
-                hasAudio
-                  ? "bg-emerald-600/20 border-emerald-500/30 text-emerald-400 cursor-default"
-                  : "bg-white/5 border-white/10 text-slate-500 hover:text-slate-300"
+            <div className="relative">
+              <button
+                onClick={() => handleQueueExtraction()}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all",
+                  hasAudio
+                    ? "bg-emerald-600/20 border-emerald-500/30 text-emerald-400 cursor-default"
+                    : extractionPollStatus === 'queued' || extractionPollStatus === 'PENDING'
+                    ? "bg-amber-500/20 border-amber-500/30 text-amber-400"
+                    : extractionPollStatus === 'processing'
+                    ? "bg-blue-500/20 border-blue-500/30 text-blue-400"
+                    : extractionPollStatus === 'failed'
+                    ? "bg-red-500/20 border-red-500/30 text-red-400"
+                    : "bg-white/5 border-white/10 text-slate-500 hover:text-slate-300"
+                )}
+                title={
+                  extractionPollStatus === 'queued' ? 'Waiting in queue...' :
+                  extractionPollStatus === 'PENDING' ? 'Download pending...' :
+                  extractionPollStatus === 'processing' ? 'Downloading audio...' :
+                  extractionPollStatus === 'completed' ? 'Audio extracted' :
+                  extractionPollStatus === 'failed' ? 'Extraction failed' :
+                  hasAudio ? 'Audio extracted' : 'Extract audio from YouTube'
+                }
+              >
+                {isQueuingExtraction ? <Loader2 className="w-3 h-3 animate-spin" /> :
+                 extractionPollStatus === 'processing' ? <Loader2 className="w-3 h-3 animate-spin" /> :
+                 extractionPollStatus === 'queued' || extractionPollStatus === 'PENDING' ? <Clock className="w-3 h-3" /> :
+                 hasAudio ? <Download className="w-3 h-3" /> : <Download className="w-3 h-3" />}
+                {hasAudio ? 'Audio' :
+                 isQueuingExtraction ? 'Queuing...' :
+                 extractionPollStatus === 'processing' ? 'Downloading' :
+                 extractionPollStatus === 'queued' ? 'Queued' :
+                 extractionPollStatus === 'PENDING' ? 'Pending' :
+                 extractionPollStatus === 'completed' ? 'Complete' :
+                 extractionPollStatus === 'failed' ? 'Failed' :
+                 'Extract Audio'}
+              </button>
+              {(extractionPollStatus === 'queued' || extractionPollStatus === 'PENDING' || extractionPollStatus === 'processing') && (
+                <div className="absolute top-full left-0 mt-1.5 w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+                  <div className={cn(
+                    "h-full rounded-full transition-all duration-1000",
+                    extractionPollStatus === 'processing' ? "bg-blue-500 w-3/4 animate-pulse" : "bg-amber-500 w-1/3"
+                  )} />
+                </div>
               )}
-              title={hasAudio ? 'Audio extracted' : 'Extract audio from YouTube'}
-            >
-              {isQueuingExtraction ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-              {hasAudio ? 'Audio' : isQueuingExtraction ? 'Queuing...' : 'Extract Audio'}
-            </button>
+            </div>
             {audioUrl && (
               <button
                 onClick={togglePlay}

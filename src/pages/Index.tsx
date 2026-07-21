@@ -839,7 +839,7 @@ const Index = () => {
               setActiveFilters={setActiveFilters} 
               onUpdateSetlistSongs={handleUpdateSetlistSongs} 
               onDeleteSong={handleDeleteSong} 
-              onAddSong={() => {}} 
+               onAddSong={async (s) => { if (userId) { await syncToMasterRepertoire(userId, [s]); await fetchSetlistsAndRepertoire(); } }} 
               onOpenAdmin={() => setIsAdminPanelOpen(true)} 
               activeSetlistId={activeSetlistId} 
               onBulkVibeCheck={handleBulkVibeCheck} 
