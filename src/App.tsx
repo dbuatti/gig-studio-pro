@@ -12,6 +12,10 @@ import React, { useEffect } from "react";
 import MainLayout from "@/components/MainLayout";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { pdfjs } from 'react-pdf';
+import { initCapture } from '@/utils/consoleCapture';
+
+// Capture console logs for in-app log viewer
+initCapture();
 
 // Configure PDF.js worker source globally
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';

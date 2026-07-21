@@ -184,6 +184,16 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
         .single();
       result = data;
       error = updateError;
+      // If no row matched, fall through to upsert
+      if (!result && !error) {
+        const { data: upsertData, error: upsertError } = await supabase
+          .from('repertoire')
+          .upsert(dbUpdates, { onConflict: 'user_id,title,artist' })
+          .select()
+          .single();
+        result = upsertData;
+        error = upsertError;
+      }
     } else {
       const { data, error: upsertError } = await supabase
         .from('repertoire')

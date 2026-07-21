@@ -31,6 +31,7 @@ import SetlistManager, { SetlistSong, Setlist, EnergyZone } from '@/components/S
 import { FilterState, DEFAULT_FILTERS } from '@/components/SetlistFilters';
 import SetlistStats from '@/components/SetlistStats';
 import FloatingCommandDock from '@/components/FloatingCommandDock';
+import { LogViewer } from '@/components/LogViewer';
 import ActiveSongBanner from '@/components/ActiveSongBanner';
 import SetlistSelector from '@/components/SetlistSelector';
 import { StudioTab } from '@/components/SongStudioView';
@@ -193,6 +194,7 @@ const Index = () => {
   const [auditData, setAuditData] = useState<Record<string, unknown> | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isStorageAuditOpen, setIsStorageAuditOpen] = useState(false);
+  const [isLogViewerOpen, setIsLogViewerOpen] = useState(false);
 
   // Set-level practice states
   const [activeSetGroup, setActiveSetGroup] = useState<number | null>(null);
@@ -871,7 +873,10 @@ const Index = () => {
         isMenuOpen={floatingDockMenuOpen} 
         onOpenPerformance={() => setIsPerformanceOverlayOpen(true)} 
         hasReadableChart={!!activeSong} 
+        onToggleLogViewer={() => setIsLogViewerOpen(prev => !prev)} 
       />
+
+      <LogViewer isOpen={isLogViewerOpen} onClose={() => setIsLogViewerOpen(false)} />
 
       <Dialog open={isCreateDialogOpen} onOpenChange={(open) => { if (!open) setIsCreateDialogOpen(false); }}>
         <DialogContent className="max-w-md bg-slate-950 border-white/10 text-white rounded-[2rem] p-8 shadow-2xl">
