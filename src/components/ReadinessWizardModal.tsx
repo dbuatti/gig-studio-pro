@@ -916,7 +916,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                       key={i}
                       onClick={() => {
                         const videoId = r.videoId as string;
-                        handleAutoSave({ youtubeUrl: `https://youtube.com/watch?v=${videoId}`, extraction_status: 'idle' });
+                        handleAutoSave({ youtubeUrl: `https://youtube.com/watch?v=${videoId}` });
                         handleQueueExtraction(`https://youtube.com/watch?v=${videoId}`);
                         setShowYtResults(false);
                         setYtResults([]);

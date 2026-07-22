@@ -214,7 +214,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     ...(isSafePitchEnabled ? [{ id: 'safe-pitch', icon: <ShieldAlert className="w-4 h-4 md:w-5 md:h-5" />, onClick: () => setIsSafePitchActive(!isSafePitchActive), tooltip: "Safe Pitch Mode", className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-white/10") }] : []),
     { id: 'preferences', icon: <Settings className="w-4 h-4 md:w-5 md:h-5" />, onClick: onOpenPreferences, tooltip: "Preferences", className: "bg-slate-800 text-slate-300 border-white/10" },
     { id: 'user-guide', icon: <BookOpen className="w-4 h-4 md:w-5 md:h-5" />, onClick: onOpenUserGuide, tooltip: "User Guide", className: "bg-blue-600/20 text-blue-400 border-blue-500/30" },
-    { id: 'log-viewer', icon: <Terminal className="w-4 h-4 md:w-5 md:h-5" />, onClick: onToggleLogViewer, tooltip: "Console Logs", className: "bg-slate-800 text-slate-400 border-white/10 hover:bg-slate-700" },
+    ...(typeof onToggleLogViewer === 'function' ? [{ id: 'log-viewer', icon: <Terminal className="w-4 h-4 md:w-5 md:h-5" />, onClick: onToggleLogViewer as () => void, tooltip: "Console Logs", className: "bg-slate-800 text-slate-400 border-white/10 hover:bg-slate-700" }] : []),
   ];
 
   const getMenuClasses = (dir: MenuDirection) => {
