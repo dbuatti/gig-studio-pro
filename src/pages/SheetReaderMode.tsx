@@ -366,19 +366,19 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       const nextIndex = (currentIndex + 1) % allSongs.length;
       const nextSong = allSongs[nextIndex];
+      stopPlayback();
       if (currentSong?.set_group && nextSong.set_group && currentSong.set_group !== nextSong.set_group) {
         setIsSetTransitionOpen(true);
         return;
       }
       setCurrentIndex(nextIndex);
-      stopPlayback();
     }
   }, [allSongs, currentIndex, stopPlayback, currentSong]);
 
   const handleForceNext = useCallback(() => {
     if (allSongs.length > 0) {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % allSongs.length);
       stopPlayback();
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % allSongs.length);
       setIsSetTransitionOpen(false);
     }
   }, [allSongs, stopPlayback]);
@@ -386,8 +386,8 @@ const SheetReaderMode: React.FC = () => {
   const handleJumpToSurplus = useCallback(() => {
     const surplusIndex = allSongs.findIndex(s => s.set_group === 99);
     if (surplusIndex !== -1) {
-      setCurrentIndex(surplusIndex);
       stopPlayback();
+      setCurrentIndex(surplusIndex);
       setIsSetTransitionOpen(false);
     } else {
       showInfo("No surplus songs found.");
@@ -397,8 +397,8 @@ const SheetReaderMode: React.FC = () => {
 
   const handlePrev = useCallback(() => {
     if (allSongs.length > 0) {
-      setCurrentIndex((prevIndex) => (prevIndex - 1 + allSongs.length) % allSongs.length);
       stopPlayback();
+      setCurrentIndex((prevIndex) => (prevIndex - 1 + allSongs.length) % allSongs.length);
     }
   }, [allSongs, stopPlayback]);
 
@@ -471,7 +471,7 @@ const SheetReaderMode: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
       <div className={cn("fixed left-0 top-0 h-full w-[300px] z-50 transition-transform duration-300", isSidebarOpen && !isZenMode ? "translate-x-0" : "-translate-x-full")}>
-        <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} isFullScreen={isZenMode} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { stopPlayback(); setCurrentIndex(idx); }} isFullScreen={isZenMode} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </div>
 
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", isSidebarOpen && !isZenMode && !isMobile && "ml-[300px]")}>
@@ -562,7 +562,7 @@ const SheetReaderMode: React.FC = () => {
         </div>
       </main>
 
-      <RepertoireSearchModal isOpen={isRepertoireSearchModalOpen} onClose={() => setIsRepertoireSearchModalOpen(false)} masterRepertoire={fullMasterRepertoire} currentSetlistSongs={currentSetlistSongs} onSelectSong={(s) => { const idx = allSongs.findIndex(x => x.id === s.id || x.master_id === s.master_id); if (idx !== -1) setCurrentIndex(idx); else navigate(`/sheet-reader/${s.id}`); stopPlayback(); setIsRepertoireSearchModalOpen(false); }} />
+      <RepertoireSearchModal isOpen={isRepertoireSearchModalOpen} onClose={() => setIsRepertoireSearchModalOpen(false)} masterRepertoire={fullMasterRepertoire} currentSetlistSongs={currentSetlistSongs} onSelectSong={(s) => { const idx = allSongs.findIndex(x => x.id === s.id || x.master_id === s.master_id); stopPlayback(); if (idx !== -1) setCurrentIndex(idx); else navigate(`/sheet-reader/${s.id}`); setIsRepertoireSearchModalOpen(false); }} />
 
       {currentSong && (
         <ReadinessWizardModal

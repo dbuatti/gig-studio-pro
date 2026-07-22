@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
-import { ArrowLeft, Search, ListMusic, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2, MoreVertical, Settings2 } from 'lucide-react';
+import { ArrowLeft, Search, ListMusic, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2, MoreVertical, Settings2, Link2 } from 'lucide-react';
 import { SetlistSong } from '@/components/SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -232,6 +232,9 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
                     {isEditingLinksMode ? <Trash2 className="w-4 h-4 text-red-400" /> : <Edit3 className="w-4 h-4 text-indigo-400" />}
                     {isEditingLinksMode ? "Exit Edit Mode" : "Edit Links"}
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onOpenLinkSizeModal} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase">
+                    <Ruler className="w-4 h-4 text-indigo-400" /> Link Size
+                  </DropdownMenuItem>
                 </>
               )}
               
@@ -273,6 +276,36 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             >
               <Search className="w-5 h-5" />
             </Button>
+            {hasPdf && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+                    aria-label="Link management"
+                  >
+                    <Link2 className="w-5 h-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuContent align="end" className="bg-slate-950 border-white/10 text-white p-2 rounded-xl z-[300]">
+                    <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">Link Management</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-white/5" />
+                    <DropdownMenuItem onClick={onAddLink} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase">
+                      <Plus className="w-4 h-4 text-indigo-400" /> Add New Link
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onToggleLinkEditMode} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase">
+                      {isEditingLinksMode ? <Trash2 className="w-4 h-4 text-red-400" /> : <Edit3 className="w-4 h-4 text-indigo-400" />}
+                      {isEditingLinksMode ? "Exit Edit Mode" : "Edit Links"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onOpenLinkSizeModal} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase">
+                      <Ruler className="w-4 h-4 text-indigo-400" /> Link Size
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenuPortal>
+              </DropdownMenu>
+            )}
           </>
         )}
       </div>
