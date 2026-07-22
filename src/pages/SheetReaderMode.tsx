@@ -23,6 +23,7 @@ import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderSidebar from '@/components/SheetReaderSidebar';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import RepertoireSearchModal from '@/components/RepertoireSearchModal';
+import ReadinessWizardModal from '@/components/ReadinessWizardModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
@@ -72,6 +73,7 @@ const SheetReaderMode: React.FC = () => {
   const [isStudioPanelOpen, setIsStudioPanel] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
+  const [isReadinessWizardOpen, setIsReadinessWizardOpen] = useState(false);
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [isZenMode, setIsZenMode] = useState(false); 
@@ -141,6 +143,22 @@ const SheetReaderMode: React.FC = () => {
     setCurrentSetlistSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
   }, []);
 
+  const handleAutoSave = useCallback(async (updates: Partial<SetlistSong>) => {
+    if (!currentSong || !user) return;
+    try {
+      const masterId = currentSong.master_id || currentSong.id;
+      const result = await syncToMasterRepertoire(user.id, [{
+        ...updates,
+        id: masterId,
+        name: currentSong.name,
+        artist: currentSong.artist
+      }]);
+      if (result[0]) handleLocalSongUpdate(currentSong.id, { ...result[0], master_id: masterId });
+    } catch (err) {
+      console.error("Sheet Reader Auto-save failed:", err);
+    }
+  }, [currentSong, user, handleLocalSongUpdate]);
+
   const harmonicSync = useHarmonicSync({
     formData: {
       id: currentSong?.master_id || currentSong?.id,
@@ -152,21 +170,7 @@ const SheetReaderMode: React.FC = () => {
       isKeyConfirmed: currentSong?.isKeyConfirmed,
       key_preference: currentSong?.key_preference,
     },
-    handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
-      if (!currentSong || !user) return;
-      try {
-        const masterId = currentSong.master_id || currentSong.id;
-        const result = await syncToMasterRepertoire(user.id, [{
-          ...updates,
-          id: masterId,
-          name: currentSong.name,
-          artist: currentSong.artist
-        }]);
-        if (result[0]) handleLocalSongUpdate(currentSong.id, { ...result[0], master_id: masterId });
-      } catch (err) {
-        console.error("Sheet Reader Auto-save failed:", err);
-      }
-    }, [currentSong, user, handleLocalSongUpdate]),
+    handleAutoSave,
     globalKeyPreference,
     preventStageKeyOverwrite,
   });
@@ -499,6 +503,7 @@ const SheetReaderMode: React.FC = () => {
               onToggleFullScreen={toggleZenMode}
               setGroup={currentSong?.set_group}
               totalSets={totalSets}
+              onOpenReadinessWizard={() => setIsReadinessWizardOpen(true)}
             />
           )}
         </AnimatePresence>
@@ -558,6 +563,17 @@ const SheetReaderMode: React.FC = () => {
       </main>
 
       <RepertoireSearchModal isOpen={isRepertoireSearchModalOpen} onClose={() => setIsRepertoireSearchModalOpen(false)} masterRepertoire={fullMasterRepertoire} currentSetlistSongs={currentSetlistSongs} onSelectSong={(s) => { const idx = allSongs.findIndex(x => x.id === s.id || x.master_id === s.master_id); if (idx !== -1) setCurrentIndex(idx); else navigate(`/sheet-reader/${s.id}`); stopPlayback(); setIsRepertoireSearchModalOpen(false); }} />
+
+      {currentSong && (
+        <ReadinessWizardModal
+          isOpen={isReadinessWizardOpen}
+          onClose={() => setIsReadinessWizardOpen(false)}
+          formData={currentSong}
+          handleAutoSave={handleAutoSave}
+          onSwitchTab={() => {}}
+          defaultToSummary
+        />
+      )}
 
       <AnimatePresence>
         {!isZenMode && currentSong && (

@@ -101,6 +101,7 @@ interface ReadinessWizardModalProps {
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   onSwitchTab: (tab: string) => void;
+  defaultToSummary?: boolean;
 }
 
 const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
@@ -109,12 +110,13 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   formData,
   handleAutoSave,
   onSwitchTab,
+  defaultToSummary,
 }) => {
   const { user } = useAuth();
   const checked = formData.readiness_checklist || [];
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
+  const [showSummary, setShowSummary] = useState(defaultToSummary ?? false);
   const [activeView, setActiveView] = useState<'summary' | 'lyrics' | 'chords'>('summary');
   const [navigateToStepId, setNavigateToStepId] = useState<string | null>(null);
   const [pdfUploading, setPdfUploading] = useState(false);

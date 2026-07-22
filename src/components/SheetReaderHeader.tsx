@@ -37,6 +37,7 @@ interface SheetReaderHeaderProps {
   isEditingLinksMode: boolean;
   setGroup?: number;
   totalSets?: number;
+  onOpenReadinessWizard?: () => void;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -64,6 +65,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   isEditingLinksMode,
   setGroup,
   totalSets,
+  onOpenReadinessWizard,
 }) => {
   const isMobile = useIsMobile();
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
@@ -121,8 +123,11 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         {isLoading ? (
           <Skeleton className="h-6 w-32 md:w-64 bg-white/10 rounded-lg" />
         ) : currentSong ? (
-          <div className="flex flex-col items-center min-w-0">
-            <h2 className="text-xs md:text-lg font-black uppercase tracking-tight text-white truncate max-w-[150px] md:max-w-md text-center leading-none">
+            <div className="flex flex-col items-center min-w-0">
+            <h2
+              className="text-xs md:text-lg font-black uppercase tracking-tight text-white truncate max-w-[150px] md:max-w-md text-center leading-none cursor-pointer hover:text-indigo-400 transition-colors"
+              onClick={onOpenReadinessWizard}
+            >
               {currentSong.name}
             </h2>
             <div className="flex items-center gap-2 mt-1">
