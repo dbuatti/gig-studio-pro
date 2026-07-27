@@ -557,6 +557,60 @@ const Index = () => {
     } catch (err: unknown) { showError(`Failed to update setlist: ${err instanceof Error ? err.message : String(err)}`); }
   }, [fetchSetlistsAndRepertoire, allSetlists]);
 
+  const handleBuildGig = useCallback(async (
+    proposedName: string,
+    librarySongs: { id: string; setGroup: number }[],
+    externalSongs: Record<string, unknown>[],
+    setNames: Record<string, string>,
+    stimulusText: string
+  ) => {
+    if (!userId) return;
+
+    const { data: newSetlist, error: createError } = await supabase
+      .from('setlists')
+      .insert({
+        user_id: userId,
+        name: proposedName,
+        set_names: setNames,
+        stimulus_text: stimulusText,
+      })
+      .select()
+      .single();
+
+    if (createError) throw new Error(createError.message);
+    if (!newSetlist) throw new Error("Failed to create setlist");
+
+    let sortIndex = 0;
+
+    for (const extSong of externalSongs) {
+      const synced = await syncToMasterRepertoire(userId, [{
+        name: extSong.name as string,
+        artist: extSong.artist as string,
+      }]);
+      if (synced.length > 0) {
+        await supabase.from('setlist_songs').insert({
+          setlist_id: newSetlist.id,
+          song_id: synced[0].master_id || synced[0].id,
+          sort_order: sortIndex++,
+          set_group: (extSong.setGroup as number) || 1,
+        });
+      }
+    }
+
+    for (const libSong of librarySongs) {
+      await supabase.from('setlist_songs').insert({
+        setlist_id: newSetlist.id,
+        song_id: libSong.id,
+        sort_order: sortIndex++,
+        set_group: libSong.setGroup || 1,
+      });
+    }
+
+    await fetchSetlistsAndRepertoire();
+    setActiveSetlistId(newSetlist.id);
+    showSuccess(`"${proposedName}" gig created with ${librarySongs.length + externalSongs.length} songs!`);
+  }, [userId, fetchSetlistsAndRepertoire]);
+
   const handleAutoLink = useCallback(async () => {
     const missing = masterRepertoire.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === "");
     if (missing.length === 0) {
@@ -843,6 +897,7 @@ const Index = () => {
               onAddSong={async (s) => { if (userId) { await syncToMasterRepertoire(userId, [s]); await fetchSetlistsAndRepertoire(); } }} 
               onOpenAdmin={() => setIsAdminPanelOpen(true)} 
               activeSetlistId={activeSetlistId} 
+              userId={userId} 
               onBulkVibeCheck={handleBulkVibeCheck} 
               onAutoLink={handleAutoLink}
               onClearAutoLinks={handleClearAutoLinks}
@@ -992,6 +1047,7 @@ const Index = () => {
         onRefreshRepertoire={() => fetchSetlistsAndRepertoire()}
         onAddExistingSong={async (s) => { if (userId) { await syncToMasterRepertoire(userId, [s]); await fetchSetlistsAndRepertoire(); } }}
         onGlobalSearchAdd={handleGlobalSearchAdd}
+        onBuildGig={handleBuildGig}
         onSetSongStudioVisibleSongs={setSongStudioVisibleSongs}
         onSetSongStudioModalGigId={setSongStudioModalGigId}
         onSetSongStudioModalSongId={setSongStudioModalSongId}

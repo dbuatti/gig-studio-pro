@@ -185,6 +185,8 @@ def job_poller():
     log("Job Poller initialized for R2. Starting initial cookie sync.")
     download_cookies_from_supabase()
     
+    consecutive_failures = {}
+    
     while True:
         try:
             res = supabase.table("repertoire")\
@@ -196,8 +198,37 @@ def job_poller():
             
             if res.data and len(res.data) > 0:
                 song_data = res.data[0]
-                log(f"Found queued job: {song_data.get('title')}. Starting processing.")
+                song_id = song_data.get('id')
+                title = song_data.get('title', 'Unknown')
+                
                 process_queued_song(song_data)
+                
+                time.sleep(5)
+                
+                after_status = supabase.table("repertoire")\
+                    .select("extraction_status")\
+                    .eq("id", song_id)\
+                    .execute()
+                
+                after_val = after_status.data[0].get('extraction_status') if after_status.data else None
+                
+                if after_val == 'queued':
+                    consecutive_failures[song_id] = consecutive_failures.get(song_id, 0) + 1
+                    log(f"Song '{title}' still queued after attempt {consecutive_failures[song_id]}.")
+                    
+                    if consecutive_failures[song_id] >= 3:
+                        log(f"Auto-failing '{title}' after {consecutive_failures[song_id]} failed attempts.")
+                        try:
+                            supabase.table("repertoire").update({
+                                "extraction_status": "failed",
+                                "extraction_error": "Auto-failed: exceeded retry limit",
+                                "last_sync_log": "Worker auto-failed after 3 consecutive failed attempts."
+                            }).eq("id", song_id).execute()
+                        except Exception as e:
+                            log(f"Failed to update status to failed: {e}")
+                        consecutive_failures[song_id] = 0
+                else:
+                    consecutive_failures.pop(song_id, None)
             else:
                 time.sleep(20)
         except Exception as e:

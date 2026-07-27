@@ -6,7 +6,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { CustomProgress } from "@/components/CustomProgress";
 import { 
   Target, Type, Music2, Link as LinkIcon, 
-  Music, Sparkles, CheckCircle2, Hash, FileText
+  Music, CheckCircle2, Hash, FileText, ChevronRight
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { FilterState } from './SetlistFilters';
@@ -60,73 +60,73 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
 
     return [
       { 
-        label: 'Lyrics Transcribed', 
+        label: 'Lyrics', 
         icon: <Type className="w-3 h-3" />, 
         current: counts.lyrics, 
         target: goalLyricsCount, 
         barColor: 'bg-pink-500',
-        textColor: 'text-pink-500',
+        textColor: 'text-pink-400',
         lightBg: 'bg-pink-500/10',
         filter: { hasLyrics: 'no' }
       },
       { 
-        label: 'Chords Mapped', 
+        label: 'Chords', 
         icon: <Music2 className="w-3 h-3" />, 
         current: counts.chords, 
         target: goalUgChordsCount, 
         barColor: 'bg-indigo-500',
-        textColor: 'text-indigo-500',
+        textColor: 'text-indigo-400',
         lightBg: 'bg-indigo-500/10',
         filter: { hasUg: 'yes', hasUgChords: 'no' }
       },
       { 
-        label: 'UG Links Bound', 
+        label: 'UG Links', 
         icon: <LinkIcon className="w-3 h-3" />, 
         current: counts.links, 
         target: goalUgLinksCount, 
         barColor: 'bg-orange-500',
-        textColor: 'text-orange-500',
+        textColor: 'text-orange-400',
         lightBg: 'bg-orange-500/10',
         filter: { hasUg: 'no' }
       },
       { 
-        label: 'PDFs Attached', 
+        label: 'PDFs', 
         icon: <FileText className="w-3 h-3" />,
         current: counts.pdfs, 
         target: goalPdfsCount, 
-        barColor: 'bg-blue-600',
-        textColor: 'text-blue-600',
-        lightBg: 'bg-blue-600/10',
+        barColor: 'bg-blue-500',
+        textColor: 'text-blue-400',
+        lightBg: 'bg-blue-500/10',
         filter: { hasPdf: 'no' }
       },
       { 
-        label: 'Range Analyzed', 
+        label: 'Range', 
         icon: <Music className="w-3 h-3" />, 
         current: counts.highestNote, 
         target: goalHighestNoteCount, 
         barColor: 'bg-emerald-500',
-        textColor: 'text-emerald-500',
+        textColor: 'text-emerald-400',
         lightBg: 'bg-emerald-500/10',
         filter: { hasHighestNote: 'no' }
       },
       { 
-        label: 'Original Keys Set', 
+        label: 'Orig. Key', 
         icon: <Hash className="w-3 h-3" />, 
         current: counts.originalKey, 
         target: goalOriginalKeyCount, 
         barColor: 'bg-amber-500',
-        textColor: 'text-amber-500',
+        textColor: 'text-amber-400',
         lightBg: 'bg-amber-500/10',
         filter: { hasOriginalKey: 'no' }
       },
       { 
-        label: 'Stage Keys Bound', 
+        label: 'Stage Key', 
         icon: <Target className="w-3 h-3" />, 
         current: counts.targetKey, 
         target: goalTargetKeyCount, 
-        barColor: 'bg-blue-500',
-        textColor: 'text-blue-500',
-        lightBg: 'bg-blue-500/10',
+        barColor: 'bg-blue-400',
+        textColor: 'text-blue-400',
+        lightBg: 'bg-blue-400/10',
         filter: { isConfirmed: 'no' }
       }
     ];
@@ -141,30 +141,24 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
   if (!isGoalTrackerEnabled) return null;
 
   return (
-    <div className="bg-card p-6 rounded-[2rem] border border-border shadow-2xl relative overflow-hidden mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
-      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[80px] rounded-full -mr-32 -mt-32 pointer-events-none" />
-      
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 relative z-10">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-600/20">
-            <Target className="w-6 h-6 text-white" />
+    <div className="bg-slate-900/60 p-5 rounded-2xl border border-white/5 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+            <Target className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="text-xl font-black uppercase tracking-tight">Daily Performance Mastery</h3>
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Live Performance Daily Quota (Resets at Midnight)</p>
+            <h3 className="text-xs font-black uppercase tracking-tight text-white">Daily Mastery</h3>
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Resets at midnight</p>
           </div>
         </div>
-
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Today's Progress</p>
-            <p className="text-2xl font-black text-indigo-600 font-mono">{Math.round(overallProgress)}%</p>
-          </div>
-          {overallProgress === 100 && <CheckCircle2 className="w-8 h-8 text-emerald-500" />}
+        <div className="flex items-center gap-3">
+          <span className="text-lg font-black text-indigo-400 tabular-nums">{Math.round(overallProgress)}%</span>
+          {overallProgress === 100 && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 relative z-10">
+      <div className="grid grid-cols-7 gap-2">
         {stats.map((goal, i) => {
           const progress = goal.target > 0 ? (goal.current / goal.target) * 100 : 0;
           const isComplete = goal.current >= goal.target;
@@ -173,27 +167,24 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
             <button 
               key={i} 
               onClick={() => onFilterApply(goal.filter)}
-              className="p-4 bg-secondary/50 rounded-2xl border border-border/50 space-y-3 group hover:border-indigo-500/30 transition-all text-left"
+              className="p-3 bg-white/[0.02] rounded-xl border border-white/5 space-y-2 group hover:border-white/10 transition-all text-left"
             >
               <div className="flex items-center justify-between">
-                <div className={cn("p-2 rounded-lg", goal.lightBg, goal.textColor)}>
+                <div className={cn("p-1.5 rounded-lg", goal.lightBg, goal.textColor)}>
                   {goal.icon}
                 </div>
                 <span className={cn(
-                  "text-[10px] font-black font-mono",
-                  isComplete ? "text-emerald-500" : "text-muted-foreground"
+                  "text-[10px] font-black font-mono tabular-nums",
+                  isComplete ? "text-emerald-400" : "text-slate-500"
                 )}>
                   {goal.current}/{goal.target}
                 </span>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 truncate pr-2">{goal.label}</p>
-                  {isComplete && <Sparkles className="w-3 h-3 text-amber-400" />}
-                </div>
+              <div className="space-y-1.5">
+                <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 truncate">{goal.label}</p>
                 <CustomProgress 
                   value={Math.min(100, progress)} 
-                  className="h-1.5 bg-background"
+                  className="h-1 bg-slate-800"
                   indicatorClassName={isComplete ? "bg-emerald-500" : goal.barColor}
                 />
               </div>

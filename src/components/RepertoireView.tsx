@@ -19,6 +19,7 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { showSuccess } from '@/utils/toast';
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import SetlistExporter from './SetlistExporter';
+import BatchImportRepertoire from './BatchImportRepertoire';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -53,6 +54,7 @@ interface RepertoireViewProps {
   retryFailedCount?: number;
   onDeleteSong: (songId: string) => Promise<void>;
   activeSetlistId?: string | null;
+  userId?: string;
 }
 
 const RepertoireView: React.FC<RepertoireViewProps> = ({
@@ -80,6 +82,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   retryFailedCount,
   onDeleteSong,
   activeSetlistId,
+  userId,
 }) => {
   const { keyPreference } = useSettings();
   const isMobile = useIsMobile();
@@ -149,89 +152,92 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <RepertoireSuggestions repertoire={repertoire} onAddSong={onAddSong} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div className="lg:col-span-3 space-y-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-              <div className="flex items-center gap-1 bg-slate-900/50 p-1.5 rounded-2xl border border-white/5 w-full sm:w-auto overflow-x-auto no-scrollbar">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-3 space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-1 bg-slate-900/60 p-1 rounded-xl border border-white/5 w-full sm:w-auto overflow-x-auto no-scrollbar">
                 <Button
                   variant="ghost" size="sm"
                   onClick={() => setSortMode('none')}
                   className={cn(
-                    "h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 shrink-0 rounded-xl transition-all",
-                    sortMode === 'none' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-400 hover:text-white"
+                    "h-7 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
+                    sortMode === 'none' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-500 hover:text-white"
                   )}
                 >
-                  <ListMusic className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Alphabetical</span>
+                  <ListMusic className="w-3 h-3" /> <span className="hidden sm:inline">A-Z</span>
                 </Button>
                 <Button
                   variant="ghost" size="sm"
                   onClick={() => setSortMode('artist')}
                   className={cn(
-                    "h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 shrink-0 rounded-xl transition-all",
-                    sortMode === 'artist' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-400 hover:text-white"
+                    "h-7 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
+                    sortMode === 'artist' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-500 hover:text-white"
                   )}
                 >
-                  <Music className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Artist</span>
+                  <Music className="w-3 h-3" /> <span className="hidden sm:inline">Artist</span>
                 </Button>
                 <Button
                   variant="ghost" size="sm"
                   onClick={() => setSortMode('ready')}
                   className={cn(
-                    "h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 shrink-0 rounded-xl transition-all",
-                    sortMode === 'ready' ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" : "text-slate-400 hover:text-white"
+                    "h-7 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
+                    sortMode === 'ready' ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" : "text-slate-500 hover:text-white"
                   )}
                 >
-                  <Star className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Readiness</span>
+                  <Star className="w-3 h-3" /> <span className="hidden sm:inline">Rdy</span>
                 </Button>
                 <Button
                   variant="ghost" size="sm"
                   onClick={() => setSortMode('work')}
                   className={cn(
-                    "h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 shrink-0 rounded-xl transition-all",
-                    sortMode === 'work' ? "bg-orange-600 text-white shadow-lg shadow-orange-600/20" : "text-slate-400 hover:text-white"
+                    "h-7 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
+                    sortMode === 'work' ? "bg-orange-600 text-white shadow-lg shadow-orange-600/20" : "text-slate-500 hover:text-white"
                   )}
                 >
-                  <AlertTriangle className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Work Needed</span>
+                  <AlertTriangle className="w-3 h-3" /> <span className="hidden sm:inline">Work</span>
                 </Button>
               </div>
               <Button
                 variant="ghost" size="sm"
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 className={cn(
-                  "h-11 px-5 text-[10px] font-black uppercase tracking-widest rounded-2xl gap-2.5 transition-all border",
-                  isFilterOpen ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-500/20" : "bg-slate-900/50 text-slate-400 border-white/5 hover:text-white hover:bg-slate-800"
+                  "h-7 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg gap-1.5 transition-all border",
+                  isFilterOpen ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-500/20" : "text-slate-500 border-white/5 hover:text-white hover:bg-white/5"
                 )}
               >
-                <Filter className="w-4 h-4" /> Matrix
+                <Filter className="w-3 h-3" /> Filter
               </Button>
             </div>
-            <div className="flex items-center gap-4 w-full sm:w-auto">
-              <div className="relative flex-1 sm:w-72 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64 group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
                 <Input
-                  placeholder="Search master repertoire..."
+                  placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-11 pl-11 pr-10 text-[11px] font-bold bg-slate-900/50 border-white/5 rounded-2xl focus-visible:ring-indigo-500/50 focus-visible:bg-slate-900 transition-all"
+                  className="h-9 pl-9 pr-8 text-[11px] font-bold bg-slate-900/60 border-white/5 rounded-xl focus-visible:ring-indigo-500/50 transition-all"
                 />
                 {searchTerm && (
                   <button 
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
+              {userId && (
+                <BatchImportRepertoire userId={userId} onComplete={onRefreshRepertoire} />
+              )}
               <Button
                 onClick={handleAddNewSong}
-                className="h-11 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-widest gap-2.5 shadow-xl shadow-indigo-600/20 transition-all active:scale-95"
+                className="h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[9px] tracking-widest gap-1.5 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
               >
-                <Plus className="w-4 h-4" /> New Track
+                <Plus className="w-3.5 h-3.5" /> New
               </Button>
             </div>
           </div>
@@ -239,10 +245,10 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
           <AnimatePresence>
             {isFilterOpen && (
               <motion.div
-                initial={{ opacity: 0, y: -16 }}
+                initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15 }}
               >
                 <SetlistFilters 
                   activeFilters={activeFilters} 
@@ -303,15 +309,15 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
           )}
         </div>
       ) : (
-        <div className="bg-slate-950/50 rounded-[3rem] border-4 border-white/5 shadow-2xl overflow-hidden backdrop-blur-xl">
+        <div className="bg-slate-950/50 rounded-2xl border border-white/5 shadow-xl overflow-hidden backdrop-blur-xl">
           <div className="overflow-x-auto custom-scrollbar">
             <Table>
-              <TableHeader className="sticky top-0 bg-slate-900/90 backdrop-blur-md z-10 border-b border-white/10">
+              <TableHeader className="sticky top-0 bg-slate-900/90 backdrop-blur-md z-10 border-b border-white/5">
                 <TableRow className="hover:bg-transparent border-none">
-                  <TableHead className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-[45%]">Song</TableHead>
-                  <TableHead className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-[15%] text-center">Rdy</TableHead>
-                  <TableHead className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-[20%] text-center">Key</TableHead>
-                  <TableHead className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-[20%] text-right">Act</TableHead>
+                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[45%]">Song</TableHead>
+                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[15%] text-center">Rdy</TableHead>
+                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[20%] text-center">Key</TableHead>
+                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[20%] text-right">Act</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -351,21 +357,21 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                         key={song.id}
                         onClick={() => onEditSong(song, 'details')}
                         className={cn(
-                          "transition-all group relative cursor-pointer h-[56px] border-b border-white/5",
+                          "transition-all group relative cursor-pointer h-[48px] border-b border-white/[0.03]",
                           "hover:bg-white/[0.02]"
                         )}
                       >
-                        <TableCell className="py-2 px-3 text-left min-w-0">
+                        <TableCell className="py-1.5 px-3 text-left min-w-0">
                           <div className="flex items-center gap-2 min-w-0">
-                            <h4 className="text-sm font-black tracking-tight leading-none flex items-center gap-1.5 text-white truncate max-w-[260px]">
+                            <h4 className="text-[13px] font-bold tracking-tight leading-none flex items-center gap-1.5 text-white truncate max-w-[260px]">
                               {song.name}
-                              {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce shrink-0" />}
-                              {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+                              {isProcessing && <CloudDownload className="w-3 h-3 text-indigo-500 animate-bounce shrink-0" />}
+                              {isExtractionFailed && <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" />}
                             </h4>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate shrink-0 max-w-[100px]">{song.artist || "Unknown Artist"}</span>
+                                  <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest truncate shrink-0 max-w-[100px]">{song.artist || "Unknown"}</span>
                                 </TooltipTrigger>
                                 <TooltipContent className="bg-slate-900 text-white border-white/10 text-xs font-medium">
                                   {song.name} — {song.artist || "Unknown Artist"}
@@ -376,40 +382,40 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
                           </div>
                         </TableCell>
-                        <TableCell className="py-2 px-3 text-center w-16">
+                        <TableCell className="py-1.5 px-3 text-center w-16">
                           <span className={cn(
-                            "text-[10px] font-mono font-black px-2 py-0.5 rounded-lg inline-flex items-center gap-1 border",
+                            "text-[9px] font-mono font-black px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 border",
                             readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/20" : "bg-indigo-600/20 text-indigo-400 border-indigo-500/20"
                           )}>
                             {readinessScore}%
                           </span>
                         </TableCell>
-                        <TableCell className="py-2 px-3 text-center w-32">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <span className="text-[10px] font-mono font-bold text-slate-500">{displayOrigKey}</span>
-                            <ArrowRight className="w-3 h-3 text-slate-600" />
+                        <TableCell className="py-1.5 px-3 text-center w-32">
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[9px] font-mono font-bold text-slate-600">{displayOrigKey}</span>
+                            <ArrowRight className="w-2.5 h-2.5 text-slate-700" />
                             <div className={cn(
-                              "font-mono font-black text-[10px] px-2 py-0.5 rounded-lg flex items-center gap-1 leading-none border",
+                              "font-mono font-black text-[9px] px-1.5 py-0.5 rounded-md flex items-center gap-0.5 leading-none border",
                               song.isKeyConfirmed ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/20" : "bg-indigo-600/20 text-indigo-400 border-indigo-500/20"
                             )}>
                               {displayTargetKey}
-                              {song.isKeyConfirmed && <Check className="w-2.5 h-2.5" />}
+                              {song.isKeyConfirmed && <Check className="w-2 h-2" />}
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="py-2 px-3 text-right pr-3 w-40">
-                          <div className="flex items-center justify-end gap-1">
+                        <TableCell className="py-1.5 px-3 text-right pr-3 w-40">
+                          <div className="flex items-center justify-end gap-0.5">
                             <SetlistMultiSelector
                               songMasterId={song.id}
                               allSetlists={allSetlists}
                               songToAssign={song}
                               onUpdateSetlistSongs={onUpdateSetlistSongs}
                             />
-                            <button className="h-8 w-8 rounded-xl text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song); }}>
-                              <Edit3 className="w-4 h-4" />
+                            <button className="h-7 w-7 rounded-lg text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song); }}>
+                              <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              className="h-8 w-8 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all inline-flex items-center justify-center"
+                              className="h-7 w-7 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-all inline-flex items-center justify-center"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDeleteConfirmId(song.id);

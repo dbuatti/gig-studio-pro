@@ -97,23 +97,23 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
   };
 
   return (
-    <div className="bg-card p-6 rounded-[2rem] border border-border shadow-sm flex flex-col justify-center gap-4 transition-transform hover:scale-[1.02]">
+    <div className="bg-slate-900/60 p-5 rounded-2xl border border-white/5 flex flex-col gap-3">
       <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600">
-            <Wand2 className="w-4 h-4" />
+        <div className="flex items-center gap-2.5">
+          <div className="h-7 w-7 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-600/20">
+            <Wand2 className="w-3.5 h-3.5 text-white" />
           </div>
-          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Automation Hub</p>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Automation</p>
         </div>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-lg">
-              <Settings2 className="w-4 h-4" />
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 rounded-lg hover:text-white">
+              <Settings2 className="w-3.5 h-3.5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 bg-popover border-border text-foreground rounded-xl">
-            <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Maintenance Tools</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Maintenance</DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-border" />
             <DropdownMenuItem 
               onClick={() => onOpenAdmin?.()}
@@ -134,7 +134,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
         </DropdownMenu>
       </div>
       
-      <div className="grid grid-cols-1 gap-2">
+      <div className="grid grid-cols-1 gap-1.5">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -145,12 +145,12 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
                   onClick={() => handleAction(onBulkVibeCheck, setIsVibeChecking, "Bulk Vibe Check Complete")}
                   disabled={isVibeChecking || missingEnergyCount === 0}
                   className={cn(
-                    "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
-                    isVibeChecking ? "bg-purple-50 text-purple-600" : "text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                    "h-8 w-full justify-start text-[9px] font-black uppercase tracking-widest rounded-lg gap-2 relative overflow-hidden transition-all",
+                    isVibeChecking ? "bg-purple-500/10 text-purple-400" : "text-purple-400 hover:bg-purple-500/10"
                   )}
                 >
-                  {isVibeChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                  Bulk Vibe Check ({missingEnergyCount} Missing)
+                  {isVibeChecking ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                  Vibe Check ({missingEnergyCount})
                 </Button>
               </div>
             </TooltipTrigger>
@@ -169,12 +169,12 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
             onClick={() => handleAction(onGlobalAutoSync, setIsSyncing, "Global Auto-Sync Pipeline Complete")}
             disabled={isSyncing || songs.length === 0}
             className={cn(
-              "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
-              isSyncing ? "bg-purple-50 text-purple-600" : "text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+              "h-8 w-full justify-start text-[9px] font-black uppercase tracking-widest rounded-lg gap-2 relative overflow-hidden transition-all",
+              isSyncing ? "bg-purple-500/10 text-purple-400" : "text-purple-400 hover:bg-purple-500/10"
             )}
           >
-            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {isSyncing ? "Syncing Metadata..." : "Global Auto-Sync"}
+            {isSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            {isSyncing ? "Syncing..." : "Auto-Sync"}
           </Button>
         )}
 
@@ -189,12 +189,12 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
                     onClick={() => handleAction(onAutoLink, setIsLinking, "AI Discovery Pipeline Complete")}
                     disabled={isLinking || missingYoutubeLinkCount === 0}
                     className={cn(
-                      "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
-                      isLinking ? "bg-indigo-50 text-indigo-400" : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                      "h-8 w-full justify-start text-[9px] font-black uppercase tracking-widest rounded-lg gap-2 relative overflow-hidden transition-all",
+                      isLinking ? "bg-indigo-500/10 text-indigo-400" : "text-indigo-400 hover:bg-indigo-500/10"
                     )}
                   >
-                    {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Youtube className="w-4 h-4" />}
-                    Smart-Link Missing YouTube ({missingYoutubeLinkCount})
+                    {isLinking ? <Loader2 className="w-3 h-3 animate-spin" /> : <Youtube className="w-3 h-3" />}
+                    YouTube ({missingYoutubeLinkCount})
                   </Button>
                 </div>
               </TooltipTrigger>
@@ -212,10 +212,10 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
           size="sm" 
           onClick={handleBulkQueueClick}
           disabled={isBulkDownloading || missingAudioCount === 0}
-          className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl gap-3 relative overflow-hidden"
+          className="h-8 justify-start text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:bg-emerald-500/10 rounded-lg gap-2 relative overflow-hidden"
         >
-          {isBulkDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          Queue Audio ({missingAudioCount} Missing Full Audio)
+          {isBulkDownloading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+          Audio ({missingAudioCount})
         </Button>
 
         {onRetryFailed && (
@@ -224,9 +224,9 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
             size="sm" 
             onClick={() => handleAction(onRetryFailed, setIsRetrying, "Retry complete")}
             disabled={isRetrying || retryFailedCount === 0}
-            className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl gap-3 relative overflow-hidden"
+            className="h-8 justify-start text-[9px] font-black uppercase tracking-widest text-red-400 hover:bg-red-500/10 rounded-lg gap-2 relative overflow-hidden"
           >
-            {isRetrying ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
+            {isRetrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <AlertTriangle className="w-3 h-3" />}
             Retry Failed ({retryFailedCount})
           </Button>
         )}

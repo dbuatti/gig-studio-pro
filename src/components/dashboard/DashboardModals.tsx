@@ -86,6 +86,7 @@ interface DashboardModalsProps {
   onRefreshRepertoire: () => void;
   onAddExistingSong: (song: SetlistSong) => void;
   onGlobalSearchAdd: (song: SetlistSong) => void;
+  onBuildGig: (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: Record<string, unknown>[], setNames: Record<string, string>, stimulusText: string) => Promise<void>;
   onSetSongStudioVisibleSongs: (songs: SetlistSong[] | null) => void;
   onSetSongStudioModalGigId: (id: string | 'library' | null) => void;
   onSetSongStudioModalSongId: (id: string | null) => void;
@@ -150,6 +151,7 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
   onRefreshRepertoire,
   onAddExistingSong,
   onGlobalSearchAdd,
+  onBuildGig,
   onSetSongStudioVisibleSongs,
   onSetSongStudioModalGigId,
   onSetSongStudioModalSongId,
@@ -287,7 +289,7 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
         repertoire={masterRepertoire} 
         onAddExternalSong={async () => {}} 
         onAddLibrarySong={async () => {}} 
-        onBuildGig={async () => {}} 
+        onBuildGig={onBuildGig} 
       />
       <ShortcutCheatSheet 
         isOpen={isShortcutSheetOpen} 
