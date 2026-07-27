@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { 
   ShieldCheck, Database, RefreshCw, Trash2, Loader2, 
   Zap, ShieldAlert, Cloud, Type, HardDrive, Music, 
-  Apple, AlertCircle, CheckCircle2, X
+  Apple, AlertCircle, CheckCircle2, X, Cookie
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cleanAllSetlists } from '@/utils/setlistCleanup';
@@ -30,6 +30,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   const [isCleaning, setIsCleaning] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
+  const [isUploadingCookies, setIsUploadingCookies] = useState(false);
 
   // Calculate Storage Distribution
   const stats = useMemo(() => {
@@ -90,6 +91,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
       showError(`Renaming failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsRenaming(false);
+    }
+  };
+
+  const handleCookieUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingCookies(true);
+    try {
+      const { error } = await supabase.storage
+        .from('cookies')
+        .upload('cookies.txt', file, { upsert: true });
+      if (error) throw new Error(error.message);
+      showSuccess('YouTube cookies updated! Worker will use fresh cookies on next attempt.');
+    } catch (err: unknown) {
+      showError(`Cookie upload failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsUploadingCookies(false);
+      e.target.value = '';
     }
   };
 
@@ -211,6 +230,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                     <p className="text-[9px] font-bold uppercase opacity-40">Apply descriptive names to R2 files</p>
                   </div>
                 </Button>
+
+                <label className={cn(
+                  "w-full flex items-center gap-4 h-16 rounded-2xl border-white/10 bg-black/20 hover:bg-amber-600/10 hover:text-amber-400 transition-all cursor-pointer px-4",
+                  isUploadingCookies && "pointer-events-none opacity-50"
+                )}>
+                  {isUploadingCookies ? <Loader2 className="w-5 h-5 animate-spin" /> : <Cookie className="w-5 h-5" />}
+                  <div className="text-left">
+                    <p className="text-xs font-black uppercase tracking-tight">Upload YouTube Cookies</p>
+                    <p className="text-[9px] font-bold uppercase opacity-40">Replace expired cookies.txt for audio extraction</p>
+                  </div>
+                  <input type="file" accept=".txt" onChange={handleCookieUpload} className="hidden" />
+                </label>
               </div>
             </div>
 

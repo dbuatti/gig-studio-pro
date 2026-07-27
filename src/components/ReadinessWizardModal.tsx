@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   Check, ArrowRight, Target, ShieldCheck,
-  FileText, Music, Mic2, Music2, X, Upload, Loader2, FileType, Search, Play, Pause, Download, Clock
+  FileText, Music, Mic2, Music2, X, Upload, Loader2, FileType, Search, Play, Pause, Download, Clock, Lock, Unlock
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import MasteryRating from './MasteryRating';
@@ -117,10 +117,26 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showSummary, setShowSummary] = useState(defaultToSummary ?? false);
-  const [activeView, setActiveView] = useState<'summary' | 'lyrics' | 'chords'>('summary');
+  const [activeView, setActiveView] = useState<'summary' | 'lyrics' | 'chords' | 'pdf'>('summary');
+  const [chordsLocked, setChordsLocked] = useState(true);
   const [navigateToStepId, setNavigateToStepId] = useState<string | null>(null);
+  const [manuallyUndone, setManuallyUndone] = useState<Set<string>>(new Set());
+  const undoSkipNextRef = useRef(false);
   const [pdfUploading, setPdfUploading] = useState(false);
   const [uploadType, setUploadType] = useState<'score' | 'leadsheet'>('score');
+
+  // Clear manual undo flags when user makes real data changes (so auto-complete can re-fire)
+  const prevFormDataRef = useRef(formData);
+  useEffect(() => {
+    if (prevFormDataRef.current !== formData && manuallyUndone.size > 0) {
+      if (undoSkipNextRef.current) {
+        undoSkipNextRef.current = false;
+      } else {
+        setManuallyUndone(new Set());
+      }
+    }
+    prevFormDataRef.current = formData;
+  }, [formData]);
 
   const uncheckedStep = navigateToStepId
     ? STEPS.find(s => s.id === navigateToStepId) || STEPS.find(s => !checked.includes(s.id)) || null
@@ -382,8 +398,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
 
   const totalSubtasks = useMemo(() => STEPS.reduce((acc, s) => acc + s.subtasks.length, 0), []);
   const doneSubtasks = useMemo(() =>
-    STEPS.reduce((acc, step) => acc + step.subtasks.filter(s => s.isDone(formData)).length, 0),
-  [formData]);
+    STEPS.reduce((acc, step) => acc + step.subtasks.filter(s => !manuallyUndone.has(s.id) && s.isDone(formData)).length, 0),
+  [formData, manuallyUndone]);
 
   // Full readiness score matching repertoireSync validators
   const readinessScore = useMemo(() => {
@@ -414,8 +430,11 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
 
   const subtaskStates = useMemo(() => {
     if (!currentStep) return [];
-    return currentStep.subtasks.map(s => ({ ...s, done: s.isDone(formData) }));
-  }, [formData, currentStep]);
+    return currentStep.subtasks.map(s => ({
+      ...s,
+      done: manuallyUndone.has(s.id) ? false : s.isDone(formData),
+    }));
+  }, [formData, currentStep, manuallyUndone]);
 
   const allSubtasksDone = subtaskStates.length > 0 && subtaskStates.every(s => s.done);
 
@@ -1023,7 +1042,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
         </div>
 
         {/* ── Body ── */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-10 py-4 md:py-5">
+        <div className={cn("flex-1 overflow-y-auto custom-scrollbar px-6 md:px-10 py-4 md:py-5", (activeView === 'chords' || activeView === 'pdf') && "flex flex-col")}>
           {allDone && !showSummary && !navigateToStepId ? (
             <motion.div
               initial={{ opacity: 0 }}
@@ -1072,21 +1091,67 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               </div>
             </div>
           ) : activeView === 'chords' ? (
-            <div className="max-w-2xl mx-auto">
-              <div className="flex items-center justify-between mb-4">
+            <div className="w-full flex flex-col flex-1 min-h-0">
+              <div className="flex items-center justify-between mb-4 shrink-0">
                 <h3 className="text-sm font-black uppercase tracking-[0.2em] text-orange-400">Transposed Chords</h3>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setChordsLocked(!chordsLocked)}
+                    className={cn(
+                      "flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded transition-all",
+                      chordsLocked
+                        ? "bg-white/5 text-slate-500 hover:bg-white/10"
+                        : "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                    )}>
+                    {chordsLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                    {chordsLocked ? 'Locked' : 'Editing'}
+                  </button>
+                  <button onClick={() => setActiveView('summary')}
+                    className="text-[8px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-all">
+                    ← Back to Summary
+                  </button>
+                </div>
+              </div>
+              <p className="text-[9px] text-slate-500 font-bold mb-3 shrink-0">
+                Displayed in stage key ({formatKey(formData.targetKey, formData.key_preference || 'sharps')}) · {(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST from original
+              </p>
+              <div className="rounded-xl bg-white/5 border border-white/10 p-0 overflow-hidden flex-1 min-h-0">
+                {chordsLocked ? (
+                  <pre className="w-full h-full text-sm text-white font-mono leading-relaxed p-4 whitespace-pre-wrap overflow-y-auto custom-scrollbar">
+                    {transposeChords(formData.ug_chords_text || 'No chords added yet.', formData.pitch || 0, formData.key_preference || 'sharps')}
+                  </pre>
+                ) : (
+                  <textarea
+                    value={formData.ug_chords_text || ''}
+                    onChange={e => handleAutoSave({ ug_chords_text: e.target.value })}
+                    placeholder="Paste or type chords here..."
+                    className="w-full h-full bg-transparent text-sm text-white font-mono leading-relaxed p-4 focus:outline-none resize-none placeholder:text-slate-600"
+                    spellCheck={false}
+                    autoFocus
+                  />
+                )}
+              </div>
+            </div>
+          ) : activeView === 'pdf' ? (
+            <div className="w-full flex flex-col flex-1 min-h-0">
+              <div className="flex items-center justify-between mb-4 shrink-0">
+                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-orange-400">Sheet Music</h3>
                 <button onClick={() => setActiveView('summary')}
                   className="text-[8px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-all">
                   ← Back to Summary
                 </button>
               </div>
-              <p className="text-[9px] text-slate-500 font-bold mb-3">
-                Displayed in stage key ({formatKey(formData.targetKey, formData.key_preference || 'sharps')}) · {(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST from original
-              </p>
-              <div className="rounded-xl bg-white/5 border border-white/10 p-4">
-                <pre className="text-sm text-white font-mono leading-relaxed whitespace-pre-wrap">
-                  {transposeChords(formData.ug_chords_text || 'No chords added yet.', formData.pitch || 0, formData.key_preference || 'sharps')}
-                </pre>
+              <div className="rounded-xl bg-white/5 border border-white/10 overflow-hidden flex-1 min-h-0">
+                {(formData.pdfUrl || formData.leadsheetUrl) ? (
+                  <iframe
+                    src={formData.pdfUrl || formData.leadsheetUrl}
+                    className="w-full h-full border-0"
+                    title="Sheet Music PDF"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-600 text-xs font-bold uppercase tracking-widest">
+                    No PDF linked yet
+                  </div>
+                )}
               </div>
             </div>
           ) : showSummary ? (
@@ -1102,12 +1167,15 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   { label: 'Chords', done: !!(formData.ug_chords_text && formData.ug_chords_text.length > 10) },
                   { label: 'Notes', done: !!(formData.notes && formData.notes.length > 5) },
                 ].map(b => {
-                  const isView = b.label === 'Lyrics' || b.label === 'Chords';
-                  const isActive = (b.label === 'Lyrics' && activeView === 'lyrics') || (b.label === 'Chords' && activeView === 'chords');
+                  const isView = b.label === 'Lyrics' || b.label === 'Chords' || (b.label === 'PDF' && b.done);
+                  const isActive = (b.label === 'Lyrics' && activeView === 'lyrics') || (b.label === 'Chords' && activeView === 'chords') || (b.label === 'PDF' && activeView === 'pdf');
                   if (isView) {
                     return (
                       <button key={b.label}
-                        onClick={() => setActiveView(b.label.toLowerCase() as 'lyrics' | 'chords')}
+                        onClick={() => {
+                          if (b.label === 'PDF') setActiveView(activeView === 'pdf' ? 'summary' : 'pdf');
+                          else setActiveView(b.label.toLowerCase() as 'lyrics' | 'chords');
+                        }}
                         className={cn(
                           "px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all",
                           isActive ? "bg-indigo-600/20 border-indigo-500/30 text-indigo-400" :
@@ -1277,7 +1345,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                 <p className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-400">Steps</p>
                 {STEPS.map((step, i) => {
                   const stepChecked = checked.includes(step.id);
-                  const doneCount = step.subtasks.filter(s => s.isDone(formData)).length;
+                  const doneCount = step.subtasks.filter(s => !manuallyUndone.has(s.id) && s.isDone(formData)).length;
                   const totalSubs = step.subtasks.length;
                   const stepPct = Math.round((doneCount / totalSubs) * 100);
                   const dotColor = stepChecked ? 'bg-emerald-500' :
@@ -1407,12 +1475,17 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                               <span className={cn("text-xs md:text-sm font-bold transition-colors duration-300", sub.done ? "text-emerald-300" : "text-slate-300")}>
                                 {sub.label}
                               </span>
-                              {(formData.pdfUrl || formData.leadsheetUrl) && (
+                              {sub.id === 'reader_ready.1' && (formData.pdfUrl || formData.leadsheetUrl) && (
                                 <a href={formData.pdfUrl || formData.leadsheetUrl} target="_blank" rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 transition-all"
                                   title="Open sheet music">
                                   <FileType className="w-2.5 h-2.5" /> PDF
                                 </a>
+                              )}
+                              {sub.id === 'reader_ready.2' && formData.preferred_reader && formData.preferred_reader !== 'unsure' && (
+                                <span className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest bg-indigo-600/20 text-indigo-400">
+                                  {READER_OPTIONS.find(o => o.value === formData.preferred_reader)?.label || formData.preferred_reader}
+                                </span>
                               )}
                               {renderInlineInput(sub.id, sub.done)}
                             </div>
@@ -1421,19 +1494,14 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                                 <button
                                   onClick={() => {
                                     if (currentStep) {
-                                      const clearFields: Record<string, Partial<SetlistSong>> = {
-                                        'reader_ready.1': { pdfUrl: '', leadsheetUrl: '' },
-                                        'reader_ready.2': { preferred_reader: '' as any },
-                                      'key.1': { originalKey: '' },
-                                      'key.4': { isKeyConfirmed: false, targetKey: '' },
-                                      'lyrics.1': { lyrics: '' },
-                                      'structure.1': { ug_chords_text: '' },
-                                      };
-                                      const isStepChecked = checked.includes(currentStep.id);
-                                      handleAutoSave({
-                                        ...clearFields[sub.id],
-                                        ...(isStepChecked ? { readiness_checklist: checked.filter(id => id !== currentStep.id) } : {}),
-                                      });
+                                      setManuallyUndone(prev => new Set([...prev, sub.id]));
+                                      undoSkipNextRef.current = true;
+                                      const remainingChecked = subtaskStates.filter(s => s.done && s.id !== sub.id).length;
+                                      if (remainingChecked === 0) {
+                                        handleAutoSave({
+                                          readiness_checklist: checked.filter(id => id !== currentStep.id),
+                                        });
+                                      }
                                     }
                                   }}
                                   className="shrink-0 text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded self-start bg-red-500/10 text-red-400 hover:bg-red-500/20 cursor-pointer transition-all"
@@ -1496,7 +1564,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
             {STEPS.map((step, i) => {
               const isChecked = checked.includes(step.id);
               const isCurrent = step.id === currentStep?.id;
-              const doneSubs = step.subtasks.filter(s => s.isDone(formData)).length;
+              const doneSubs = step.subtasks.filter(s => !manuallyUndone.has(s.id) && s.isDone(formData)).length;
               const totalSubs = step.subtasks.length;
               const stepPct = Math.round((doneSubs / totalSubs) * 100);
               const hasBadData = step.id === 'reader_ready' && formData.preferred_reader === 'unsure' ||
