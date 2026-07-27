@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Sparkles, Plus, Play, Pause, ExternalLink, Music, Check, AlertCircle, Clock, Zap, Ban, RotateCcw, Eye, EyeOff, X } from 'lucide-react';
+import { Loader2, Sparkles, Plus, Play, Pause, ExternalLink, Music, Check, AlertCircle, Clock, Zap, Ban, RotateCcw, Eye, EyeOff, X, Search } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { supabase } from '@/integrations/supabase/client';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
@@ -56,6 +56,8 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
   const [batchAdding, setBatchAdding] = useState(false);
   const [showDuplicates, setShowDuplicates] = useState(false);
   const [ignoredSuggestions, setIgnoredSuggestions] = useState<Set<string>>(new Set());
+  const [repoQuery, setRepoQuery] = useState('');
+  const [repoAdding, setRepoAdding] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -149,68 +151,80 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
 
       const rawSuggestions = Array.isArray(data) ? data : (data?.suggestions || []);
       
-      // 2. Check for duplicates across all songs in the setlist
+      // 2. Check for duplicates across songs already IN THIS SUBSET
       const existingKeys = new Set(subsetSongs.map(s => normalize(s.name)));
-      const repertoireKeys = new Set(repertoire.map(s => normalize(s.name)));
       
       // Also deduplicate within the AI suggestions themselves
       const seenSuggestionKeys = new Set<string>();
 
-      const enriched: SuggestedSong[] = [];
-      for (const s of rawSuggestions) {
-        const query = `${s.artist} ${s.name}`;
-        const suggestionKey = normalize(s.name);
-        
-        // Skip if this exact song was already suggested in this batch
-        if (seenSuggestionKeys.has(suggestionKey)) {
-          continue;
-        }
-        seenSuggestionKeys.add(suggestionKey);
-        
-        // Check if this song already exists in the set or repertoire
-        const isDup = existingKeys.has(suggestionKey) || repertoireKeys.has(suggestionKey);
-        
-        // Check if user has already dismissed this suggestion
-        const isIgnored = ignoredSuggestions.has(suggestionKey);
-        
-        try {
-          const targetUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`;
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-          const res = await fetch(proxyUrl);
-          if (res.ok) {
-            const proxyData = await res.json();
-            const itunesData = JSON.parse(proxyData.contents);
-            const track = itunesData.results?.[0];
-            if (track) {
-              enriched.push({
-                name: track.trackName,
-                artist: track.artistName,
-                reason: s.reason || "Fits the subset vibe perfectly.",
-                previewUrl: track.previewUrl,
-                appleMusicUrl: track.trackViewUrl,
-                artworkUrl: track.artworkUrl100,
-                genre: track.primaryGenreName,
-                duration_seconds: Math.floor(track.trackTimeMillis / 1000),
-                energy_level: s.energy_level || 'Pulse',
-                isDuplicate: isDup,
-                isIgnored: isIgnored,
-              });
-              continue;
-            }
-          }
-        } catch (e) {
-          console.error("iTunes enrichment failed for:", query, e);
-        }
+      // Deduplicate raw suggestions
+      const uniqueSuggestions = rawSuggestions.filter((s: any) => {
+        const key = normalize(s.name);
+        if (seenSuggestionKeys.has(key)) return false;
+        seenSuggestionKeys.add(key);
+        return true;
+      });
 
-        // Fallback if iTunes search fails
-        enriched.push({
+      // Partition: songs already in repertoire vs songs needing iTunes lookup
+      const needsItunes: { idx: number; query: string }[] = [];
+      const enriched: SuggestedSong[] = uniqueSuggestions.map((s: any, i: number) => {
+        const suggestionKey = normalize(s.name);
+        const isDup = existingKeys.has(suggestionKey);
+        const isIgnored = ignoredSuggestions.has(suggestionKey);
+        const existingRepSong = repertoire.find(r => normalize(r.name) === suggestionKey);
+
+        if (existingRepSong) {
+          return {
+            name: existingRepSong.name,
+            artist: existingRepSong.artist,
+            reason: s.reason || "Already in your library.",
+            previewUrl: existingRepSong.previewUrl,
+            appleMusicUrl: existingRepSong.appleMusicUrl,
+            artworkUrl: existingRepSong.artworkUrl,
+            genre: existingRepSong.genre,
+            duration_seconds: existingRepSong.duration_seconds,
+            energy_level: s.energy_level || existingRepSong.energy_level || 'Pulse',
+            isDuplicate: isDup,
+            isIgnored: isIgnored,
+          };
+        }
+        needsItunes.push({ idx: i, query: `${s.artist} ${s.name}` });
+        return {
           name: s.name,
           artist: s.artist,
           reason: s.reason || "Fits the subset vibe perfectly.",
           energy_level: s.energy_level || 'Pulse',
           isDuplicate: isDup,
           isIgnored: isIgnored,
-        });
+        };
+      });
+
+      // Batch-enrich all remaining songs via edge function in ONE call
+      if (needsItunes.length > 0) {
+        try {
+          const { data: itunesResults, error: itunesErr } = await supabase.functions.invoke('itunes-search', {
+            body: { queries: needsItunes.map(n => n.query) }
+          });
+          if (!itunesErr && Array.isArray(itunesResults)) {
+            needsItunes.forEach((n, i) => {
+              const track = itunesResults[i];
+              if (track) {
+                enriched[n.idx] = {
+                  ...enriched[n.idx],
+                  name: track.trackName,
+                  artist: track.artistName,
+                  previewUrl: track.previewUrl,
+                  appleMusicUrl: track.trackViewUrl,
+                  artworkUrl: track.artworkUrl100,
+                  genre: track.primaryGenreName,
+                  duration_seconds: Math.floor(track.trackTimeMillis / 1000),
+                };
+              }
+            });
+          }
+        } catch (e) {
+          console.error("iTunes batch enrichment failed:", e);
+        }
       }
 
       setSuggestions(enriched);
@@ -307,10 +321,44 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
     fetchSuggestions();
   };
 
-  const handleBatchAdd = async () => {
+  const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  const subsetKeys = new Set(subsetSongs.map(s => normalize(s.name)));
+  const repoResults = repoQuery.trim().length >= 1
+    ? repertoire.filter(r => {
+        const q = normalize(repoQuery);
+        const nameMatch = normalize(r.name).includes(q);
+        const artistMatch = normalize(r.artist || '').includes(q);
+        return (nameMatch || artistMatch) && !subsetKeys.has(normalize(r.name));
+      }).slice(0, 8)
+    : [];
+
+  const handleAddFromRepo = async (song: SetlistSong) => {
+    setRepoAdding(song.id);
+    try {
+      const songIdToInsert = song.master_id || song.id;
+      const { error: insertError } = await supabase.from('setlist_songs').insert({
+        setlist_id: setlistId,
+        song_id: songIdToInsert,
+        sort_order: subsetSongs.length,
+        set_group: setGroup,
+      });
+      if (insertError) throw insertError;
+      showSuccess(`"${song.name}" added to ${subsetName}!`);
+      setRepoQuery('');
+      await onSongAdded();
+    } catch (err: unknown) {
+      console.error("Failed to add from repertoire:", err);
+      showError(`Failed to add: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setRepoAdding(null);
+    }
+  };
+
+  const handleBatchAdd = async (limit: number | null = null) => {
     const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
     const validSuggestions = suggestions.filter(s => !s.isDuplicate && !s.isAdded && !s.isIgnored);
-    if (validSuggestions.length === 0) {
+    const toAdd = limit ? validSuggestions.slice(0, limit) : validSuggestions;
+    if (toAdd.length === 0) {
       showInfo("No new suggestions to add.");
       return;
     }
@@ -319,7 +367,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
     let added = 0;
     let failed = 0;
 
-    for (const song of validSuggestions) {
+    for (const song of toAdd) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) continue;
@@ -381,72 +429,126 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[90vw] w-[650px] h-[80vh] p-0 bg-slate-950 border-white/10 overflow-hidden rounded-[2rem] shadow-2xl flex flex-col">
-        <DialogHeader className="p-6 pb-4 border-b border-white/5 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-600/10 rounded-xl border border-indigo-500/20">
-                <Sparkles className="w-5 h-5 text-indigo-400" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-black uppercase tracking-tight text-white">
-                  Subset Discover
-                </DialogTitle>
-                <DialogDescription className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-1">
-                  AI Suggestions matching "{subsetName}"
-                  {suggestions.length > 0 && (
-                    <span className="ml-2 text-slate-600">
-                      ({suggestions.filter(s => !s.isDuplicate && !s.isIgnored).length} new, {suggestions.filter(s => s.isDuplicate).length} dupes, {suggestions.filter(s => s.isIgnored).length} dismissed)
-                    </span>
-                  )}
-                </DialogDescription>
-              </div>
+      <DialogContent className="max-w-[95vw] w-[900px] h-[85vh] p-0 bg-slate-950 border-white/10 overflow-hidden rounded-[2rem] shadow-2xl flex flex-col">
+        <DialogHeader className="p-6 pb-3 border-b border-white/5 shrink-0 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-600/10 rounded-xl border border-indigo-500/20">
+              <Sparkles className="w-5 h-5 text-indigo-400" />
             </div>
-            <div className="flex items-center gap-2">
-              {!isLoading && suggestions.length > 0 && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefresh}
-                    className="h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-400 border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 gap-1.5"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    Refresh
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDuplicates(!showDuplicates)}
-                    className="h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 border-white/10 hover:bg-white/5 gap-1.5"
-                  >
-                    {showDuplicates ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    {showDuplicates ? "Hide Dupes" : "Show Dupes"}
-                  </Button>
-                  <Button
-                    onClick={handleBatchAdd}
-                    disabled={batchAdding || suggestions.filter(s => !s.isDuplicate && !s.isAdded && !s.isIgnored).length === 0}
-                    className="h-9 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl gap-2"
-                  >
-                    {batchAdding ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Plus className="w-3.5 h-3.5" />
-                    )}
-                    Add All {suggestions.filter(s => !s.isDuplicate && !s.isAdded && !s.isIgnored).length > 0 && `(${suggestions.filter(s => !s.isDuplicate && !s.isAdded && !s.isIgnored).length})`}
-                  </Button>
-                </>
-              )}
+            <div className="flex-1 min-w-0">
+              <DialogTitle className="text-xl font-black uppercase tracking-tight text-white">
+                Subset Discover
+              </DialogTitle>
+              <DialogDescription className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-1">
+                AI Suggestions matching "{subsetName}"
+                {suggestions.length > 0 && (
+                  <span className="ml-2 text-slate-600">
+                    ({suggestions.filter(s => !s.isDuplicate && !s.isIgnored).length} new, {suggestions.filter(s => s.isDuplicate).length} dupes, {suggestions.filter(s => s.isIgnored).length} dismissed)
+                  </span>
+                )}
+              </DialogDescription>
             </div>
           </div>
+          {!isLoading && suggestions.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                className="h-8 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-400 border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 gap-1.5"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Refresh
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDuplicates(!showDuplicates)}
+                className="h-8 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 border-white/10 hover:bg-white/5 gap-1.5"
+              >
+                {showDuplicates ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                {showDuplicates ? "Hide Dupes" : "Show Dupes"}
+              </Button>
+              <div className="w-px h-5 bg-white/10 mx-1" />
+              {[5, 10, 15, 20].map(n => {
+                const avail = suggestions.filter(s => !s.isDuplicate && !s.isAdded && !s.isIgnored).length;
+                const count = Math.min(n, avail);
+                return (
+                  <Button
+                    key={n}
+                    onClick={() => handleBatchAdd(n)}
+                    disabled={batchAdding || count === 0}
+                    className="h-8 min-w-[2rem] px-2 bg-white/5 hover:bg-indigo-600/20 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-300 border border-white/10 hover:border-indigo-500/30 rounded-lg transition-all"
+                  >
+                    +{n}
+                  </Button>
+                );
+              })}
+              <div className="w-px h-5 bg-white/10 mx-1" />
+              <Button
+                onClick={() => handleBatchAdd(null)}
+                disabled={batchAdding || suggestions.filter(s => !s.isDuplicate && !s.isAdded && !s.isIgnored).length === 0}
+                className="h-8 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-widest rounded-lg gap-1.5"
+              >
+                {batchAdding ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Plus className="w-3 h-3" />
+                )}
+                All ({suggestions.filter(s => !s.isDuplicate && !s.isAdded && !s.isIgnored).length})
+              </Button>
+            </div>
+          )}
         </DialogHeader>
+
+        {/* Repertoire quick-add — always visible */}
+        <div className="px-6 pb-3 shrink-0">
+          <div className="relative">
+            <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus-within:border-indigo-500/30 transition-colors">
+              <Search className="w-4 h-4 text-slate-500 shrink-0" />
+              <input
+                type="text"
+                placeholder="Quick add from repertoire — type to search..."
+                value={repoQuery}
+                onChange={(e) => setRepoQuery(e.target.value)}
+                className="flex-1 bg-transparent text-sm text-white placeholder:text-slate-600 outline-none"
+              />
+              {repoAdding && <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />}
+            </div>
+            {repoResults.length > 0 && (
+              <div className="absolute z-50 left-0 right-0 mt-1 bg-slate-900 border border-white/10 rounded-xl overflow-hidden shadow-xl">
+                {repoResults.map((song) => (
+                  <button
+                    key={song.id}
+                    onClick={() => handleAddFromRepo(song)}
+                    disabled={repoAdding !== null}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors text-left disabled:opacity-50"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 shrink-0 flex items-center justify-center overflow-hidden">
+                      {song.artworkUrl ? (
+                        <img src={song.artworkUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Music className="w-4 h-4 text-slate-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{song.name}</p>
+                      <p className="text-xs text-slate-500 truncate">{song.artist}</p>
+                    </div>
+                    <Plus className="w-4 h-4 text-slate-500 shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         <div className="flex-1 overflow-hidden min-h-0">
           {isLoading ? (
             <div className="h-full flex flex-col items-center justify-center space-y-4">
               <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
               <p className="text-xs font-black uppercase tracking-widest text-slate-400 animate-pulse">
-                Analyzing subset vibe & searching iTunes...
+                Analyzing subset vibe & enriching suggestions...
               </p>
             </div>
           ) : quotaError ? (

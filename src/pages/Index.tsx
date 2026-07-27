@@ -811,12 +811,22 @@ const Index = () => {
               <ActiveSongBanner 
                 song={activeSong} 
                 isPlaying={audio.isPlaying} 
-                onTogglePlayback={audio.togglePlayback} 
+                onTogglePlayback={async () => {
+                  const audioUrl = activeSong.audio_url || activeSong.previewUrl;
+                  if (!audio.isPlaying && audioUrl && !audio.currentUrl) {
+                    await audio.loadFromUrl(audioUrl, activeSong.pitch || 0, false);
+                    await new Promise(r => setTimeout(r, 300));
+                  }
+                  await audio.togglePlayback();
+                }} 
                 onClear={() => { audio.stopPlayback(); }} 
                 isLoadingAudio={audio.isLoadingAudio} 
                 nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSong.id) + 1]?.name} 
                 onNext={() => playNext(true)} 
-                onPrevious={() => {}} 
+                onPrevious={() => {
+                  const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSong.id);
+                  if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1], true);
+                }}
               />
             </div>
           )}

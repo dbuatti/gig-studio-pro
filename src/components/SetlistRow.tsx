@@ -2,12 +2,10 @@
 
 import React from 'react';
 import { SetlistSong, EnergyZone } from './SetlistManager';
-import { Button } from "@/components/ui/button";
 import { 
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle, 
-  ShieldCheck, Clock, ArrowRight, Check, ChevronDown, 
-  ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList,
-  Star, Zap, Info
+  ShieldCheck, ArrowRight, Check, ChevronDown, 
+  ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
@@ -41,6 +39,9 @@ interface SetlistRowProps {
   getHeatmapClass: (song: SetlistSong) => string;
   getEnergyBarClass: (energy: EnergyZone | undefined) => string;
   getReadinessBreakdown: (song: SetlistSong) => string[];
+  getSetLabel: (group: number) => string;
+  currentGroup: number;
+  isDraggableRow?: boolean;
 }
 
 const SetlistRow: React.FC<SetlistRowProps> = ({
@@ -48,23 +49,15 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
   onTogglePlayed, onEdit, onSelect, onUpdateSong, onUpdateKey, onRemove,
   allSetlists, onUpdateSetlistSongs, isReorderingEnabled, handleMove,
   handleMoveToTop, handleMoveToBottom, setDeleteConfirmId,
-  getHeatmapClass, getEnergyBarClass, getReadinessBreakdown
+  getHeatmapClass, getEnergyBarClass, getReadinessBreakdown, getSetLabel, currentGroup, isDraggableRow
 }) => {
   const displayOrigKey = formatKey(song.originalKey, currentPref === 'neutral' ? 'sharps' : currentPref);
   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref === 'neutral' ? 'sharps' : currentPref);
   const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
   const isExtractionFailed = song.extraction_status === 'failed';
 
-  return (
-    <tr
-      className={cn(
-        "transition-all group relative cursor-pointer h-[56px] border-b border-white/5",
-        isSelected ? "bg-indigo-500/10" : "hover:bg-white/[0.03]",
-        song.isPlayed && "opacity-40 grayscale-[0.5]",
-        getHeatmapClass(song)
-      )}
-      onClick={() => onEdit(song)}
-    >
+  const cells = (
+    <>
       <td className="px-3 text-center w-12">
         <button
           onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}
@@ -220,18 +213,18 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
               <DropdownMenu>
                 <DropdownMenuTrigger className="w-full">
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="h-10 rounded-xl text-[10px] font-bold uppercase">
-                    <LayoutList className="w-4 h-4 mr-3 text-indigo-400" /> Move to Set...
+                    <LayoutList className="w-4 h-4 mr-3 text-indigo-400" /> Move to Subset...
                   </DropdownMenuItem>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="left" className="bg-slate-950 border-white/10 rounded-2xl">
-                  {[1, 2, 3, 4, 99].map(num => (
+                  {[1, 2, 3, 4, 99].filter(n => n !== currentGroup).map(num => (
                     <DropdownMenuItem
                       key={num}
                       onClick={async (e) => {
                         e.stopPropagation();
                         try {
                           await supabase.from('setlist_songs').update({ set_group: num }).eq('id', song.id);
-                          showSuccess(`Moved to ${num === 99 ? 'Surplus' : `Set ${num}`}`);
+                          showSuccess(`Moved to ${getSetLabel(num)}`);
                           onUpdateSong(song.id, { set_group: num });
                         } catch (err) {
                           showError("Failed to move set");
@@ -239,7 +232,7 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
                       }}
                       className="h-9 rounded-lg text-[10px] font-black uppercase"
                     >
-                      {num === 99 ? "Surplus" : `Set ${num}`}
+                      {getSetLabel(num)}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -256,6 +249,24 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
           </DropdownMenu>
         </div>
       </td>
+    </>
+  );
+
+  if (isDraggableRow) {
+    return cells;
+  }
+
+  return (
+    <tr
+      className={cn(
+        "transition-all group relative cursor-pointer h-[56px] border-b border-white/5",
+        isSelected ? "bg-indigo-500/10" : "hover:bg-white/[0.03]",
+        song.isPlayed && "opacity-40 grayscale-[0.5]",
+        getHeatmapClass(song)
+      )}
+      onClick={() => onEdit(song)}
+    >
+      {cells}
     </tr>
   );
 };

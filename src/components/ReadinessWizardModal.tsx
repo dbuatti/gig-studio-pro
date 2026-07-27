@@ -726,7 +726,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
           const newBaseIndex = (baseIndex + direction + 12) % 12;
           const newKey = isMinor ? ALL_KEYS_SHARP[newBaseIndex + 12] : ALL_KEYS_SHARP[newBaseIndex];
           const semitones = calculateSemitones(formData.originalKey, newKey);
-          handleAutoSave({ targetKey: newKey, pitch: semitones });
+          handleAutoSave({ targetKey: newKey, pitch: semitones, isKeyConfirmed: false });
           setAudioPitch(semitones);
         };
         return (
@@ -1133,8 +1133,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
             </div>
           ) : activeView === 'pdf' ? (
             <div className="w-full flex flex-col flex-1 min-h-0">
-              <div className="flex items-center justify-between mb-4 shrink-0">
-                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-orange-400">Sheet Music</h3>
+              <div className="flex items-center justify-end mb-4 shrink-0">
                 <button onClick={() => setActiveView('summary')}
                   className="text-[8px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-all">
                   ← Back to Summary
@@ -1209,7 +1208,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                       const newBaseIdx = (baseIdx - 1 + 12) % 12;
                       const newKey = isMinor ? ALL_KEYS_SHARP[newBaseIdx + 12] : ALL_KEYS_SHARP[newBaseIdx];
                       const semitones = calculateSemitones(formData.originalKey, newKey);
-                      handleAutoSave({ targetKey: newKey, pitch: semitones });
+                      handleAutoSave({ targetKey: newKey, pitch: semitones, isKeyConfirmed: false });
                       setAudioPitch(semitones);
                     }
                   }} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center text-sm font-black shrink-0" title="Semitone down">−</button>
@@ -1237,7 +1236,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                       const newBaseIdx = (baseIdx + 1 + 12) % 12;
                       const newKey = isMinor ? ALL_KEYS_SHARP[newBaseIdx + 12] : ALL_KEYS_SHARP[newBaseIdx];
                       const semitones = calculateSemitones(formData.originalKey, newKey);
-                      handleAutoSave({ targetKey: newKey, pitch: semitones });
+                      handleAutoSave({ targetKey: newKey, pitch: semitones, isKeyConfirmed: false });
                       setAudioPitch(semitones);
                     }
                   }} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center text-sm font-black shrink-0" title="Semitone up">+</button>

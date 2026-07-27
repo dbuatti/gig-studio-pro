@@ -28,12 +28,14 @@ interface SetlistMobileCardProps {
   setDeleteConfirmId: (id: string) => void;
   getHeatmapClass: (song: SetlistSong) => string;
   getEnergyBarClass: (energy: EnergyZone | undefined) => string;
+  getSetLabel: (group: number) => string;
+  currentGroup: number;
 }
 
 const SetlistMobileCard: React.FC<SetlistMobileCardProps> = ({
   song, isSelected, readinessScore, isFullyReady, currentPref,
   onTogglePlayed, onEdit, onSelect, onUpdateSong, onUpdateKey, setDeleteConfirmId,
-  getHeatmapClass, getEnergyBarClass
+  getHeatmapClass, getEnergyBarClass, getSetLabel, currentGroup
 }) => {
   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref === 'neutral' ? 'sharps' : currentPref);
   const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
@@ -121,14 +123,14 @@ const SetlistMobileCard: React.FC<SetlistMobileCardProps> = ({
                 </DropdownMenuItem>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="left" className="bg-slate-950 border-white/10 rounded-xl">
-                {[1, 2, 3, 4, 99].map(num => (
+                {[1, 2, 3, 4, 99].filter(n => n !== currentGroup).map(num => (
                   <DropdownMenuItem
                     key={num}
                     onClick={async (e) => {
                       e.stopPropagation();
                       try {
                         await supabase.from('setlist_songs').update({ set_group: num }).eq('id', song.id);
-                        showSuccess(`Moved to ${num === 99 ? 'Surplus' : `Set ${num}`}`);
+                        showSuccess(`Moved to ${getSetLabel(num)}`);
                         onUpdateSong(song.id, { set_group: num });
                       } catch (err) {
                         showError("Failed to move set");
@@ -136,7 +138,7 @@ const SetlistMobileCard: React.FC<SetlistMobileCardProps> = ({
                     }}
                     className="h-8 rounded-lg text-[9px] font-black uppercase"
                   >
-                    {num === 99 ? "Surplus" : `Set ${num}`}
+                    {getSetLabel(num)}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>

@@ -1,12 +1,13 @@
 "use client";
 import React, { useState, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle,
   ShieldCheck, Clock, ArrowRight, Check, ChevronDown,
   ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Library,
-  BookOpen, Tv, Sliders, Loader2, RotateCcw, Plus, Sparkles
+  BookOpen, Tv, Sliders, Loader2, RotateCcw, Plus, Sparkles, Search, Music, GripVertical
 } from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
@@ -192,6 +193,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   // Subset practice & discovery states
   const [reshufflingGroup, setReshufflingGroup] = useState<number | null>(null);
   const [suggesterGroup, setSuggesterGroup] = useState<number | null>(null);
+  const [repoQuery, setRepoQuery] = useState('');
+  const [repoAdding, setRepoAdding] = useState<string | null>(null);
 
   const handleReshuffle = async (groupNum: number) => {
     if (onReshuffleSubset) {
@@ -201,6 +204,29 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       } finally {
         setReshufflingGroup(null);
       }
+    }
+  };
+
+  const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+
+  const handleAddFromRepo = async (song: SetlistSong, targetGroup: number) => {
+    setRepoAdding(song.id);
+    try {
+      const songIdToInsert = song.master_id || song.id;
+      const { error } = await supabase.from('setlist_songs').insert({
+        setlist_id: activeSetlistId,
+        song_id: songIdToInsert,
+        sort_order: rawSongs.filter(s => s.set_group === targetGroup).length,
+        set_group: targetGroup,
+      });
+      if (error) throw error;
+      showSuccess(`"${song.name}" added to ${getSetLabel(targetGroup)}!`);
+      setRepoQuery('');
+      if (onRefresh) await onRefresh();
+    } catch (err) {
+      showError(`Failed to add: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setRepoAdding(null);
     }
   };
 
@@ -287,6 +313,35 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     onReorder(newSongs);
     showSuccess("Song moved to bottom!");
   };
+
+  const handleDragEnd = useCallback((result: DropResult) => {
+    const { source, destination } = result;
+    if (!destination) return;
+    if (source.index === destination.index) return;
+
+    const flatSongs = sortedSetGroups.flatMap(g => groupedBySet[g] || []);
+    if (source.index >= flatSongs.length || destination.index >= flatSongs.length) return;
+
+    const srcSong = flatSongs[source.index];
+    const srcGroup = processedSongs.find(s => s.id === srcSong.id)?.set_number;
+    const dstSong = flatSongs[destination.index];
+    const dstGroup = processedSongs.find(s => s.id === dstSong.id)?.set_number;
+
+    if (srcGroup !== dstGroup) return;
+
+    const [moved] = flatSongs.splice(source.index, 1);
+    flatSongs.splice(destination.index, 0, moved);
+
+    const newSongs: SetlistSong[] = [];
+    let cursor = 0;
+    for (const gn of sortedSetGroups) {
+      const count = (groupedBySet[gn] || []).length;
+      newSongs.push(...flatSongs.slice(cursor, cursor + count));
+      cursor += count;
+    }
+
+    onReorder(newSongs);
+  }, [groupedBySet, sortedSetGroups, processedSongs, onReorder]);
 
   const getSetLabel = (group: number) => {
     if (activeSetlistId) {
@@ -516,10 +571,62 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   setDeleteConfirmId={setDeleteConfirmId}
                   getHeatmapClass={getHeatmapClass}
                   getEnergyBarClass={getEnergyBarClass}
+                  getSetLabel={getSetLabel}
+                  currentGroup={groupNum}
                 />
               ))}
               {groupNum !== 99 && (
-                <div className="flex items-center gap-2 px-2 pt-2 pb-4">
+                <div className="px-3 pt-2 pb-1">
+                  <div className="relative">
+                    <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2 focus-within:border-indigo-500/30 transition-colors">
+                      <Search className="w-3 h-3 text-slate-500 shrink-0" />
+                      <input
+                        type="text"
+                        placeholder={`Add to ${getSetLabel(groupNum)}...`}
+                        value={repoQuery}
+                        onChange={(e) => setRepoQuery(e.target.value)}
+                        className="flex-1 bg-transparent text-[11px] text-white placeholder:text-slate-600 outline-none"
+                      />
+                      {repoAdding && <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />}
+                    </div>
+                    {repoQuery.trim().length >= 1 && masterRepertoire && (
+                      <div className="absolute z-50 left-0 right-0 mt-1 bg-slate-900 border border-white/10 rounded-xl overflow-hidden shadow-xl max-h-48 overflow-y-auto">
+                        {masterRepertoire
+                          .filter(s => {
+                            const q = normalize(repoQuery);
+                            const inSubset = groupedBySet[groupNum]?.some(gs => normalize(gs.name) === normalize(s.name));
+                            return !inSubset && (normalize(s.name).includes(q) || normalize(s.artist || '').includes(q));
+                          })
+                          .slice(0, 6)
+                          .map(song => (
+                            <button
+                              key={song.id}
+                              onClick={() => handleAddFromRepo(song, groupNum)}
+                              disabled={repoAdding !== null}
+                              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 transition-colors text-left disabled:opacity-50"
+                            >
+                              <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 shrink-0 flex items-center justify-center overflow-hidden">
+                                {song.artworkUrl ? (
+                                  <img src={song.artworkUrl} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <Music className="w-3 h-3 text-slate-600" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-bold text-white truncate">{song.name}</p>
+                                <p className="text-[9px] text-slate-500 truncate">{song.artist}</p>
+                              </div>
+                              <Plus className="w-3 h-3 text-slate-500 shrink-0" />
+                            </button>
+                          ))
+                        }
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {groupNum !== 99 && (
+                <div className="flex items-center gap-2 px-2 pt-1 pb-4">
                   <Button
                     variant="outline"
                     size="sm"
@@ -549,11 +656,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           ))}
         </div>
       ) : (
-        <div className="bg-slate-950/50 rounded-[3rem] border-4 border-white/5 shadow-2xl overflow-hidden backdrop-blur-xl">
+        <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="setlist-all">
+          {(dropProvided) => (
+        <div ref={dropProvided.innerRef} {...dropProvided.droppableProps} className="bg-slate-950/50 rounded-[3rem] border-4 border-white/5 shadow-2xl overflow-hidden backdrop-blur-xl">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full border-collapse min-w-[1200px]">
               <thead>
                 <tr className="bg-slate-900/90 border-b border-white/10">
+                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-8 text-center"></th>
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-12 text-center">#</th>
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-left">Song</th>
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-16 text-center">Eng</th>
@@ -573,7 +684,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               <tbody className="divide-y divide-white/5">
                 {processedSongs.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-40 text-center">
+                    <td colSpan={9} className="py-40 text-center">
                       <div className="flex flex-col items-center justify-center space-y-6 opacity-70">
                         <Library className="w-20 h-20 text-indigo-500" />
                         <div>
@@ -584,11 +695,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  sortedSetGroups.map(groupNum => (
+                  (() => {
+                    let globalDragIdx = 0;
+                    return sortedSetGroups.map(groupNum => (
                     <React.Fragment key={groupNum}>
                       {hasMultipleSets && (
                         <tr className="bg-slate-900/60 border-y border-white/10">
-                          <td colSpan={8} className="py-4 px-10">
+                          <td colSpan={9} className="py-4 px-10">
                             <div className="flex items-center justify-between gap-4">
                               <div className="flex items-center gap-4">
                                 <Badge className={cn(
@@ -636,36 +749,116 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           </td>
                         </tr>
                       )}
-                      {groupedBySet[groupNum].map((song, idx) => (
-                        <SetlistRow
-                          key={song.id}
-                          song={song}
-                          isSelected={currentSongId === song.id}
-                          readinessScore={calculateReadiness(song)}
-                          isFullyReady={calculateReadiness(song) === 100}
-                          currentPref={globalPreference}
-                          idx={idx}
-                          onTogglePlayed={onTogglePlayed}
-                          onEdit={onEdit}
-                          onSelect={onSelect}
-                          onUpdateSong={onUpdateSong}
-                          onUpdateKey={onUpdateKey}
-                          onRemove={onRemove}
-                          allSetlists={allSetlists}
-                          onUpdateSetlistSongs={onUpdateSetlistSongs}
-                          isReorderingEnabled={sortMode === 'manual' && !searchTerm}
-                          handleMove={handleMove}
-                          handleMoveToTop={handleMoveToTop}
-                          handleMoveToBottom={handleMoveToBottom}
-                          setDeleteConfirmId={setDeleteConfirmId}
-                          getHeatmapClass={getHeatmapClass}
-                          getEnergyBarClass={getEnergyBarClass}
-                          getReadinessBreakdown={getReadinessBreakdown}
-                        />
-                      ))}
+                      {groupedBySet[groupNum].map((song, idx) => {
+                        const songDragIdx = globalDragIdx++;
+                        return (
+                        <Draggable key={song.id} draggableId={song.id} index={songDragIdx}>
+                          {(dragProvided, dragSnapshot) => (
+                            <tr
+                              ref={dragProvided.innerRef}
+                              {...dragProvided.draggableProps}
+                              className={cn(
+                                "transition-colors",
+                                dragSnapshot.isDragging ? "bg-indigo-500/10 z-50" : "",
+                                currentSongId === song.id ? 'bg-indigo-500/[0.04]' : 'hover:bg-white/[0.01]',
+                                getHeatmapClass(song)
+                              )}
+                            >
+                              <td className="py-3 px-3 w-8">
+                                <div
+                                  {...dragProvided.dragHandleProps}
+                                  className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 transition-colors"
+                                >
+                                  <GripVertical className="w-3.5 h-3.5" />
+                                </div>
+                              </td>
+                              <SetlistRow
+                                song={song}
+                                isSelected={currentSongId === song.id}
+                                readinessScore={calculateReadiness(song)}
+                                isFullyReady={calculateReadiness(song) === 100}
+                                currentPref={globalPreference}
+                                idx={idx}
+                                onTogglePlayed={onTogglePlayed}
+                                onEdit={onEdit}
+                                onSelect={onSelect}
+                                onUpdateSong={onUpdateSong}
+                                onUpdateKey={onUpdateKey}
+                                onRemove={onRemove}
+                                allSetlists={allSetlists}
+                                onUpdateSetlistSongs={onUpdateSetlistSongs}
+                                isReorderingEnabled={sortMode === 'manual' && !searchTerm}
+                                handleMove={handleMove}
+                                handleMoveToTop={handleMoveToTop}
+                                handleMoveToBottom={handleMoveToBottom}
+                                setDeleteConfirmId={setDeleteConfirmId}
+                                getHeatmapClass={() => ''}
+                                getEnergyBarClass={getEnergyBarClass}
+                                getReadinessBreakdown={getReadinessBreakdown}
+                                getSetLabel={getSetLabel}
+                                currentGroup={groupNum}
+                                isDraggableRow
+                              />
+                            </tr>
+                          )}
+                        </Draggable>
+                        );
+                      })}
                       {groupNum !== 99 && (
                         <tr className="bg-slate-950/20 border-b border-white/5">
-                          <td colSpan={8} className="py-4 px-10">
+                          <td colSpan={9} className="pt-3 pb-2 px-10">
+                            <div className="relative">
+                              <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus-within:border-indigo-500/30 transition-colors">
+                                <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                <input
+                                  type="text"
+                                  placeholder={`Add to ${getSetLabel(groupNum)} — type to search repertoire...`}
+                                  value={repoQuery}
+                                  onChange={(e) => setRepoQuery(e.target.value)}
+                                  className="flex-1 bg-transparent text-xs text-white placeholder:text-slate-600 outline-none"
+                                />
+                                {repoAdding && <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />}
+                              </div>
+                              {repoQuery.trim().length >= 1 && masterRepertoire && (
+                                <div className="absolute z-50 left-0 right-0 mt-1 bg-slate-900 border border-white/10 rounded-xl overflow-hidden shadow-xl max-h-60 overflow-y-auto">
+                                  {masterRepertoire
+                                    .filter(s => {
+                                      const q = normalize(repoQuery);
+                                      const inSubset = groupedBySet[groupNum]?.some(gs => normalize(gs.name) === normalize(s.name));
+                                      return !inSubset && (normalize(s.name).includes(q) || normalize(s.artist || '').includes(q));
+                                    })
+                                    .slice(0, 6)
+                                    .map(song => (
+                                      <button
+                                        key={song.id}
+                                        onClick={() => handleAddFromRepo(song, groupNum)}
+                                        disabled={repoAdding !== null}
+                                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors text-left disabled:opacity-50"
+                                      >
+                                        <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 shrink-0 flex items-center justify-center overflow-hidden">
+                                          {song.artworkUrl ? (
+                                            <img src={song.artworkUrl} alt="" className="w-full h-full object-cover" />
+                                          ) : (
+                                            <Music className="w-3.5 h-3.5 text-slate-600" />
+                                          )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-bold text-white truncate">{song.name}</p>
+                                          <p className="text-[10px] text-slate-500 truncate">{song.artist}</p>
+                                        </div>
+                                        <Plus className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                      </button>
+                                    ))
+                                  }
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      {groupNum !== 99 && (
+                        <tr className="bg-slate-950/20 border-b border-white/5">
+                          <td colSpan={9} className="py-3 px-10">
                             <div className="flex items-center gap-3">
                                 <Button
                                 variant="outline"
@@ -701,6 +894,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             </table>
           </div>
         </div>
+          )}
+        </Droppable>
+        </DragDropContext>
       )}
 
       {activeSetlistId && masterRepertoire.length > 0 && (
