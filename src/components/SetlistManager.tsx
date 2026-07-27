@@ -463,6 +463,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return items;
   };
 
+  const flatSongIndices = useMemo(() => {
+    const map = new Map<string, number>();
+    let idx = 0;
+    for (const gn of sortedSetGroups) {
+      for (const s of (groupedBySet[gn] || [])) {
+        map.set(s.id, idx++);
+      }
+    }
+    return map;
+  }, [sortedSetGroups, groupedBySet]);
+
   return (
     <div className="space-y-8">
       <SetlistControls 
@@ -695,9 +706,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  (() => {
-                    let globalDragIdx = 0;
-                    return sortedSetGroups.map(groupNum => (
+                  sortedSetGroups.map(groupNum => (
                     <React.Fragment key={groupNum}>
                       {hasMultipleSets && (
                         <tr className="bg-slate-900/60 border-y border-white/10">
@@ -750,7 +759,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         </tr>
                       )}
                       {groupedBySet[groupNum].map((song, idx) => {
-                        const songDragIdx = globalDragIdx++;
+                        const songDragIdx = flatSongIndices.get(song.id) ?? 0;
                         return (
                         <Draggable key={song.id} draggableId={song.id} index={songDragIdx}>
                           {(dragProvided, dragSnapshot) => (
