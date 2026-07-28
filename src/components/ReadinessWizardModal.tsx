@@ -204,24 +204,39 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     if (!songId) return;
 
     const alreadyIn = isSongInSet(setlistId, setGroup);
-    if (alreadyIn) return;
 
     setIsAddingToSet(true);
     try {
-      const targetSetlist = allSetlists.find(sl => sl.id === setlistId);
-      const songCount = targetSetlist?.songs.filter(s => (s.set_group || 1) === setGroup).length || 0;
+      if (alreadyIn) {
+        const targetSetlist = allSetlists.find(sl => sl.id === setlistId);
+        const junction = targetSetlist?.songs.find(s =>
+          (s.master_id || s.id) === songId && (s.set_group || 1) === setGroup
+        );
+        if (junction?.id) {
+          await supabase.from('setlist_songs').delete().eq('id', junction.id);
+        }
+        setLocalSetAdditions(prev => {
+          const next = new Set(prev);
+          next.delete(`${setlistId}:${setGroup}`);
+          return next;
+        });
+        showSuccess(`Removed from ${getSetLabel(targetSetlist || { set_names: {} }, setGroup)}!`);
+      } else {
+        const targetSetlist = allSetlists.find(sl => sl.id === setlistId);
+        const songCount = targetSetlist?.songs.filter(s => (s.set_group || 1) === setGroup).length || 0;
 
-      const { error } = await supabase.from('setlist_songs').insert({
-        setlist_id: setlistId,
-        song_id: songId,
-        sort_order: songCount,
-        set_group: setGroup,
-      });
-      if (error) throw error;
-      setLocalSetAdditions(prev => new Set([...prev, `${setlistId}:${setGroup}`]));
-      showSuccess(`Added to ${getSetLabel(targetSetlist || { set_names: {} }, setGroup)}!`);
+        const { error } = await supabase.from('setlist_songs').insert({
+          setlist_id: setlistId,
+          song_id: songId,
+          sort_order: songCount,
+          set_group: setGroup,
+        });
+        if (error) throw error;
+        setLocalSetAdditions(prev => new Set([...prev, `${setlistId}:${setGroup}`]));
+        showSuccess(`Added to ${getSetLabel(targetSetlist || { set_names: {} }, setGroup)}!`);
+      }
     } catch (err) {
-      showError(`Failed to add: ${err instanceof Error ? err.message : String(err)}`);
+      showError(`Failed to update set: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsAddingToSet(false);
     }
