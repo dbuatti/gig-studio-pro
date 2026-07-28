@@ -308,6 +308,8 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
           formData={wizardStandaloneSong}
           handleAutoSave={onWizardAutoSave}
           onSwitchTab={onWizardGoToTab}
+          allSetlists={allSetlists}
+          gigId={activeSetlist?.id || 'library'}
         />
       )}
     </>

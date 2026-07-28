@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   Check, ArrowRight, Target, ShieldCheck,
-  FileText, Music, Mic2, Music2, X, Upload, Loader2, FileType, Search, Play, Pause, Download, Clock, Lock, Unlock
+  FileText, Music, Mic2, Music2, X, Upload, Loader2, FileType, Search, Play, Pause, Download, Clock, Lock, Unlock, ChevronDown, ListChecks
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import MasteryRating from './MasteryRating';
@@ -102,6 +102,8 @@ interface ReadinessWizardModalProps {
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   onSwitchTab: (tab: string) => void;
   defaultToSummary?: boolean;
+  allSetlists?: { id: string; name: string; songs: SetlistSong[]; set_names?: Record<string, string> }[];
+  gigId?: string | 'library';
 }
 
 const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
@@ -111,6 +113,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   handleAutoSave,
   onSwitchTab,
   defaultToSummary,
+  allSetlists = [],
+  gigId,
 }) => {
   const { user } = useAuth();
   const checked = formData.readiness_checklist || [];
@@ -161,6 +165,63 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const [extractionPollStatus, setExtractionPollStatus] = useState<string | null>(null);
   const ytSearchInitiated = useRef(false);
   const extractionPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Set Assignment Dropdown ──
+  const [isSetDropdownOpen, setIsSetDropdownOpen] = useState(false);
+  const [isAddingToSet, setIsAddingToSet] = useState(false);
+  const setDropdownRef = useRef<HTMLDivElement>(null);
+
+  const getSetLabel = (setlist: { set_names?: Record<string, string> }, group: number) => {
+    if (setlist.set_names?.[group.toString()]) return setlist.set_names[group.toString()];
+    if (group === 99) return 'Surplus / Backup';
+    return `Set ${group}`;
+  };
+
+  const getSetGroupsForSetlist = (setlist: { songs: SetlistSong[] }) => {
+    const groups = new Set<number>();
+    setlist.songs.forEach(s => groups.add(s.set_group || 1));
+    return Array.from(groups).sort((a, b) => {
+      if (a === 99) return 1;
+      if (b === 99) return -1;
+      return a - b;
+    });
+  };
+
+  const isSongInSet = (setlistId: string, setGroup: number) => {
+    return allSetlists.some(sl =>
+      sl.id === setlistId && sl.songs.some(s =>
+        (s.master_id || s.id) === (formData.master_id || formData.id) && (s.set_group || 1) === setGroup
+      )
+    );
+  };
+
+  const handleAddToSet = async (setlistId: string, setGroup: number) => {
+    if (!user?.id) return;
+    const songId = formData.master_id || formData.id;
+    if (!songId) return;
+
+    const alreadyIn = isSongInSet(setlistId, setGroup);
+    if (alreadyIn) return;
+
+    setIsAddingToSet(true);
+    try {
+      const targetSetlist = allSetlists.find(sl => sl.id === setlistId);
+      const songCount = targetSetlist?.songs.filter(s => (s.set_group || 1) === setGroup).length || 0;
+
+      const { error } = await supabase.from('setlist_songs').insert({
+        setlist_id: setlistId,
+        song_id: songId,
+        sort_order: songCount,
+        set_group: setGroup,
+      });
+      if (error) throw error;
+      showSuccess(`Added to ${getSetLabel(targetSetlist || { set_names: {} }, setGroup)}!`);
+    } catch (err) {
+      showError(`Failed to add: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsAddingToSet(false);
+    }
+  };
 
   const hasYoutube = !!(formData.youtubeUrl || formData.ugUrl);
   const ytFailed = hasYoutube && formData.extraction_status === 'failed';
@@ -389,6 +450,18 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
       }
     };
   }, []);
+
+  // Close set dropdown on outside click
+  useEffect(() => {
+    if (!isSetDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (setDropdownRef.current && !setDropdownRef.current.contains(e.target as Node)) {
+        setIsSetDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSetDropdownOpen]);
 
   const currentStepIndex = uncheckedStep ? STEPS.indexOf(uncheckedStep) : STEPS.length;
   const currentStep = uncheckedStep || null;
@@ -1195,6 +1268,95 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   );
                 })}
               </div>
+
+              {/* ── Set Assignment Dropdown ── */}
+              {allSetlists.length > 0 && (
+                <div className="relative" ref={setDropdownRef}>
+                  <button
+                    onClick={() => setIsSetDropdownOpen(!isSetDropdownOpen)}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all w-full",
+                      isSetDropdownOpen
+                        ? "bg-indigo-600/20 border-indigo-500/30 text-indigo-400"
+                        : "bg-white/5 border-white/10 text-slate-400 hover:text-slate-300 hover:border-white/20"
+                    )}
+                  >
+                    <ListChecks className="w-4 h-4 shrink-0" />
+                    <span className="text-[9px] font-black uppercase tracking-widest">Add to Set</span>
+                    <ChevronDown className={cn("w-3.5 h-3.5 ml-auto transition-transform", isSetDropdownOpen && "rotate-180")} />
+                  </button>
+                  {isSetDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto custom-scrollbar">
+                      {allSetlists.map(setlist => {
+                        const setGroups = getSetGroupsForSetlist(setlist);
+                        if (setGroups.length === 0) return null;
+                        return (
+                          <div key={setlist.id} className="border-b border-white/5 last:border-0">
+                            <div className="px-3 py-2 text-[8px] font-black uppercase tracking-widest text-slate-600">
+                              {setlist.name}
+                            </div>
+                            {/* SET level — adds to group 1 */}
+                            {(() => {
+                              const setInGroup1 = isSongInSet(setlist.id, 1);
+                              return (
+                                <button
+                                  key={`${setlist.id}-set`}
+                                  onClick={() => !setInGroup1 && handleAddToSet(setlist.id, 1)}
+                                  disabled={setInGroup1 || isAddingToSet}
+                                  className={cn(
+                                    "w-full flex items-center gap-2 px-4 py-2 text-left transition-all",
+                                    setInGroup1
+                                      ? "bg-emerald-500/10 text-emerald-400 cursor-default"
+                                      : "hover:bg-white/5 text-slate-300"
+                                  )}
+                                >
+                                  <span className={cn(
+                                    "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all",
+                                    setInGroup1
+                                      ? "bg-emerald-500 border-emerald-500"
+                                      : "border-white/20"
+                                  )}>
+                                    {setInGroup1 && <Check className="w-2.5 h-2.5 text-white" />}
+                                  </span>
+                                  <span className="text-[10px] font-bold">{getSetLabel(setlist, 1)}</span>
+                                  <span className="text-[8px] text-slate-600 ml-auto">Set level</span>
+                                </button>
+                              );
+                            })()}
+                            {/* SUBSET levels */}
+                            {setGroups.filter(g => g !== 1).map(group => {
+                              const inSet = isSongInSet(setlist.id, group);
+                              return (
+                                <button
+                                  key={`${setlist.id}-${group}`}
+                                  onClick={() => !inSet && handleAddToSet(setlist.id, group)}
+                                  disabled={inSet || isAddingToSet}
+                                  className={cn(
+                                    "w-full flex items-center gap-2 pl-8 pr-4 py-2 text-left transition-all",
+                                    inSet
+                                      ? "bg-emerald-500/10 text-emerald-400 cursor-default"
+                                      : "hover:bg-white/5 text-slate-400"
+                                  )}
+                                >
+                                  <span className={cn(
+                                    "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all",
+                                    inSet
+                                      ? "bg-emerald-500 border-emerald-500"
+                                      : "border-white/20"
+                                  )}>
+                                    {inSet && <Check className="w-2.5 h-2.5 text-white" />}
+                                  </span>
+                                  <span className="text-[10px] font-bold">{getSetLabel(setlist, group)}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* ── Key & Playback ── */}
               <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">

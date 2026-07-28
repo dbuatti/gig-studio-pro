@@ -456,6 +456,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         formData={formData}
         handleAutoSave={activeAutoSave}
         onSwitchTab={setActiveTab}
+        allSetlists={allSetlists}
+        gigId={gigId}
       />
     </div>
   );
