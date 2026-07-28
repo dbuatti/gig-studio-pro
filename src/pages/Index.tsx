@@ -885,6 +885,7 @@ const Index = () => {
                   onCompileSetSongs={handleCompileSetSongs}
                   onReshuffleSubset={handleReshuffleSubset}
                   onRefresh={fetchSetlistsAndRepertoire}
+                  onOpenWizard={(song) => { setWizardStandaloneSong(song); setIsWizardStandaloneOpen(true); }}
                 />
               </>
             )}

@@ -5,7 +5,7 @@ import { SetlistSong, EnergyZone } from './SetlistManager';
 import { 
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle, 
   ShieldCheck, ArrowRight, Check, ChevronDown, 
-  ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList
+  ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Target
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
@@ -42,6 +42,7 @@ interface SetlistRowProps {
   getSetLabel: (group: number) => string;
   currentGroup: number;
   isDraggableRow?: boolean;
+  onOpenWizard?: (song: SetlistSong) => void;
 }
 
 const SetlistRow: React.FC<SetlistRowProps> = ({
@@ -49,7 +50,7 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
   onTogglePlayed, onEdit, onSelect, onUpdateSong, onUpdateKey, onRemove,
   allSetlists, onUpdateSetlistSongs, isReorderingEnabled, handleMove,
   handleMoveToTop, handleMoveToBottom, setDeleteConfirmId,
-  getHeatmapClass, getEnergyBarClass, getReadinessBreakdown, getSetLabel, currentGroup, isDraggableRow
+  getHeatmapClass, getEnergyBarClass, getReadinessBreakdown, getSetLabel, currentGroup, isDraggableRow, onOpenWizard
 }) => {
   const displayOrigKey = formatKey(song.originalKey, currentPref === 'neutral' ? 'sharps' : currentPref);
   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref === 'neutral' ? 'sharps' : currentPref);
@@ -238,6 +239,11 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
                 </DropdownMenuContent>
               </DropdownMenu>
               <DropdownMenuSeparator className="bg-white/5" />
+              {onOpenWizard && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpenWizard(song); }} className="h-10 rounded-xl text-[10px] font-bold uppercase">
+                  <Target className="w-4 h-4 mr-3 text-indigo-400" /> Readiness Wizard
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }} className="h-10 rounded-xl text-[10px] font-bold uppercase">
                 <Settings2 className="w-4 h-4 mr-3" /> Configure Studio
               </DropdownMenuItem>

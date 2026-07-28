@@ -147,6 +147,7 @@ interface SetlistManagerProps {
   setIsFilterOpen: (open: boolean) => void;
   onOpenSetReader?: (groupNum: number) => void;
   onOpenSetKaraoke?: (groupNum: number) => void;
+  onOpenWizard?: (song: SetlistSong) => void;
   onCompileSetSongs?: (groupNum: number) => void;
   onReshuffleSubset?: (groupNum: number) => void;
   onRefresh?: () => Promise<void>;
@@ -181,7 +182,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onOpenSetKaraoke,
   onCompileSetSongs,
   onReshuffleSubset,
-  onRefresh
+  onRefresh,
+  onOpenWizard
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
@@ -584,6 +586,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   getEnergyBarClass={getEnergyBarClass}
                   getSetLabel={getSetLabel}
                   currentGroup={groupNum}
+                  onOpenWizard={onOpenWizard}
                 />
               ))}
               {groupNum !== 99 && (
@@ -807,6 +810,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                 getSetLabel={getSetLabel}
                                 currentGroup={groupNum}
                                 isDraggableRow
+                                onOpenWizard={onOpenWizard}
                               />
                             </tr>
                           )}

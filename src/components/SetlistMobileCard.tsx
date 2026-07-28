@@ -5,7 +5,7 @@ import { SetlistSong, EnergyZone } from './SetlistManager';
 import { Button } from "@/components/ui/button";
 import { 
   CheckCircle2, CloudDownload, AlertTriangle, Check, 
-  MoreVertical, ListMusic, LayoutList, Settings2, Trash2, Play, Volume2
+  MoreVertical, ListMusic, LayoutList, Settings2, Trash2, Play, Volume2, Target
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey } from '@/utils/keyUtils';
@@ -30,12 +30,13 @@ interface SetlistMobileCardProps {
   getEnergyBarClass: (energy: EnergyZone | undefined) => string;
   getSetLabel: (group: number) => string;
   currentGroup: number;
+  onOpenWizard?: (song: SetlistSong) => void;
 }
 
 const SetlistMobileCard: React.FC<SetlistMobileCardProps> = ({
   song, isSelected, readinessScore, isFullyReady, currentPref,
   onTogglePlayed, onEdit, onSelect, onUpdateSong, onUpdateKey, setDeleteConfirmId,
-  getHeatmapClass, getEnergyBarClass, getSetLabel, currentGroup
+  getHeatmapClass, getEnergyBarClass, getSetLabel, currentGroup, onOpenWizard
 }) => {
   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref === 'neutral' ? 'sharps' : currentPref);
   const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
@@ -144,6 +145,11 @@ const SetlistMobileCard: React.FC<SetlistMobileCardProps> = ({
               </DropdownMenuContent>
             </DropdownMenu>
             <DropdownMenuSeparator className="bg-white/5" />
+            {onOpenWizard && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpenWizard(song); }} className="h-9 rounded-lg text-[9px] font-bold uppercase">
+                <Target className="w-3.5 h-3.5 mr-2 text-indigo-400" /> Readiness Wizard
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }} className="h-9 rounded-lg text-[9px] font-bold uppercase">
               <Settings2 className="w-3.5 h-3.5 mr-2" /> Configure Studio
             </DropdownMenuItem>
