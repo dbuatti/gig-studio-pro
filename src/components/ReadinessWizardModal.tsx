@@ -169,6 +169,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   // ── Set Assignment Dropdown ──
   const [isSetDropdownOpen, setIsSetDropdownOpen] = useState(false);
   const [isAddingToSet, setIsAddingToSet] = useState(false);
+  const [localSetAdditions, setLocalSetAdditions] = useState<Set<string>>(new Set());
   const setDropdownRef = useRef<HTMLDivElement>(null);
 
   const getSetLabel = (setlist: { set_names?: Record<string, string> }, group: number) => {
@@ -188,6 +189,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   };
 
   const isSongInSet = (setlistId: string, setGroup: number) => {
+    const key = `${setlistId}:${setGroup}`;
+    if (localSetAdditions.has(key)) return true;
     return allSetlists.some(sl =>
       sl.id === setlistId && sl.songs.some(s =>
         (s.master_id || s.id) === (formData.master_id || formData.id) && (s.set_group || 1) === setGroup
@@ -215,6 +218,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
         set_group: setGroup,
       });
       if (error) throw error;
+      setLocalSetAdditions(prev => new Set([...prev, `${setlistId}:${setGroup}`]));
       showSuccess(`Added to ${getSetLabel(targetSetlist || { set_names: {} }, setGroup)}!`);
     } catch (err) {
       showError(`Failed to add: ${err instanceof Error ? err.message : String(err)}`);
