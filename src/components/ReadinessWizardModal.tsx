@@ -16,6 +16,10 @@ import { useAuth } from './AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { r2Storage } from '@/utils/r2Storage';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
+import { Document, Page, pdfjs } from 'react-pdf';
+import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { transposeChords } from '@/utils/chordUtils';
 import { cleanLyrics } from '@/utils/lyricsCleaner';
@@ -128,6 +132,9 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const undoSkipNextRef = useRef(false);
   const [pdfUploading, setPdfUploading] = useState(false);
   const [uploadType, setUploadType] = useState<'score' | 'leadsheet'>('score');
+  const [pdfPreviewScale, setPdfPreviewScale] = useState<number | null>(null);
+  const [pdfPreviewDocument, setPdfPreviewDocument] = useState<PDFDocumentProxy | null>(null);
+  const pdfPreviewRef = useRef<HTMLDivElement>(null);
 
   // Clear manual undo flags when user makes real data changes (so auto-complete can re-fire)
   const prevFormDataRef = useRef(formData);
@@ -552,6 +559,27 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     setPendingNote(m?.[1] || '');
     setPendingOctave(m?.[2] || '');
   }, [formData.highest_note_original]);
+
+  const calculatePdfPreviewScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement) => {
+    if (!container || !pdf) return;
+    try {
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 1 });
+      const scaleX = (container.clientWidth * 0.98) / viewport.width;
+      const scaleY = (container.clientHeight * 0.98) / viewport.height;
+      setPdfPreviewScale(Math.min(scaleX, scaleY));
+    } catch (error) {
+      console.error("[ReadinessWizard] PDF scale error:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const container = pdfPreviewRef.current;
+    if (!container || !pdfPreviewDocument) return;
+    const resizeObserver = new ResizeObserver(() => calculatePdfPreviewScale(pdfPreviewDocument, container));
+    resizeObserver.observe(container);
+    return () => resizeObserver.unobserve(container);
+  }, [pdfPreviewDocument, calculatePdfPreviewScale]);
 
   // PDF upload
   const onPdfDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -1231,13 +1259,23 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   ← Back to Summary
                 </button>
               </div>
-              <div className="rounded-xl bg-white/5 border border-white/10 overflow-hidden flex-1 min-h-0">
+              <div ref={pdfPreviewRef} className="rounded-xl bg-white/5 border border-white/10 overflow-hidden flex-1 min-h-0 flex items-center justify-center">
                 {(formData.pdfUrl || formData.leadsheetUrl) ? (
-                  <iframe
-                    src={formData.pdfUrl || formData.leadsheetUrl}
-                    className="w-full h-full border-0"
-                    title="Sheet Music PDF"
-                  />
+                  <Document
+                    file={formData.pdfUrl || formData.leadsheetUrl}
+                    onLoadSuccess={(pdf) => setPdfPreviewDocument(pdf)}
+                    onLoadError={(error) => console.error("[ReadinessWizard] PDF load error:", error)}
+                    loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                    className="flex items-center justify-center"
+                  >
+                    <Page
+                      pageNumber={1}
+                      scale={pdfPreviewScale || 1}
+                      renderAnnotationLayer={false}
+                      renderTextLayer={false}
+                      loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                    />
+                  </Document>
                 ) : (
                   <div className="flex items-center justify-center h-full text-slate-600 text-xs font-bold uppercase tracking-widest">
                     No PDF linked yet

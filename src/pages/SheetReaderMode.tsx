@@ -541,6 +541,7 @@ const SheetReaderMode: React.FC = () => {
                     <Document
                       file={currentChartDisplayUrl}
                       onLoadSuccess={(pdf) => { setPdfNumPages(pdf.numPages); setPdfDocument(pdf); setIsChartContentLoading(false); }}
+                      onLoadError={() => setIsChartContentLoading(false)}
                       loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
                       className="flex items-center justify-center" 
                     >
