@@ -70,7 +70,7 @@ const Index = () => {
 
   const audio = useToneAudio(true, () => {
     if (isAutoplayActiveRef.current) {
-      setTimeout(() => playNextRef.current(), 300);
+      setTimeout(() => playNextRef.current(true), 300);
     }
   });
 
@@ -119,6 +119,16 @@ const Index = () => {
 
   playNextRef.current = playNext;
   useEffect(() => { isAutoplayActiveRef.current = isAutoplayActive; }, [isAutoplayActive]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isAutoplayActiveRef.current && !audio.isPlaying) {
+        setTimeout(() => playNextRef.current(true), 800);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [audio.isPlaying]);
 
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 

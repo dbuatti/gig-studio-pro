@@ -46,12 +46,28 @@ export function AudioContextInitializer({ children }: { children: React.ReactNod
       }
     };
 
+    const handleVisibility = async () => {
+      if (document.visibilityState === 'visible') {
+        try {
+          if (Tone.getContext().state === 'suspended' || Tone.getContext().state === 'interrupted') {
+            await Tone.start();
+          }
+        } catch (error) {
+          console.error("[AudioContextInitializer] Failed to resume on visibility change:", error);
+          recreateToneContext();
+          try { await Tone.start(); } catch {}
+        }
+      }
+    };
+
     document.addEventListener('click', resumeContext);
     document.addEventListener('keydown', resumeContext);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       document.removeEventListener('click', resumeContext);
       document.removeEventListener('keydown', resumeContext);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
