@@ -764,13 +764,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       {groupedBySet[groupNum].map((song, idx) => {
                         const songDragIdx = flatSongIndices.get(song.id) ?? 0;
                         return (
-                        <Draggable key={song.id} draggableId={song.id} index={songDragIdx}>
+                          <Draggable key={song.id} draggableId={song.id} index={songDragIdx}>
                           {(dragProvided, dragSnapshot) => (
                             <tr
                               ref={dragProvided.innerRef}
                               {...dragProvided.draggableProps}
+                              onClick={() => onEdit(song)}
                               className={cn(
-                                "transition-colors",
+                                "transition-colors cursor-pointer",
                                 dragSnapshot.isDragging ? "bg-indigo-500/10 z-50" : "",
                                 currentSongId === song.id ? 'bg-indigo-500/[0.04]' : 'hover:bg-white/[0.01]',
                                 getHeatmapClass(song)
