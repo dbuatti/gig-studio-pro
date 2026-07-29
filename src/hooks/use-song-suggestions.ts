@@ -8,9 +8,10 @@ import { showError } from '@/utils/toast';
 interface UseSongSuggestionsProps {
   repertoire: SetlistSong[];
   limit?: number;
+  activeSetlistSongs?: SetlistSong[];
 }
 
-export function useSongSuggestions({ repertoire, limit = 10 }: UseSongSuggestionsProps) {
+export function useSongSuggestions({ repertoire, limit = 10, activeSetlistSongs = [] }: UseSongSuggestionsProps) {
   const [suggestions, setSuggestions] = useState<Record<string, unknown>[]>([]);
   const [ignoredKeys, setIgnored] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -31,8 +32,10 @@ export function useSongSuggestions({ repertoire, limit = 10 }: UseSongSuggestion
   };
 
   const existingKeys = useMemo(() => {
-    return new Set(repertoire.map(s => getNormalizedKey(s.name, s.artist || "")));
-  }, [repertoire]);
+    const keys = new Set(repertoire.map(s => getNormalizedKey(s.name, s.artist || "")));
+    activeSetlistSongs.forEach(s => keys.add(getNormalizedKey(s.name, s.artist || "")));
+    return keys;
+  }, [repertoire, activeSetlistSongs]);
 
   const fetchSuggestions = useCallback(async (seedSong?: SetlistSong) => {
     if (repertoire.length === 0) return;

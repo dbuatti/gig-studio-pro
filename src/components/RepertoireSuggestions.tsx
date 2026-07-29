@@ -12,9 +12,10 @@ import { useSongSuggestions } from '@/hooks/use-song-suggestions';
 interface RepertoireSuggestionsProps {
   repertoire: SetlistSong[];
   onAddSong: (song: SetlistSong) => void;
+  activeSetlistSongs?: SetlistSong[];
 }
 
-const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoire, onAddSong }) => {
+const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoire, onAddSong, activeSetlistSongs = [] }) => {
   const {
     suggestions,
     isLoading,
@@ -22,7 +23,7 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
     isQuotaError,
     fetchSuggestions,
     dismissSuggestion
-  } = useSongSuggestions({ repertoire, limit: 3 });
+  } = useSongSuggestions({ repertoire, limit: 3, activeSetlistSongs });
 
   useEffect(() => {
     if (repertoire.length > 0 && suggestions.length === 0 && !isLoading && !error) {
