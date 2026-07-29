@@ -40,6 +40,7 @@ interface FloatingCommandDockProps {
   isMenuOpen?: boolean;
   onOpenPerformance: () => void;
   onToggleLogViewer?: () => void;
+  onShuffleAll?: () => void;
 }
 
 type MenuDirection = 'up' | 'down' | 'left' | 'right';
@@ -68,6 +69,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   isMenuOpen: isMenuOpenProp,
   onOpenPerformance,
   onToggleLogViewer,
+  onShuffleAll,
 }) => {
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState<boolean>(() => {
@@ -172,6 +174,14 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         "text-white shadow-2xl scale-110",
         isPlaying ? "bg-red-600 border-red-500 shadow-red-600/30" : "bg-indigo-600 border-indigo-500 shadow-indigo-600/30"
       ),
+    },
+    {
+      id: 'shuffle-all',
+      icon: <Shuffle className="w-5 h-5 md:w-6 md:h-6" />,
+      onClick: () => { onShuffleAll?.(); handleToggleMenu(); },
+      disabled: false,
+      tooltip: "Shuffle All",
+      className: "bg-violet-600 text-white border-violet-500 shadow-violet-600/30",
     },
     {
       id: 'performance',

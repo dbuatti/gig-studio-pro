@@ -3,7 +3,7 @@
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Plus, ListMusic, MoreVertical, Trash2, Copy, Sparkles, Layers, ChevronDown } from 'lucide-react';
+import { Plus, ListMusic, MoreVertical, Trash2, Copy, Sparkles, Layers, ChevronDown, Star } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 
@@ -16,6 +16,8 @@ interface SetlistSelectorProps {
   onDuplicate?: (id: string) => void;
   onOpenGigPlanner?: () => void;
   onOpenVariation?: () => void;
+  defaultSetlistId?: string | null;
+  onSetDefault?: (id: string) => void;
 }
 
 const SetlistSelector: React.FC<SetlistSelectorProps> = ({ 
@@ -26,10 +28,13 @@ const SetlistSelector: React.FC<SetlistSelectorProps> = ({
   onDelete, 
   onDuplicate, 
   onOpenGigPlanner,
-  onOpenVariation
+  onOpenVariation,
+  defaultSetlistId,
+  onSetDefault,
 }) => {
   const currentSetlist = setlists.find(s => s.id === currentId);
   const hasStimulus = !!currentSetlist?.stimulus_text;
+  const isDefault = defaultSetlistId === currentId;
 
   return (
     <div className="flex items-center gap-3 bg-slate-900/50 p-2 rounded-2xl border border-white/5 shadow-2xl backdrop-blur-xl">
@@ -47,7 +52,10 @@ const SetlistSelector: React.FC<SetlistSelectorProps> = ({
         <SelectContent className="bg-slate-950 text-white border-white/10 rounded-2xl shadow-2xl">
           {setlists.map(list => (
             <SelectItem key={list.id} value={list.id} className="text-xs font-bold uppercase h-11 rounded-xl focus:bg-indigo-600 focus:text-white">
-              {list.name}
+              <span className="flex items-center gap-2">
+                {defaultSetlistId === list.id && <Star className="w-3 h-3 text-amber-400 fill-amber-400" />}
+                {list.name}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>
@@ -81,6 +89,14 @@ const SetlistSelector: React.FC<SetlistSelectorProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-slate-950 text-white border-white/10 rounded-2xl shadow-2xl p-2">
+            <DropdownMenuItem 
+              className="cursor-pointer font-bold uppercase text-[10px] h-11 rounded-xl"
+              onClick={() => onSetDefault?.(currentId)}
+            >
+              <Star className={cn("w-4 h-4 mr-3", isDefault ? "text-amber-400 fill-amber-400" : "text-slate-400")} />
+              {isDefault ? "Remove Default" : "Set as Default"}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-white/5" />
             {hasStimulus && (
               <>
                 <DropdownMenuItem 

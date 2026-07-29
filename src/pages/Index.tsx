@@ -159,8 +159,10 @@ const Index = () => {
         setlistsWithSongs.push({ id: setlist.id, name: setlist.name, songs, time_goal: setlist.time_goal, set_names: setlist.set_names, stimulus_text: setlist.stimulus_text });
       }
       setAllSetlists(setlistsWithSongs);
-      const savedId = localStorage.getItem('active_setlist_id');
-      setActiveSetlistId(savedId && setlistsWithSongs.some(s => s.id === savedId) ? savedId : (setlistsWithSongs[0]?.id || null));
+      const defaultId = defaultSetlistId && setlistsWithSongs.some(s => s.id === defaultSetlistId)
+        ? defaultSetlistId
+        : localStorage.getItem('active_setlist_id');
+      setActiveSetlistId(defaultId && setlistsWithSongs.some(s => s.id === defaultId) ? defaultId : (setlistsWithSongs[0]?.id || null));
     } catch (err: unknown) {
       showError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -190,6 +192,10 @@ const Index = () => {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [isMDAuditOpen, setIsMDAuditOpen] = useState(false);
   const [isGigPlannerOpen, setIsGigPlannerOpen] = useState(false);
+  const [defaultSetlistId, setDefaultSetlistId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('default_setlist_id');
+    return null;
+  });
   const [isAuditLoading, setIsAuditLoading] = useState(false);
   const [auditData, setAuditData] = useState<Record<string, unknown> | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -249,13 +255,13 @@ const Index = () => {
   };
 
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
-    if (wizardMode) {
+    if (wizardMode || activeDashboardView === 'gigs') {
       setWizardStandaloneSong(song);
       setIsWizardStandaloneOpen(true);
     } else {
       setSongStudioModalSongId(song.master_id || song.id);
-      setSongStudioModalGigId(activeDashboardView === 'gigs' ? activeSetlistId : 'library');
-      setSongStudioVisibleSongs(activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire);
+      setSongStudioModalGigId('library');
+      setSongStudioVisibleSongs(masterRepertoire);
       setIsSongStudioModalOpen(true);
       setSongStudioDefaultTab(defaultTab || 'config');
     }
@@ -837,11 +843,21 @@ const Index = () => {
                 <SetlistSelector 
                   setlists={allSetlists} 
                   currentId={activeSetlistId} 
-                  onSelect={setActiveSetlistId} 
+                  onSelect={(id) => { setActiveSetlistId(id); localStorage.setItem('active_setlist_id', id); }} 
                   onCreate={handleCreateSetlist} 
                   onDelete={handleDeleteSetlist} 
                   onDuplicate={handleDuplicateSetlist} 
                   onOpenGigPlanner={() => setIsGigPlannerOpen(true)} 
+                  defaultSetlistId={defaultSetlistId}
+                  onSetDefault={(id) => {
+                    if (defaultSetlistId === id) {
+                      setDefaultSetlistId(null);
+                      localStorage.removeItem('default_setlist_id');
+                    } else {
+                      setDefaultSetlistId(id);
+                      localStorage.setItem('default_setlist_id', id);
+                    }
+                  }}
                 />
               </div>
             )}
@@ -939,6 +955,17 @@ const Index = () => {
         onOpenPerformance={() => setIsPerformanceOverlayOpen(true)} 
         hasReadableChart={!!activeSong} 
         onToggleLogViewer={() => setIsLogViewerOpen(prev => !prev)} 
+        onShuffleAll={() => {
+          const withAudio = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
+          if (withAudio.length === 0) {
+            showWarning("No songs with audio in your repertoire.");
+            return;
+          }
+          const shuffled = [...withAudio].sort(() => Math.random() - 0.5);
+          setIsShuffleAllMode(true);
+          handleSelectSong(shuffled[0], true);
+          showSuccess(`Shuffle All: ${shuffled.length} songs`);
+        }}
       />
 
       <LogViewer isOpen={isLogViewerOpen} onClose={() => setIsLogViewerOpen(false)} />
