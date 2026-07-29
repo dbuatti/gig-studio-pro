@@ -134,6 +134,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const [uploadType, setUploadType] = useState<'score' | 'leadsheet'>('score');
   const [pdfPreviewScale, setPdfPreviewScale] = useState<number | null>(null);
   const [pdfPreviewDocument, setPdfPreviewDocument] = useState<PDFDocumentProxy | null>(null);
+  const [previewPdfType, setPreviewPdfType] = useState<'score' | 'leadsheet'>('score');
   const pdfPreviewRef = useRef<HTMLDivElement>(null);
 
   // Clear manual undo flags when user makes real data changes (so auto-complete can re-fire)
@@ -1253,34 +1254,56 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
             </div>
           ) : activeView === 'pdf' ? (
             <div className="w-full flex flex-col flex-1 min-h-0">
-              <div className="flex items-center justify-end mb-4 shrink-0">
+              <div className="flex items-center justify-between mb-4 shrink-0">
+                {formData.pdfUrl && formData.leadsheetUrl ? (
+                  <div className="flex gap-1">
+                    {[
+                      { value: 'score' as const, label: 'Full Score' },
+                      { value: 'leadsheet' as const, label: 'Lead Sheet' },
+                    ].map(opt => (
+                      <button key={opt.value} onClick={() => setPreviewPdfType(opt.value)}
+                        className={cn(
+                          "px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all",
+                          previewPdfType === opt.value
+                            ? "bg-indigo-600 border-indigo-500 text-white"
+                            : "bg-white/5 border-white/10 text-slate-500 hover:text-slate-300"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : <div />}
                 <button onClick={() => setActiveView('summary')}
                   className="text-[8px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-all">
                   ← Back to Summary
                 </button>
               </div>
               <div ref={pdfPreviewRef} className="rounded-xl bg-white/5 border border-white/10 overflow-hidden flex-1 min-h-0 flex items-center justify-center">
-                {(formData.pdfUrl || formData.leadsheetUrl) ? (
-                  <Document
-                    file={formData.pdfUrl || formData.leadsheetUrl}
-                    onLoadSuccess={(pdf) => setPdfPreviewDocument(pdf)}
-                    onLoadError={(error) => console.error("[ReadinessWizard] PDF load error:", error)}
-                    loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-                    className="flex items-center justify-center"
-                  >
-                    <Page
-                      pageNumber={1}
-                      scale={pdfPreviewScale || 1}
-                      renderAnnotationLayer={false}
-                      renderTextLayer={false}
+                {(() => {
+                  const pdfUrl = previewPdfType === 'leadsheet' ? formData.leadsheetUrl : formData.pdfUrl;
+                  return pdfUrl ? (
+                    <Document
+                      file={pdfUrl}
+                      onLoadSuccess={(pdf) => setPdfPreviewDocument(pdf)}
+                      onLoadError={(error) => console.error("[ReadinessWizard] PDF load error:", error)}
                       loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-                    />
-                  </Document>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-slate-600 text-xs font-bold uppercase tracking-widest">
-                    No PDF linked yet
-                  </div>
-                )}
+                      className="flex items-center justify-center"
+                    >
+                      <Page
+                        pageNumber={1}
+                        scale={pdfPreviewScale || 1}
+                        renderAnnotationLayer={false}
+                        renderTextLayer={false}
+                        loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                      />
+                    </Document>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-slate-600 text-xs font-bold uppercase tracking-widest">
+                      No {previewPdfType === 'leadsheet' ? 'Lead Sheet' : 'Full Score'} linked yet
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ) : showSummary ? (

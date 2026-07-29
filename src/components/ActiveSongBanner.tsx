@@ -23,6 +23,7 @@ interface ActiveSongBannerProps {
   nextSongName?: string | null;
   onNext?: () => void;
   onPrevious?: () => void;
+  onSongClick?: (song: SetlistSong) => void;
 }
 
 const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ 
@@ -33,7 +34,8 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({
   isLoadingAudio, 
   nextSongName,
   onNext,
-  onPrevious
+  onPrevious,
+  onSongClick
 }) => {
   const { keyPreference: globalPreference } = useSettings();
   if (!song) return null;
@@ -134,7 +136,10 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({
                 {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-400 animate-bounce" />}
                 {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-400" />}
               </div>
-              <h2 className="text-2xl md:text-5xl font-bold text-white tracking-tight truncate leading-none">
+              <h2
+                className="text-2xl md:text-5xl font-bold text-white tracking-tight truncate leading-none cursor-pointer hover:text-indigo-400 transition-colors"
+                onClick={() => onSongClick?.(song)}
+              >
                 {song.name}
               </h2>
               <div className="flex items-center gap-3 mt-2 md:mt-3">

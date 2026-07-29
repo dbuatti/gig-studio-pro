@@ -812,7 +812,7 @@ const Index = () => {
             </div>
           )}
 
-          {activeDashboardView === 'gigs' && activeSong && (
+          {activeSong && (
             <div className="mb-12 animate-in fade-in slide-in-from-top-8 duration-700 delay-200">
               <ActiveSongBanner 
                 song={activeSong} 
@@ -827,11 +827,16 @@ const Index = () => {
                 }} 
                 onClear={() => { audio.stopPlayback(); }} 
                 isLoadingAudio={audio.isLoadingAudio} 
-                nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSong.id) + 1]?.name} 
+                nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSong.id) + 1]?.name}
                 onNext={() => playNext(true)} 
                 onPrevious={() => {
-                  const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSong.id);
-                  if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1], true);
+                  const songs = activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire;
+                  const idx = songs.findIndex(s => s.id === activeSong.id || s.master_id === activeSong.id);
+                  if (idx > 0) handleSelectSong(songs[idx - 1], true);
+                }}
+                onSongClick={(song) => {
+                  setWizardStandaloneSong(song);
+                  setIsWizardStandaloneOpen(true);
                 }}
               />
             </div>
