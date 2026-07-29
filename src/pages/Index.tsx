@@ -65,7 +65,14 @@ const Index = () => {
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
   const [isShortcutSheetOpen, setIsShortcutSheetOpen] = useState(false);
 
-  const audio = useToneAudio(true);
+  const playNextRef = useRef<() => void>(() => {});
+  const isAutoplayActiveRef = useRef(false);
+
+  const audio = useToneAudio(true, () => {
+    if (isAutoplayActiveRef.current) {
+      setTimeout(() => playNextRef.current(), 300);
+    }
+  });
 
   const activeSetlist = useMemo(() => 
     allSetlists.find(l => l.id === activeSetlistId), 
@@ -109,6 +116,9 @@ const Index = () => {
     masterRepertoire, 
     isShuffleAll: isShuffleAllMode 
   });
+
+  playNextRef.current = playNext;
+  useEffect(() => { isAutoplayActiveRef.current = isAutoplayActive; }, [isAutoplayActive]);
 
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 

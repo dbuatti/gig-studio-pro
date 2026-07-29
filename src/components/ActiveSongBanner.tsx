@@ -69,10 +69,13 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({
           </div>
           <div className="flex gap-3 items-center">
             {nextSongName && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-white/[0.03] rounded-lg border border-white/[0.04]">
+              <button
+                onClick={onNext}
+                className="flex items-center gap-2 px-3 py-1 bg-white/[0.03] rounded-lg border border-white/[0.04] hover:bg-white/[0.06] transition-all cursor-pointer"
+              >
                 <SkipForward className="w-3 h-3 text-slate-500" />
                 <span className="text-[10px] font-medium text-slate-500 truncate max-w-[180px]">Next: {nextSongName}</span>
-              </div>
+              </button>
             )}
             <Button 
               variant="ghost" 
