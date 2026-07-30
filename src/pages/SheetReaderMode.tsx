@@ -109,12 +109,7 @@ const SheetReaderMode: React.FC = () => {
   const [isEditingLinksMode, setIsEditingLinksMode] = useState(false);
   const [isSetTransitionOpen, setIsSetTransitionOpen] = useState(false);
 
-  const isAutoAdvancingRef = useRef(false);
-  const handleNextRef = useRef<() => void>(() => {});
-  const audioEngine = useToneAudio(true, () => {
-    isAutoAdvancingRef.current = true;
-    handleNextRef.current();
-  });
+  const audioEngine = useToneAudio(true);
   const { isPlaying, stopPlayback, setPitch: setAudioPitch } = audioEngine;
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -209,17 +204,8 @@ const SheetReaderMode: React.FC = () => {
       audioEngine.setPitch(currentSong.pitch || 0);
       audioEngine.setTempo(currentSong.tempo || 1); 
       audioEngine.setFineTune(currentSong.fineTune || 0);
-      if (urlToLoad) {
-        const doAutoPlay = isAutoAdvancingRef.current;
-        isAutoAdvancingRef.current = false;
-        audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0).then(() => {
-          if (doAutoPlay) {
-            setTimeout(() => audioEngine.togglePlayback(), 300);
-          }
-        });
-      } else {
-        audioEngine.resetEngine();
-      }
+      if (urlToLoad) audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0);
+      else audioEngine.resetEngine();
     } else {
       audioEngine.resetEngine();
     }
@@ -388,7 +374,6 @@ const SheetReaderMode: React.FC = () => {
       setCurrentIndex(nextIndex);
     }
   }, [allSongs, currentIndex, stopPlayback, currentSong]);
-  handleNextRef.current = handleNext;
 
   const handleForceNext = useCallback(() => {
     if (allSongs.length > 0) {
