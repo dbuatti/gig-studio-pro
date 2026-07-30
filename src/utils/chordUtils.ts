@@ -19,7 +19,11 @@ export const isChordLine = (line: string): boolean => {
   // Section headers are not chord lines
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) return false;
 
-  const words = trimmed.split(/\s+/);
+  // Strip parenthetical annotations before analysis
+  const cleaned = trimmed.replace(/\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return false;
+
+  const words = cleaned.split(/\s+/);
   let chordCount = 0;
   let wordCount = 0;
 
