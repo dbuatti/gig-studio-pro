@@ -136,6 +136,14 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const [pdfPreviewDocument, setPdfPreviewDocument] = useState<PDFDocumentProxy | null>(null);
   const [previewPdfType, setPreviewPdfType] = useState<'score' | 'leadsheet'>('score');
   const pdfPreviewRef = useRef<HTMLDivElement>(null);
+  const [chordsText, setChordsText] = useState(formData.ug_chords_text || '');
+  const chordsSaveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => { setChordsText(formData.ug_chords_text || ''); }, [formData.ug_chords_text]);
+  const handleChordsChange = useCallback((value: string) => {
+    setChordsText(value);
+    clearTimeout(chordsSaveTimerRef.current);
+    chordsSaveTimerRef.current = setTimeout(() => handleAutoSave({ ug_chords_text: value }), 400);
+  }, [handleAutoSave]);
 
   // Clear manual undo flags when user makes real data changes (so auto-complete can re-fire)
   const prevFormDataRef = useRef(formData);
@@ -966,8 +974,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
           <div className="mt-2 space-y-2">
             <textarea
               placeholder="Paste chords or tab here..."
-              value={formData.ug_chords_text || ''}
-              onChange={e => handleAutoSave({ ug_chords_text: e.target.value })}
+              value={chordsText}
+              onChange={e => handleChordsChange(e.target.value)}
               rows={2}
               className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white font-mono focus:outline-none focus:border-indigo-500 resize-none"
             />
@@ -1243,12 +1251,11 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   </pre>
                 ) : (
                   <textarea
-                    value={formData.ug_chords_text || ''}
-                    onChange={e => handleAutoSave({ ug_chords_text: e.target.value })}
+                    value={chordsText}
+                    onChange={e => handleChordsChange(e.target.value)}
                     placeholder="Paste or type chords here..."
-                    className="w-full h-full bg-transparent text-sm text-white font-mono leading-relaxed p-4 focus:outline-none resize-none placeholder:text-slate-600"
+                    className="w-full h-full bg-transparent text-sm text-white font-mono leading-relaxed p-4 focus:outline-none resize-none placeholder:text-slate-600 custom-scrollbar"
                     spellCheck={false}
-                    autoFocus
                   />
                 )}
               </div>
