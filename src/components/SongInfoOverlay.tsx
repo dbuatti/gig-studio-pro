@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import { SetlistSong } from './SetlistManager';
 
 interface SongInfoOverlayProps {
@@ -58,6 +59,16 @@ const SongInfoOverlay: React.FC<SongInfoOverlayProps> = ({ song }) => {
             <p className="text-[8px] font-bold text-indigo-400/80 uppercase tracking-widest mt-0.5 truncate max-w-[250px]">
               {song.artist || "Unknown Artist"}
             </p>
+            <span className={cn(
+              "mt-1 inline-flex items-center justify-center w-6 h-6 rounded-full text-[9px] font-black border",
+              (song.comfort_level || 0) > 0
+                ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/30"
+                : (song.comfort_level || 0) < 0
+                ? "bg-red-600/20 text-red-400 border-red-500/30"
+                : "bg-slate-800/50 text-slate-500 border-slate-700/50"
+            )}>
+              {(song.comfort_level || 0) > 0 ? `+${song.comfort_level}` : song.comfort_level || 0}
+            </span>
           </div>
         </motion.div>
       )}

@@ -521,13 +521,13 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
       ['Lyrics', !!(formData.lyrics && formData.lyrics.length > 20)],
       ['Chords', !!(formData.ug_chords_text && formData.ug_chords_text.length > 10)],
       ['Notes', !!(formData.notes && formData.notes.length > 5)],
-      ['Confidence', (formData.comfort_level || 0) > 0],
+      ['Confidence', (formData.comfort_level || 0) > 0], // positive = done
       ['Ready', formData.is_ready_to_sing === true],
     ];
     const weight = 100 / checks.length;
     let earned = 0;
     checks.forEach(([, pass], i) => {
-      if (i === 9) earned += weight * Math.min(1, (formData.comfort_level || 0) / 100);
+      if (i === 9) earned += weight * Math.max(-1, Math.min(1, (formData.comfort_level || 0) / 5));
       else if (pass) earned += weight;
     });
     return Math.round(Math.min(100, earned));
@@ -1540,7 +1540,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                 <p className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-400">Performance</p>
                 
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-300">Confidence rating</span>
+                  <span className="text-[11px] font-bold text-slate-300">Confidence</span>
                   <MasteryRating
                     value={formData.comfort_level || 0}
                     onChange={(val) => handleAutoSave({ comfort_level: val })}

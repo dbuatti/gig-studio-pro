@@ -162,7 +162,7 @@ const Index = () => {
         is_ug_chords_present: d.is_ug_chords_present, highest_note_original: d.highest_note_original,
         audio_url: d.audio_url, extraction_status: d.extraction_status,
         energy_level: d.energy_level as EnergyZone,
-        comfort_level: (d.comfort_level !== null && d.comfort_level <= 5) ? d.comfort_level * 20 : (d.comfort_level ?? 0),
+        comfort_level: d.comfort_level ?? 0,
         needs_improvement: d.needs_improvement ?? false,
         readiness_checklist: d.readiness_checklist || [],
       }));

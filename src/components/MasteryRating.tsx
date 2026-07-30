@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Star } from 'lucide-react';
+import React from 'react';
 import { cn } from '@/lib/utils';
 
 interface MasteryRatingProps {
@@ -11,54 +10,74 @@ interface MasteryRatingProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
+const sizes = {
+  sm: "text-[10px] w-5 h-5",
+  md: "text-sm w-7 h-7",
+  lg: "text-lg w-10 h-10"
+};
+
+const btnSizes = {
+  sm: "w-4 h-4 text-[9px]",
+  md: "w-6 h-6 text-xs",
+  lg: "w-8 h-8 text-sm"
+};
+
 const MasteryRating: React.FC<MasteryRatingProps> = ({
   value = 0,
   onChange,
   readonly = false,
   size = 'md'
 }) => {
-  const [hover, setHover] = useState<number | null>(null);
+  const colorClass = value > 0
+    ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/30"
+    : value < 0
+    ? "bg-red-600/20 text-red-400 border-red-500/30"
+    : "bg-slate-800/50 text-slate-500 border-slate-700/50";
 
-  const sizes = {
-    sm: "w-3 h-3",
-    md: "w-4 h-4",
-    lg: "w-6 h-6"
-  };
-
-  // Convert 0-100 to 0-5 for display
-  const displayValue = Math.round(value / 20);
+  const btnColor = value > 0
+    ? "text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/30"
+    : value < 0
+    ? "text-red-400 hover:bg-red-500/20 border-red-500/30"
+    : "text-slate-500 hover:bg-slate-700/50 border-slate-700/50";
 
   return (
-    <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-      {value === 0 && readonly ? (
-        <span className="text-[9px] font-black uppercase tracking-widest text-slate-700">Not Rated</span>
+    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      {readonly ? (
+        <span className={cn(
+          "inline-flex items-center justify-center font-black rounded-md border",
+          sizes[size], colorClass
+        )}>
+          {value > 0 ? `+${value}` : value}
+        </span>
       ) : (
-        [1, 2, 3, 4, 5].map((star) => (
+        <div className="flex items-center gap-0.5">
           <button
-            key={star}
             type="button"
-            disabled={readonly}
-            onMouseEnter={() => !readonly && setHover(star)}
-            onMouseLeave={() => !readonly && setHover(null)}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!readonly && onChange) {
-                const newVal = star * 20;
-                onChange(newVal === displayValue * 20 ? 0 : newVal);
-              }
-            }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange?.(Math.max(-5, value - 1)); }}
             className={cn(
-              "transition-all duration-200 p-1 -m-1 flex items-center justify-center",
-              readonly ? "cursor-default" : "cursor-pointer hover:scale-125 active:scale-90",
-              (hover !== null ? star <= hover : star <= displayValue)
-                ? "text-amber-400 fill-amber-400"
-                : "text-slate-700 fill-transparent"
+              "flex items-center justify-center rounded-full border transition-all hover:scale-110 active:scale-90 font-black",
+              btnSizes[size], btnColor
             )}
           >
-            <Star className={cn(sizes[size])} />
+            −
           </button>
-        ))
+          <span className={cn(
+            "inline-flex items-center justify-center font-black rounded-md border select-none",
+            sizes[size], colorClass
+          )}>
+            {value > 0 ? `+${value}` : value}
+          </span>
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange?.(Math.min(5, value + 1)); }}
+            className={cn(
+              "flex items-center justify-center rounded-full border transition-all hover:scale-110 active:scale-90 font-black",
+              btnSizes[size], btnColor
+            )}
+          >
+            +
+          </button>
+        </div>
       )}
     </div>
   );

@@ -460,7 +460,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (song.isMetadataConfirmed) items.push("✅ Metadata Verified (5%)");
     
     const comfort = song.comfort_level || 0;
-    items.push(`${comfort > 0 ? '✅' : '❌'} Mastery Rating: ${comfort}/5 stars (${Math.round((comfort/5)*30)}%)`);
+    items.push(`${comfort > 0 ? '✅' : comfort < 0 ? '⚠️' : '❌'} Confidence: ${comfort > 0 ? '+' : ''}${comfort} (${Math.round(Math.max(0, comfort/5) * 30)}%)`);
 
     return items;
   };

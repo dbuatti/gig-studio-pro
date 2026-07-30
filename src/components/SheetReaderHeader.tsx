@@ -147,6 +147,18 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-1.5 md:gap-3">
+        {currentSong && (
+          <span className={cn(
+            "inline-flex items-center justify-center w-6 h-6 md:w-7 md:h-7 rounded-full text-[9px] md:text-[11px] font-black border",
+            (currentSong.comfort_level || 0) > 0
+              ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/30"
+              : (currentSong.comfort_level || 0) < 0
+              ? "bg-red-600/20 text-red-400 border-red-500/30"
+              : "bg-slate-800/50 text-slate-500 border-slate-700/50 hidden md:inline-flex"
+          )}>
+            {(currentSong.comfort_level || 0) > 0 ? `+${currentSong.comfort_level}` : currentSong.comfort_level || 0}
+          </span>
+        )}
         {currentSong && !isMobile && (
           <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
             <Button

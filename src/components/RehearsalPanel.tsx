@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { Badge } from "@/components/ui/badge";
+import MasteryRating from '@/components/MasteryRating';
 import { AlertCircle, CheckCircle2, Save, Music, User, Key, Zap, Tag, FileText, Layout, Guitar, Hash, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChartType } from '@/pages/AuditReaderMode';
@@ -187,26 +188,16 @@ const RehearsalPanel: React.FC<RehearsalPanelProps> = ({
         </div>
       </div>
 
-      {/* Confidence Slider */}
+        {/* Confidence Rating */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">Confidence</Label>
-          <span className={cn(
-            "text-[10px] md:text-xs font-mono font-bold px-2 py-0.5 rounded-lg",
-            localSong.comfort_level && localSong.comfort_level >= 80 ? "bg-emerald-500/20 text-emerald-400" :
-            localSong.comfort_level && localSong.comfort_level >= 50 ? "bg-amber-500/20 text-amber-400" :
-            "bg-red-500/20 text-red-400"
-          )}>
-            {localSong.comfort_level || 0}%
-          </span>
+          <MasteryRating
+            value={localSong.comfort_level || 0}
+            onChange={(val) => handleUpdate({ comfort_level: val })}
+            size="sm"
+          />
         </div>
-        <Slider
-          value={[localSong.comfort_level || 0]}
-          max={100}
-          step={1}
-          onValueChange={(val) => handleUpdate({ comfort_level: val[0] })}
-          className="py-2"
-        />
       </div>
 
       {/* Needs Improvement Toggle */}

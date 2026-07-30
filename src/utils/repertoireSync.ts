@@ -27,7 +27,7 @@ const SUBTASK_VALIDATORS: Record<string, (song: Partial<SetlistSong>) => boolean
   lyrics_1: (s) => !!(s.lyrics && s.lyrics.length > 20),
   structure_1: (s) => !!(s.ug_chords_text && s.ug_chords_text.length > 10),
   tricky_1: (s) => !!(s.notes && s.notes.length > 5),
-  confidence: (s) => (s.comfort_level || 0) > 0,
+  confidence: (s) => (s.comfort_level || 0) > 0, // positive values count as done
   ready: (s) => s.is_ready_to_sing === true,
 };
 const TOTAL_SUBTASKS = Object.keys(SUBTASK_VALIDATORS).length;
@@ -43,7 +43,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
     let earned = 0;
     const results = Object.entries(SUBTASK_VALIDATORS).map(([id, validator]) => {
       if (id === 'confidence') {
-        return weight * Math.min(1, (song.comfort_level || 0) / 100);
+        return weight * Math.max(-1, Math.min(1, (song.comfort_level || 0) / 5));
       }
       return validator(song) ? weight : 0;
     });
@@ -71,7 +71,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   if (song.isMetadataConfirmed) objectiveScore += 5;
 
   const comfortLevel = song.comfort_level || 0;
-  const subjectiveScore = (comfortLevel / 100) * 30;
+  const subjectiveScore = (comfortLevel / 5) * 30;
 
   let totalScore = objectiveScore + subjectiveScore;
 
@@ -252,7 +252,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       target_key_updated_at: result.target_key_updated_at,
       pdf_updated_at: result.pdf_updated_at,
       energy_level: result.energy_level as EnergyZone,
-      comfort_level: (result.comfort_level !== null && result.comfort_level <= 5) ? result.comfort_level * 20 : (result.comfort_level ?? 0),
+      comfort_level: result.comfort_level ?? 0,
       needs_improvement: result.needs_improvement ?? false,
       readiness_checklist: result.readiness_checklist || [],
     } as SetlistSong);
