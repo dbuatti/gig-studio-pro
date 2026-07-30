@@ -782,7 +782,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               value={formData.originalKey || ''}
               onChange={e => {
                 const newKey = e.target.value;
-                handleAutoSave({ originalKey: newKey, targetKey: newKey, pitch: 0 });
+                const isConfirmed = newKey && newKey !== 'TBC';
+                handleAutoSave({ originalKey: newKey, targetKey: newKey, pitch: 0, isKeyConfirmed: isConfirmed });
               }}
               className="w-28 h-9 bg-black/70 border border-white/10 rounded-xl px-3 text-xs font-black font-mono text-white focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer"
             >
