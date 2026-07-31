@@ -49,6 +49,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   const isLoadingAudioRef = useRef<boolean>(false);
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const analyzerRef = useRef<Tone.Analyser | null>(null);
+  const [analyzer, setAnalyzer] = useState<Tone.Analyser | null>(null);
   const currentBufferRef = useRef<AudioBuffer | null>(null);
   const requestRef = useRef<number>();
   const compressorRef = useRef<Tone.Compressor | null>(null);
@@ -66,6 +67,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   const initEngine = useCallback(async () => {
     if (!analyzerRef.current) {
       analyzerRef.current = new Tone.Analyser("fft", 256);
+      setAnalyzer(analyzerRef.current);
     }
     if (!compressorRef.current) {
       compressorRef.current = new Tone.Compressor({
@@ -81,6 +83,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   const recreateContext = useCallback(() => {
     analyzerRef.current?.dispose();
     analyzerRef.current = null;
+    setAnalyzer(null);
     compressorRef.current?.dispose();
     compressorRef.current = null;
     playerRef.current?.dispose();
@@ -362,7 +365,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
 
   return {
     isPlaying, progress, duration, pitch, tempo, volume, fineTune,
-    analyzer: analyzerRef.current, currentBuffer: currentBufferRef.current,
+    analyzer, currentBuffer: currentBufferRef.current,
     currentUrl, isLoadingAudio, setPitch, setTempo, setVolume, setFineTune,
     setProgress: setProgressHandler, setCompressorThreshold, setCompressorRatio,
     loadAudioBuffer, loadFromUrl, togglePlayback, stopPlayback, resetEngine,
