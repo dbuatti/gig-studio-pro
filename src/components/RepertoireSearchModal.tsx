@@ -32,9 +32,21 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<'repertoire' | 'this-set'>('repertoire'); 
 
+  const isReadableSong = (song: SetlistSong) =>
+    Boolean(song.pdfUrl || song.leadsheetUrl || song.ug_chords_text || song.sheet_music_url);
+
+  const readableRepertoire = useMemo(
+    () => masterRepertoire.filter(isReadableSong),
+    [masterRepertoire]
+  );
+  const readableSetlistSongs = useMemo(
+    () => currentSetlistSongs.filter(isReadableSong),
+    [currentSetlistSongs]
+  );
+
   const songsToDisplay = useMemo(() => {
-    return activeTab === 'repertoire' ? masterRepertoire : currentSetlistSongs;
-  }, [activeTab, masterRepertoire, currentSetlistSongs]);
+    return activeTab === 'repertoire' ? readableRepertoire : readableSetlistSongs;
+  }, [activeTab, readableRepertoire, readableSetlistSongs]);
 
   const filteredItems = useMemo(() => {
     const q = query.toLowerCase();
@@ -47,7 +59,7 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl w-[95vw] max-h-[85vh] bg-popover border-border text-foreground rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
-        <div className="p-8 bg-indigo-600 shrink-0 relative">
+        <div className="p-6 md:p-8 bg-indigo-600 shrink-0 relative">
           <button
             onClick={onClose}
             className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors"
@@ -85,7 +97,7 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
                 </TabsTrigger>
                 <TabsTrigger 
                   value="this-set" 
-                  disabled={currentSetlistSongs.length === 0} 
+                  disabled={readableSetlistSongs.length === 0} 
                   className="text-sm font-black uppercase tracking-tight gap-2 h-8 rounded-lg"
                 >
                   <ListMusic className="w-4 h-4" /> This Set
@@ -96,8 +108,8 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
         </div>
 
         <div className="flex-1 overflow-hidden bg-secondary flex flex-col min-h-0"> 
-          <ScrollArea className="h-full">
-            <div className="p-6 space-y-2">
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="p-4 md:p-6 space-y-2">
               {filteredItems.length > 0 ? (
                 filteredItems.map((song) => {
                   const readiness = calculateReadiness(song);
@@ -109,26 +121,26 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
                     <div 
                       key={song.id}
                       onClick={() => onSelectSong(song)}
-                      className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all border group bg-card border-border hover:border-border/50 hover:bg-accent dark:hover:bg-secondary text-left cursor-pointer"
+                      className="w-full flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-2xl transition-all border group bg-card border-border hover:border-border/50 hover:bg-accent dark:hover:bg-secondary text-left cursor-pointer"
                     >
                       <div className="bg-secondary p-2.5 rounded-xl text-muted-foreground shrink-0">
                         <Music className="w-5 h-5" />
                       </div>
                       
-                      <div className="flex-1 min-w-0 max-w-[60%]"> 
+                      <div className="flex-1 min-w-0"> 
                         <div className="flex items-center gap-2">
-                          <h4 className="font-black text-sm uppercase tracking-tight truncate line-clamp-1 text-foreground flex-1 min-w-0">{song.name}</h4>
-                          {readiness === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />}
-                          {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
-                          {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-destructive" />}
+                          <h4 className="font-black text-sm uppercase tracking-tight truncate text-foreground flex-1 min-w-0">{song.name}</h4>
+                          {readiness === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                          {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce shrink-0" />}
+                          {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />}
                         </div>
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate line-clamp-1 flex-1 min-w-0">{song.artist}</p>
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate mt-0.5">{song.artist}</p>
                         {isExtractionFailed && song.last_sync_log && (
-                          <p className="text-[8px] text-destructive mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
+                          <p className="text-[8px] text-destructive mt-1 truncate max-w-[200px]">Error: {song.last_sync_log}</p>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-6 shrink-0">
+                      <div className="flex items-center gap-2 md:gap-3 shrink-0">
                         <div className="text-right hidden sm:block">
                           <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Readiness</p>
                           <p className={cn(
@@ -146,25 +158,27 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
 
                         <Button
                           size="sm"
-                          className="h-10 w-10 p-0 rounded-xl transition-all active:scale-95 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20"
+                          className="h-9 w-9 md:h-10 md:w-10 p-0 rounded-xl transition-all active:scale-95 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20"
+                          aria-label={`Open ${song.name}`}
                         >
-                          <Check className="w-5 h-5" />
+                          <Check className="w-4 h-4 md:w-5 md:h-5" />
                         </Button>
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <div className="py-20 text-center opacity-30">
+                <div className="py-20 text-center opacity-40">
                   <Library className="w-12 h-12 mx-auto mb-4" />
-                  <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">No Library Matches</p>
+                  <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">No Matches</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Only songs with sheet music or chords are shown.</p>
                 </div>
               )}
             </div>
           </ScrollArea>
         </div>
         
-        <div className="p-6 border-t border-border bg-secondary flex items-center justify-between shrink-0">
+        <div className="p-4 md:p-6 border-t border-border bg-secondary flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <Star className="w-3.5 h-3.5 text-indigo-500 fill-indigo-500" />
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Master Repertoire Engine v4.0</span>
