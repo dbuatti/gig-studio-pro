@@ -6,6 +6,7 @@ import { SetlistSong } from '@/components/SetlistManager';
 import { cn } from '@/lib/utils';
 import { Music, CheckCircle2, Loader2, CloudDownload, AlertTriangle, ListMusic, PanelLeft, Search, X } from 'lucide-react';
 import { calculateReadiness } from '@/utils/repertoireSync';
+import { normalizeSearch } from '@/utils/searchUtils';
 import { Button } from '@/components/ui/button';
 
 interface SheetReaderSidebarProps {
@@ -28,13 +29,13 @@ const SheetReaderSidebar: React.FC<SheetReaderSidebarProps> = ({ songs, currentI
   }, [isOpen]);
 
   const filteredSongs = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = normalizeSearch(searchQuery.trim());
     if (!q) return songs.map((song, index) => ({ song, index }));
     return songs
       .map((song, index) => ({ song, index }))
       .filter(({ song }) =>
-        song.name.toLowerCase().includes(q) ||
-        (song.artist || '').toLowerCase().includes(q)
+        normalizeSearch(song.name).includes(q) ||
+        normalizeSearch(song.artist || '').includes(q)
       );
   }, [songs, searchQuery]);
 

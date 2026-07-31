@@ -21,6 +21,7 @@ import { RESOURCE_TYPES, DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
+import { normalizeSearch } from '@/utils/searchUtils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SheetLink } from './LinkDisplayOverlay';
 import { sortSongsByStrategy, analyzeEnergyFatigue } from '@/utils/SetlistGenerator';
@@ -234,12 +235,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const processedSongs = useMemo(() => {
     let songs = [...rawSongs];
-    const q = searchTerm.toLowerCase();
+    const q = normalizeSearch(searchTerm);
     
     if (q) {
       songs = songs.filter(s =>
-        s.name.toLowerCase().includes(q) ||
-        s.artist?.toLowerCase().includes(q)
+        normalizeSearch(s.name).includes(q) ||
+        normalizeSearch(s.artist || '').includes(q)
       );
     }
 

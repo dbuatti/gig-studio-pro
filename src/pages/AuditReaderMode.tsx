@@ -11,6 +11,7 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DEFAULT_FILTERS } from '@/components/SetlistFilters';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
+import { normalizeSearch } from '@/utils/searchUtils';
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
@@ -245,7 +246,7 @@ const AuditReaderMode: React.FC = () => {
 
       if (!isSetlistActive) {
         filteredSongs = baseSongs.filter(s => {
-          if (searchTerm && !s.name.toLowerCase().includes(searchTerm) && !s.artist?.toLowerCase().includes(searchTerm)) {
+          if (searchTerm && !normalizeSearch(s.name).includes(normalizeSearch(searchTerm)) && !normalizeSearch(s.artist || '').includes(normalizeSearch(searchTerm))) {
             return false;
           }
           const readiness = calculateReadiness(s);

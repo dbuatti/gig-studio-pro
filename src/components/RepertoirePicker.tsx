@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
+import { normalizeSearch } from '@/utils/searchUtils';
 
 interface RepertoirePickerProps {
   isOpen: boolean;
@@ -36,10 +37,10 @@ const RepertoirePicker: React.FC<RepertoirePickerProps> = ({
   [currentSetlistSongs]);
 
   const filteredItems = useMemo(() => {
-    const q = query.toLowerCase();
+    const q = normalizeSearch(query);
     return repertoire.filter(song => {
-      const matchesSearch = song.name.toLowerCase().includes(q) || 
-                            song.artist?.toLowerCase().includes(q);
+      const matchesSearch = normalizeSearch(song.name).includes(q) || 
+                            normalizeSearch(song.artist || '').includes(q);
       
       if (!matchesSearch) return false;
       if (filterReady && calculateReadiness(song) < 100) return false;

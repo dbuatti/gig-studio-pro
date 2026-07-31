@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { SetlistSong } from './SetlistManager';
 import { showSuccess } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { normalizeSearch } from '@/utils/searchUtils';
 import { useSongSuggestions } from '@/hooks/use-song-suggestions';
 import { cn } from '@/lib/utils';
 
@@ -42,10 +43,11 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
     }
   }, [repertoire.length, fetchSuggestions, suggestions.length, isLoading, error, hasFetched]);
 
+  const seedQ = normalizeSearch(seedSearch.trim());
   const filteredRepertoire = repertoire.filter(s =>
-    !seedSearch.trim() ||
-    s.name.toLowerCase().includes(seedSearch.toLowerCase()) ||
-    (s.artist || "").toLowerCase().includes(seedSearch.toLowerCase())
+    !seedQ ||
+    normalizeSearch(s.name).includes(seedQ) ||
+    normalizeSearch(s.artist || "").includes(seedQ)
   );
 
   const handleSelectSeed = (song: SetlistSong | null) => {

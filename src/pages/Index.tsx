@@ -10,6 +10,7 @@ import { useAutoplay } from '@/hooks/use-autoplay';
 import { showSuccess, showInfo, showWarning, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
+import { normalizeSearch } from '@/utils/searchUtils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { autoVibeCheck } from '@/utils/vibeUtils';
 
@@ -97,8 +98,8 @@ const Index = () => {
   const filteredAndSortedSongs = useMemo(() => {
     if (!activeSetlist) return [];
     let songs = [...activeSetlist.songs];
-    const q = searchTerm.toLowerCase();
-    if (q) songs = songs.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
+    const q = normalizeSearch(searchTerm);
+    if (q) songs = songs.filter(s => normalizeSearch(s.name).includes(q) || normalizeSearch(s.artist || '').includes(q));
     
     if (sortMode === 'ready') songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     else if (sortMode === 'work') songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));

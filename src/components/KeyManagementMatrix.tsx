@@ -14,6 +14,7 @@ import { Button } from './ui/button';
 import { showSuccess, showError } from '@/utils/toast';
 import { ScrollArea } from './ui/scroll-area';
 import { useSettings } from '@/hooks/use-settings';
+import { normalizeSearch } from '@/utils/searchUtils';
 
 interface KeyManagementMatrixProps {
   repertoire: SetlistSong[];
@@ -31,10 +32,10 @@ const KeyManagementMatrix: React.FC<KeyManagementMatrixProps> = ({
   const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
 
   const filteredRepertoire = useMemo(() => {
-    const q = searchTerm.toLowerCase();
+    const q = normalizeSearch(searchTerm);
     return repertoire.filter(song => 
-      song.name.toLowerCase().includes(q) || 
-      song.artist?.toLowerCase().includes(q)
+      normalizeSearch(song.name).includes(q) || 
+      normalizeSearch(song.artist || '').includes(q)
     ).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [repertoire, searchTerm]);
 

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
+import { normalizeSearch } from '@/utils/searchUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; 
 
 interface RepertoireSearchModalProps {
@@ -49,10 +50,10 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
   }, [activeTab, readableRepertoire, readableSetlistSongs]);
 
   const filteredItems = useMemo(() => {
-    const q = query.toLowerCase();
+    const q = normalizeSearch(query);
     return songsToDisplay.filter(song =>
-      (song.name || "").toLowerCase().includes(q) ||
-      (song.artist || "").toLowerCase().includes(q)
+      normalizeSearch(song.name || "").includes(q) ||
+      normalizeSearch(song.artist || "").includes(q)
     ).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [songsToDisplay, query]);
 

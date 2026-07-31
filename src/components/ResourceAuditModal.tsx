@@ -34,6 +34,7 @@ import { sanitizeUGUrl } from '@/utils/ugUtils';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { isChordLine, transposeChords, extractKeyFromChords } from '@/utils/chordUtils';
 import { calculateSemitones, formatKey } from '@/utils/keyUtils';
+import { normalizeSearch } from '@/utils/searchUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthProvider';
@@ -63,8 +64,8 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
 
   const auditList = useMemo(() => {
     return songs.filter(s => {
-      const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            s.artist?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = normalizeSearch(s.name).includes(normalizeSearch(searchTerm)) || 
+                            normalizeSearch(s.artist || '').includes(normalizeSearch(searchTerm));
       
       if (!matchesSearch) return false;
 

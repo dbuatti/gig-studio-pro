@@ -3,6 +3,7 @@
 import { SetlistSong } from "@/components/SetlistManager";
 import { FilterState } from "@/components/SetlistFilters";
 import { calculateReadiness } from "./repertoireSync";
+import { normalizeSearch } from "./searchUtils";
 
 /**
  * Applies filters and sorting to a list of songs.
@@ -15,13 +16,13 @@ export const filterAndSortRepertoire = (
   activeSetlistSongs?: SetlistSong[]
 ): SetlistSong[] => {
   let filtered = [...songs];
-  const q = searchTerm.toLowerCase();
+  const q = normalizeSearch(searchTerm);
 
   filtered = filtered.filter(s => {
     // Search match
-    const matchesSearch = s.name.toLowerCase().includes(q) ||
-                          s.artist?.toLowerCase().includes(q) ||
-                          s.user_tags?.some(tag => tag.toLowerCase().includes(q));
+    const matchesSearch = normalizeSearch(s.name).includes(q) ||
+                          normalizeSearch(s.artist || '').includes(q) ||
+                          s.user_tags?.some(tag => normalizeSearch(tag).includes(q));
     if (!matchesSearch) return false;
     
     // Filter criteria

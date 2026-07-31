@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Search, User, Music, ArrowUpDown, UserCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/use-theme';
+import { normalizeSearch } from '@/utils/searchUtils';
 
 interface PublicRepertoireViewProps {
   profile: Record<string, unknown>;
@@ -20,7 +21,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
   const { theme } = useTheme();
 
   const processedSongs = useMemo(() => {
-    const q = searchTerm.toLowerCase();
+    const q = normalizeSearch(searchTerm);
     const uniqueMap = new Map();
     
     songs.forEach(s => {
@@ -32,8 +33,8 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
     });
 
     return Array.from(uniqueMap.values()).filter(s => 
-      (s.title || s.name || "").toLowerCase().includes(q) || 
-      (s.artist || "").toLowerCase().includes(q)
+      normalizeSearch(s.title || s.name || "").includes(q) || 
+      normalizeSearch(s.artist || "").includes(q)
     );
   }, [songs, searchTerm]);
 

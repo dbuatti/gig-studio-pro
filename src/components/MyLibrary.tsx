@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
+import { normalizeSearch } from '@/utils/searchUtils';
 import { useSettings } from '@/hooks/use-settings';
 import SearchHighlight from './SearchHighlight';
 
@@ -22,10 +23,10 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ repertoire, onAddSong }) => {
   const filteredRepertoire = useMemo(() => {
     if (!query.trim()) return repertoire.slice(0, 30);
     
-    const search = query.toLowerCase();
+    const search = normalizeSearch(query);
     return repertoire.filter(song => 
-      song.name.toLowerCase().includes(search) || 
-      song.artist?.toLowerCase().includes(search)
+      normalizeSearch(song.name).includes(search) || 
+      normalizeSearch(song.artist || '').includes(search)
     ).slice(0, 50);
   }, [query, repertoire]);
 
