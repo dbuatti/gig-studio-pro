@@ -471,7 +471,7 @@ const SheetReaderMode: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
       <div className={cn("fixed left-0 top-0 h-full w-[300px] z-50 transition-transform duration-300", isSidebarOpen && !isZenMode ? "translate-x-0" : "-translate-x-full")}>
-        <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { stopPlayback(); setCurrentIndex(idx); }} isFullScreen={isZenMode} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { stopPlayback(); setCurrentIndex(idx); }} isFullScreen={isZenMode} isOpen={isSidebarOpen && !isZenMode} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </div>
 
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", isSidebarOpen && !isZenMode && !isMobile && "ml-[300px]")}>

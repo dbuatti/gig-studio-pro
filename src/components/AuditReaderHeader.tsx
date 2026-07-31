@@ -55,7 +55,7 @@ const AuditReaderHeader: React.FC<AuditReaderHeaderProps> = ({
             isSidebarOpen ? "bg-indigo-600 text-white" : "bg-white/5 text-slate-400"
           )}
         >
-          <ListMusic className="w-4 h-4 md:w-5 md:h-5" />
+          <Search className="w-4 h-4 md:w-5 md:h-5" />
         </Button>
         
         {!isMobile && (

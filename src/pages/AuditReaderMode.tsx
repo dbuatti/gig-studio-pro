@@ -447,7 +447,7 @@ const AuditReaderMode: React.FC = () => {
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
       <div className={cn("fixed left-0 top-0 h-full w-[300px] z-50 transition-transform duration-300", 
         isSidebarOpen ? "translate-x-0" : "-translate-x-full")}>
-        <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} isFullScreen={false} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} isFullScreen={false} isOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </div>
 
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", 
