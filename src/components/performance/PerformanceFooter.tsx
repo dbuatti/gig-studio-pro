@@ -43,7 +43,7 @@ const PerformanceFooter: React.FC<PerformanceFooterProps> = ({
       </div>
 
       <div className="flex items-center gap-6 md:gap-16 flex-1 justify-center sm:flex-none">
-        <Button variant="ghost" size="icon" onClick={onPrevious} className="h-12 w-12 md:h-20 md:w-20 rounded-full hover:bg-white/5 text-slate-400">
+        <Button variant="ghost" size="icon" onClick={onPrevious} className="h-12 w-12 md:h-20 md:w-20 rounded-full hover:bg-white/5 text-slate-400" aria-label="Previous song">
           <SkipBack className="w-6 h-6 md:w-12 md:h-12" />
         </Button>
 
@@ -58,7 +58,7 @@ const PerformanceFooter: React.FC<PerformanceFooterProps> = ({
           {isLoadingAudio ? <Loader2 className="w-8 h-8 md:w-14 md:h-14 animate-spin text-white" /> : isExtractionFailed ? <AlertTriangle className="w-8 h-8 md:w-14 md:h-14 text-white" /> : isPlaying ? <Pause className="w-8 h-8 md:w-14 md:h-14 text-white" /> : <Play className="w-8 h-8 md:w-14 md:h-14 ml-1 md:ml-2.5 fill-current text-white" />}
         </Button>
 
-        <Button variant="ghost" size="icon" onClick={onNext} className="h-12 w-12 md:h-20 md:w-20 rounded-full hover:bg-white/5 text-slate-400">
+        <Button variant="ghost" size="icon" onClick={onNext} className="h-12 w-12 md:h-20 md:w-20 rounded-full hover:bg-white/5 text-slate-400" aria-label="Next song">
           <SkipForward className="w-6 h-6 md:w-12 md:h-12" />
         </Button>
       </div>

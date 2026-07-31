@@ -82,6 +82,7 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({
               size="icon" 
               onClick={onClear}
               className="h-7 w-7 text-slate-500 hover:text-slate-300 hover:bg-white/5 rounded-lg transition-all"
+              aria-label="Clear now playing"
             >
               <X className="w-4 h-4" />
             </Button>
@@ -98,6 +99,7 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({
                 size="icon"
                 onClick={onPrevious}
                 className="h-10 w-10 md:h-12 md:w-12 rounded-full hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-all active:scale-90"
+                aria-label="Previous song"
               >
                 <SkipBack className="w-4 h-4 md:w-5 md:h-5" />
               </Button>
@@ -128,6 +130,7 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({
                 size="icon"
                 onClick={onNext}
                 className="h-10 w-10 md:h-12 md:w-12 rounded-full hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-all active:scale-90"
+                aria-label="Next song"
               >
                 <SkipForward className="w-4 h-4 md:w-5 md:h-5" />
               </Button>
