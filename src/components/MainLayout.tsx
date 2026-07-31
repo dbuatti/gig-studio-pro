@@ -46,13 +46,13 @@ const KeepAliveWorker = () => {
 
 const RootRoute = () => {
   const { session, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <LoadingSpinner />;
   return session ? <Index /> : <Landing />;
 };
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <LoadingSpinner />;
   if (!session) return <Navigate to="/login" />;
   return <>{children}</>;
 };
