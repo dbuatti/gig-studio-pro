@@ -204,7 +204,6 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
       onLinkCreated();
       onClose();
     } catch (err: unknown) {
-      console.error("[LinkEditorOverlay] Failed to save link:", (err as Error).message);
       showError(`Failed to save link: ${(err as Error).message}`);
     } finally {
       setIsCreatingLink(false);
