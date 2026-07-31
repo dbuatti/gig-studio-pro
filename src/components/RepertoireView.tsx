@@ -35,7 +35,7 @@ interface RepertoireViewProps {
   allSetlists: { id: string; name: string; songs: SetlistSong[] }[];
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   onRefreshRepertoire: () => void;
-  onAddSong: (song: SetlistSong) => void;
+  onAddSong: (song: SetlistSong) => Promise<SetlistSong | undefined> | SetlistSong | undefined;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   sortMode: 'none' | 'ready' | 'work' | 'manual' | 'artist';
@@ -153,7 +153,13 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
 
   return (
     <div className="space-y-6">
-      <RepertoireSuggestions repertoire={repertoire} onAddSong={onAddSong} activeSetlistSongs={activeSetlistSongs} />
+      <RepertoireSuggestions
+        repertoire={repertoire}
+        onAddSong={onAddSong}
+        activeSetlistSongs={activeSetlistSongs}
+        activeSetlistId={activeSetlistId}
+        onAddToSetlist={activeSetlistId ? (song) => onUpdateSetlistSongs(activeSetlistId, song, 'add') : undefined}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 space-y-4">

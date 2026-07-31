@@ -14,11 +14,13 @@ import { cn } from '@/lib/utils';
 
 interface RepertoireSuggestionsProps {
   repertoire: SetlistSong[];
-  onAddSong: (song: SetlistSong) => void;
+  onAddSong: (song: SetlistSong) => Promise<SetlistSong | undefined> | SetlistSong | undefined;
   activeSetlistSongs?: SetlistSong[];
+  activeSetlistId?: string | null;
+  onAddToSetlist?: (song: SetlistSong) => Promise<void>;
 }
 
-const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoire, onAddSong, activeSetlistSongs = [] }) => {
+const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoire, onAddSong, activeSetlistSongs = [], activeSetlistId, onAddToSetlist }) => {
   const [seedSong, setSeedSong] = useState<SetlistSong | null>(null);
   const [seedSearch, setSeedSearch] = useState("");
   const [seedMenuOpen, setSeedMenuOpen] = useState(false);
@@ -92,16 +94,28 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
     extraction_status: 'idle',
   });
 
-  const handleAdd = (s: Record<string, unknown>) => {
-    onAddSong(mapToSong(s));
+  const handleAdd = async (s: Record<string, unknown>) => {
+    const added = await onAddSong(mapToSong(s));
     dismissSuggestion(s);
     showSuccess(`Added "${s.name || s.title}" to library`);
+    if (added && onAddToSetlist) {
+      await onAddToSetlist(added);
+    }
   };
 
-  const handleAddAll = () => {
-    suggestions.forEach(s => onAddSong(mapToSong(s)));
-    suggestions.forEach(s => dismissSuggestion(s));
+  const handleAddAll = async () => {
+    const added: SetlistSong[] = [];
+    for (const s of suggestions) {
+      const result = await onAddSong(mapToSong(s));
+      if (result) added.push(result);
+      dismissSuggestion(s);
+    }
     showSuccess(`Added ${suggestions.length} songs to library`);
+    if (onAddToSetlist) {
+      for (const song of added) {
+        await onAddToSetlist(song);
+      }
+    }
   };
 
   if (repertoire.length === 0) return null;

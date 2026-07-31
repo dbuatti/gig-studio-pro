@@ -945,7 +945,7 @@ const Index = () => {
               setActiveFilters={setActiveFilters} 
               onUpdateSetlistSongs={handleUpdateSetlistSongs} 
               onDeleteSong={handleDeleteSong} 
-              onAddSong={async (s) => { if (userId) { await syncToMasterRepertoire(userId, [s]); await fetchSetlistsAndRepertoire(); } }} 
+              onAddSong={async (s) => { if (!userId) return undefined; const synced = await syncToMasterRepertoire(userId, [s]); await fetchSetlistsAndRepertoire(); return synced[0]; }} 
               onOpenAdmin={() => setIsAdminPanelOpen(true)} 
               activeSetlistId={activeSetlistId} 
               userId={userId} 
