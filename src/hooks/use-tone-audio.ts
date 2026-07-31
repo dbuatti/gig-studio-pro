@@ -58,6 +58,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
 
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
+  const loadVersionRef = useRef(0);
 
   // Sync onEnded callback to ref to avoid stale closure issues
   useEffect(() => {
@@ -156,6 +157,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
       return;
     }
 
+    const version = ++loadVersionRef.current;
     currentUrlRef.current = url;
     setCurrentUrlState(url);
     isLoadingAudioRef.current = true;
@@ -167,8 +169,10 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
       if (!response.ok) throw new Error(`Fetch error: ${response.status}`);
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
+      if (version !== loadVersionRef.current) return;
       loadAudioBuffer(audioBuffer, initialPitch);
     } catch (err) {
+      if (version !== loadVersionRef.current) return;
       console.error("[AudioEngine] Error loadFromUrl:", err);
       const isStaleUrl = url.includes('supabase.co/storage');
       showError(isStaleUrl ? "Audio file not found — needs re-extraction. Go to Visual tab and click RE-EXTRACT." : "Audio load failed.");

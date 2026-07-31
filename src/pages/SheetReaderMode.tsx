@@ -204,7 +204,7 @@ const SheetReaderMode: React.FC = () => {
       audioEngine.setPitch(currentSong.pitch || 0);
       audioEngine.setTempo(currentSong.tempo || 1); 
       audioEngine.setFineTune(currentSong.fineTune || 0);
-      if (urlToLoad) audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0);
+      if (urlToLoad) audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0, true);
       else audioEngine.resetEngine();
     } else {
       audioEngine.resetEngine();
