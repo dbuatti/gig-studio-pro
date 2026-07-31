@@ -179,8 +179,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
       });
       showSuccess(`Chords for "${song.name}" pasted & verified!`);
 
-    } catch (err) {
-      console.error("Failed to paste chords:", err);
+    } catch {
       showError("Failed to paste chords. Ensure clipboard access is granted.");
     }
   }, [onVerify, keyPreference]);
@@ -221,7 +220,6 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
       showSuccess(`Bulk Key Pull Complete! ${successful} successful, ${failed} failed, ${skipped} skipped.`);
       onRefreshRepertoire(); // Refresh the parent component's repertoire data
     } catch (err: unknown) {
-      console.error("Bulk key pull failed:", err);
       showError(`Bulk key pull failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsBulkPullingKeys(false);

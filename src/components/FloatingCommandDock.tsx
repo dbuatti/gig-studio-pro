@@ -132,11 +132,14 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && internalIsMenuOpen) handleToggleMenu();
+      if (e.key === 'Escape') {
+        if (isSubMenuOpen) { setIsSubMenuOpen(false); return; }
+        if (internalIsMenuOpen) handleToggleMenu();
+      }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [internalIsMenuOpen, handleToggleMenu]);
+  }, [internalIsMenuOpen, handleToggleMenu, isSubMenuOpen]);
 
   const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: { offset: { x: number; y: number } }) => {
     const newPos = { x: position.x + info.offset.x, y: position.y + info.offset.y };
@@ -340,6 +343,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                             size="icon"
                             onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') handleToggleMenu(); }}
                             className={cn("h-9 w-9 md:h-12 md:w-12 rounded-full border transition-all hover:scale-110", btn.className)}
+                            aria-label={btn.tooltip}
                           >
                             {btn.icon}
                           </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,6 +25,13 @@ interface SuggestedSong {
   isAdding?: boolean;
   isDuplicate?: boolean;
   isIgnored?: boolean;
+}
+
+interface RawSuggestion {
+  name: string;
+  artist: string;
+  reason?: string;
+  energy_level?: string;
 }
 
 interface SubsetSongSuggesterModalProps {
@@ -158,7 +165,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       const seenSuggestionKeys = new Set<string>();
 
       // Deduplicate raw suggestions
-      const uniqueSuggestions = rawSuggestions.filter((s: any) => {
+      const uniqueSuggestions = rawSuggestions.filter((s: RawSuggestion) => {
         const key = normalize(s.name);
         if (seenSuggestionKeys.has(key)) return false;
         seenSuggestionKeys.add(key);
@@ -167,7 +174,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
 
       // Partition: songs already in repertoire vs songs needing iTunes lookup
       const needsItunes: { idx: number; query: string }[] = [];
-      const enriched: SuggestedSong[] = uniqueSuggestions.map((s: any, i: number) => {
+      const enriched: SuggestedSong[] = uniqueSuggestions.map((s: RawSuggestion, i: number) => {
         const suggestionKey = normalize(s.name);
         const isDup = existingKeys.has(suggestionKey);
         const isIgnored = ignoredSuggestions.has(suggestionKey);
@@ -228,8 +235,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       }
 
       setSuggestions(enriched);
-    } catch (err: unknown) {
-      console.error("Failed to fetch subset suggestions:", err);
+    } catch {
       showError("Failed to load suggestions. Please try again.");
     } finally {
       setIsLoading(false);
@@ -296,7 +302,6 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       setSuggestions(prev => prev.map((s, i) => i === index ? { ...s, isAdding: false, isAdded: true } : s));
       await onSongAdded();
     } catch (err: unknown) {
-      console.error("Failed to add suggested song:", err);
       showError(`Failed to add song: ${err instanceof Error ? err.message : String(err)}`);
       setSuggestions(prev => prev.map((s, i) => i === index ? { ...s, isAdding: false } : s));
     }
@@ -347,7 +352,6 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       setRepoQuery('');
       await onSongAdded();
     } catch (err: unknown) {
-      console.error("Failed to add from repertoire:", err);
       showError(`Failed to add: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setRepoAdding(null);

@@ -4,7 +4,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import * as Tone from 'tone';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Check, ArrowRight, Target, ShieldCheck,
   FileText, Music, Mic2, Music2, X, Upload, Loader2, FileType, Search, Play, Pause, Download, Clock, Lock, Unlock, ChevronDown, ListChecks
@@ -20,6 +20,8 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { transposeChords } from '@/utils/chordUtils';
 import { cleanLyrics } from '@/utils/lyricsCleaner';
@@ -1000,6 +1002,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="max-w-3xl w-[92vw] h-[90vh] bg-slate-950 text-white border-white/10 rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl [&>button:last-child]:hidden">
+        <DialogTitle className="sr-only">Readiness Wizard</DialogTitle>
 
         {/* ── Header ── */}
         <div className={cn(

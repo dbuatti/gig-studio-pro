@@ -123,7 +123,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
     } catch (err: unknown) {
-      console.error("Auto-save failed:", err);
+      showError(`Auto-save failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsSaving(false);
     }
@@ -257,7 +257,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         await audio.loadFromUrl(audioUrl, targetSong.pitch ?? 0, true);
       }
     } catch (err: unknown) {
-      console.error("Failed to load song data:", err);
+      showError(`Failed to load song: ${err instanceof Error ? err.message : String(err)}`);
       onClose();
     } finally {
       setLoading(false);

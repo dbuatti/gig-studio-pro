@@ -40,7 +40,7 @@ export function useFollow(profileUserId: string | undefined) {
       setFollowCount(followersCount || 0);
 
     } catch (err: unknown) {
-      // Error handled by toast
+      showError(`Failed to load follow status: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }

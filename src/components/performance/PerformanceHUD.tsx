@@ -84,10 +84,10 @@ const PerformanceHUD: React.FC<PerformanceHUDProps> = ({
         </div>
 
         <div className="flex items-center gap-2 md:gap-3">
-          {isMobile && <Button variant="ghost" size="icon" onClick={onOpenMobileMenu} className="rounded-xl bg-white/5 h-10 w-10"><Shield className="w-5 h-5 text-slate-400" /></Button>}
-          <Button variant="ghost" size="icon" onClick={onOpenShortcutLegend} className="rounded-xl bg-white/5 hover:bg-white/10 h-10 w-10 md:h-14 md:w-14 transition-all"><Keyboard className="w-5 h-5 md:w-6 md:h-6 text-slate-400" /></Button>
-          <Button variant="ghost" size="icon" onClick={onEditClick} className="rounded-xl bg-white/5 hover:bg-indigo-600 hover:text-white h-10 w-10 md:h-14 md:w-14 transition-all group"><Edit3 className="w-5 h-5 md:w-6 md:h-6 text-slate-400 group-hover:text-white" /></Button>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl md:rounded-2xl hover:bg-red-500/20 hover:text-red-400 h-10 w-10 md:h-14 md:w-14 transition-all"><X className="w-6 h-6 md:w-9 md:h-9" /></Button>
+          {isMobile && <Button variant="ghost" size="icon" onClick={onOpenMobileMenu} className="rounded-xl bg-white/5 h-10 w-10" aria-label="Open mobile menu"><Shield className="w-5 h-5 text-slate-400" /></Button>}
+          <Button variant="ghost" size="icon" onClick={onOpenShortcutLegend} className="rounded-xl bg-white/5 hover:bg-white/10 h-10 w-10 md:h-14 md:w-14 transition-all" aria-label="Keyboard shortcuts"><Keyboard className="w-5 h-5 md:w-6 md:h-6 text-slate-400" /></Button>
+          <Button variant="ghost" size="icon" onClick={onEditClick} className="rounded-xl bg-white/5 hover:bg-indigo-600 hover:text-white h-10 w-10 md:h-14 md:w-14 transition-all group" aria-label="Edit song"><Edit3 className="w-5 h-5 md:w-6 md:h-6 text-slate-400 group-hover:text-white" /></Button>
+          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl md:rounded-2xl hover:bg-red-500/20 hover:text-red-400 h-10 w-10 md:h-14 md:w-14 transition-all" aria-label="Close performance"><X className="w-6 h-6 md:w-9 md:h-9" /></Button>
         </div>
       </div>
     </div>

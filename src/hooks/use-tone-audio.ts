@@ -49,6 +49,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   const isLoadingAudioRef = useRef<boolean>(false);
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const analyzerRef = useRef<Tone.Analyser | null>(null);
+  const [analyzer, setAnalyzer] = useState<Tone.Analyser | null>(null);
   const currentBufferRef = useRef<AudioBuffer | null>(null);
   const requestRef = useRef<number>();
   const compressorRef = useRef<Tone.Compressor | null>(null);
@@ -57,6 +58,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
 
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
+  const loadVersionRef = useRef(0);
 
   // Sync onEnded callback to ref to avoid stale closure issues
   useEffect(() => {
@@ -66,6 +68,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   const initEngine = useCallback(async () => {
     if (!analyzerRef.current) {
       analyzerRef.current = new Tone.Analyser("fft", 256);
+      setAnalyzer(analyzerRef.current);
     }
     if (!compressorRef.current) {
       compressorRef.current = new Tone.Compressor({
@@ -81,6 +84,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   const recreateContext = useCallback(() => {
     analyzerRef.current?.dispose();
     analyzerRef.current = null;
+    setAnalyzer(null);
     compressorRef.current?.dispose();
     compressorRef.current = null;
     playerRef.current?.dispose();
@@ -153,6 +157,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
       return;
     }
 
+    const version = ++loadVersionRef.current;
     currentUrlRef.current = url;
     setCurrentUrlState(url);
     isLoadingAudioRef.current = true;
@@ -164,8 +169,10 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
       if (!response.ok) throw new Error(`Fetch error: ${response.status}`);
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
+      if (version !== loadVersionRef.current) return;
       loadAudioBuffer(audioBuffer, initialPitch);
     } catch (err) {
+      if (version !== loadVersionRef.current) return;
       console.error("[AudioEngine] Error loadFromUrl:", err);
       const isStaleUrl = url.includes('supabase.co/storage');
       showError(isStaleUrl ? "Audio file not found — needs re-extraction. Go to Visual tab and click RE-EXTRACT." : "Audio load failed.");
@@ -362,7 +369,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
 
   return {
     isPlaying, progress, duration, pitch, tempo, volume, fineTune,
-    analyzer: analyzerRef.current, currentBuffer: currentBufferRef.current,
+    analyzer, currentBuffer: currentBufferRef.current,
     currentUrl, isLoadingAudio, setPitch, setTempo, setVolume, setFineTune,
     setProgress: setProgressHandler, setCompressorThreshold, setCompressorRatio,
     loadAudioBuffer, loadFromUrl, togglePlayback, stopPlayback, resetEngine,

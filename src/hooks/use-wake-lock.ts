@@ -1,25 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
-/**
- * Hook to prevent the screen from dimming or locking.
- * Useful for performance modes where the user might not touch the screen for long periods.
- */
 export function useWakeLock(enabled: boolean) {
   const [sentinel, setSentinel] = useState<WakeLockSentinel | null>(null);
+  const sentinelRef = useRef<WakeLockSentinel | null>(null);
 
   const requestWakeLock = useCallback(async () => {
     if ('wakeLock' in navigator && enabled) {
       try {
         const lock = await (navigator as Navigator & { wakeLock: { request: (type: string) => Promise<WakeLockSentinel> } }).wakeLock.request('screen');
         setSentinel(lock);
-        
-        lock.addEventListener('release', () => {
-          // Wake lock was released
-        });
-        
-        // Wake lock acquired
+        sentinelRef.current = lock;
       } catch (err: unknown) {
         console.error(`[WakeLock] ${err instanceof Error ? err.name : 'Unknown'}, ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -27,11 +19,13 @@ export function useWakeLock(enabled: boolean) {
   }, [enabled]);
 
   const releaseWakeLock = useCallback(async () => {
-    if (sentinel) {
-      await sentinel.release();
+    const lock = sentinelRef.current;
+    if (lock) {
+      await lock.release();
       setSentinel(null);
+      sentinelRef.current = null;
     }
-  }, [sentinel]);
+  }, []);
 
   useEffect(() => {
     if (enabled) {
@@ -40,9 +34,8 @@ export function useWakeLock(enabled: boolean) {
       releaseWakeLock();
     }
 
-    // Re-acquire lock if page becomes visible again
     const handleVisibilityChange = () => {
-      if (sentinel !== null && document.visibilityState === 'visible' && enabled) {
+      if (sentinelRef.current !== null && document.visibilityState === 'visible' && enabled) {
         requestWakeLock();
       }
     };

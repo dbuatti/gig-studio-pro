@@ -85,8 +85,7 @@ export function useSongSuggestions({ repertoire, limit = 10, activeSetlistSongs 
       }).slice(0, limit);
 
       setSuggestions(filtered);
-    } catch (err: unknown) {
-      console.error("[useSongSuggestions] Fetch error:", err);
+    } catch {
       setError("Discovery engine temporarily unavailable.");
     } finally {
       setIsLoading(false);
