@@ -375,8 +375,7 @@ const Index = () => {
         await fetchSetlistsAndRepertoire();
         showSuccess(`Set ${groupNum} flow optimized!`);
       }
-    } catch (err: unknown) {
-      console.error("Subset Reshuffle Error:", err);
+    } catch {
       showError("Failed to reshuffle subset flow. Please try again.");
     }
   };

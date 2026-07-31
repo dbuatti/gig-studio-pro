@@ -235,8 +235,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       }
 
       setSuggestions(enriched);
-    } catch (err: unknown) {
-      console.error("Failed to fetch subset suggestions:", err);
+    } catch {
       showError("Failed to load suggestions. Please try again.");
     } finally {
       setIsLoading(false);
@@ -303,7 +302,6 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       setSuggestions(prev => prev.map((s, i) => i === index ? { ...s, isAdding: false, isAdded: true } : s));
       await onSongAdded();
     } catch (err: unknown) {
-      console.error("Failed to add suggested song:", err);
       showError(`Failed to add song: ${err instanceof Error ? err.message : String(err)}`);
       setSuggestions(prev => prev.map((s, i) => i === index ? { ...s, isAdding: false } : s));
     }
@@ -354,7 +352,6 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       setRepoQuery('');
       await onSongAdded();
     } catch (err: unknown) {
-      console.error("Failed to add from repertoire:", err);
       showError(`Failed to add: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setRepoAdding(null);
