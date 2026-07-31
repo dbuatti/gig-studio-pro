@@ -43,6 +43,8 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
     
     const audioUrl = song.audio_url || song.previewUrl;
     if (audioUrl) {
+      // Safety: release the transition guard even if audio loading stalls
+      const fallback = setTimeout(() => { isTransitioningRef.current = false; }, 8000);
       try {
         audio.stopPlayback();
         Tone.getTransport().stop();
@@ -68,6 +70,7 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
         }
       } catch (err) { /* Playback start failed, safe to ignore */ }
       
+      clearTimeout(fallback);
       setTimeout(() => { isTransitioningRef.current = false; }, 1500); 
     } else {
       isTransitioningRef.current = false;
@@ -84,7 +87,6 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
     const progressPercent = audio.duration > 0 ? (audio.progress / audio.duration) : 0;
     if (!isManual && audio.duration > 10 && progressPercent < 0.85) return;
 
-    isTransitioningRef.current = true;
     lastTriggerTimeRef.current = now;
 
     if (isShuffleRef.current) {
