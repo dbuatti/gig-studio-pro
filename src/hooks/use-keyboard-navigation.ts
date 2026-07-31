@@ -5,25 +5,30 @@ import { useEffect } from 'react';
 interface KeyboardNavigationOptions {
   onNext?: () => void;
   onPrev?: () => void;
+  onFirst?: () => void;
+  onLast?: () => void;
   onClose?: () => void;
   onPlayPause?: () => void;
   onFullscreen?: () => void;
+  onSelect?: () => void;
   disabled?: boolean;
 }
 
 export function useKeyboardNavigation({ 
   onNext, 
   onPrev, 
+  onFirst,
+  onLast,
   onClose, 
   onPlayPause,
   onFullscreen,
+  onSelect,
   disabled = false 
 }: KeyboardNavigationOptions) {
   useEffect(() => {
     if (disabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input or textarea
       if (
         e.target instanceof HTMLInputElement || 
         e.target instanceof HTMLTextAreaElement ||
@@ -41,14 +46,25 @@ export function useKeyboardNavigation({
           e.preventDefault();
           onPrev?.();
           break;
+        case 'Home':
+          e.preventDefault();
+          onFirst?.();
+          break;
+        case 'End':
+          e.preventDefault();
+          onLast?.();
+          break;
         case 'Escape':
           e.preventDefault();
           onClose?.();
           break;
         case ' ':
-          // Prevent page scroll and toggle playback
           e.preventDefault();
           onPlayPause?.();
+          break;
+        case 'Enter':
+          e.preventDefault();
+          onSelect?.();
           break;
         case 'f':
         case 'F':
@@ -60,5 +76,5 @@ export function useKeyboardNavigation({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onNext, onPrev, onClose, onPlayPause, onFullscreen, disabled]);
+  }, [onNext, onPrev, onFirst, onLast, onClose, onPlayPause, onFullscreen, onSelect, disabled]);
 }
