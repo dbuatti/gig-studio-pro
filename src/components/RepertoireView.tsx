@@ -281,18 +281,20 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             <div className="py-24 text-center space-y-6 bg-slate-900/50 rounded-[3rem] border border-white/5 shadow-2xl animate-in fade-in zoom-in duration-700">
               <Library className="w-16 h-16 mx-auto text-indigo-500 opacity-50" />
               <div>
-                <h3 className="text-2xl font-black uppercase tracking-tight">No Tracks Found</h3>
+                <h3 className="text-2xl font-black uppercase tracking-tight">{repertoire.length === 0 ? 'Library is Empty' : 'No Results'}</h3>
                 <p className="text-slate-400 max-w-xs mx-auto mt-2 font-medium">
-                  Try adjusting your search or filters to find what you're looking for.
+                  {repertoire.length === 0 ? 'Add your first track to get started.' : 'Try adjusting your search or filters.'}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
-                className="h-14 px-8 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[11px]"
-              >
-                Clear All Filters
-              </Button>
+              {repertoire.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
+                  className="h-14 px-8 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[11px]"
+                >
+                  Clear All Filters
+                </Button>
+              )}
             </div>
           ) : (
             filteredAndSortedRepertoire.map((song) => (
@@ -327,18 +329,20 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                       <div className="flex flex-col items-center justify-center space-y-8 animate-in fade-in zoom-in duration-700">
                         <Library className="w-24 h-24 text-indigo-500 opacity-50" />
                         <div>
-                          <h3 className="text-3xl font-black uppercase tracking-tight">No Tracks Found</h3>
+                          <h3 className="text-3xl font-black uppercase tracking-tight">{repertoire.length === 0 ? 'Library is Empty' : 'No Results'}</h3>
                           <p className="text-slate-400 max-w-sm mx-auto mt-3 font-medium text-lg">
-                            Try adjusting your search or filters to find what you're looking for.
+                            {repertoire.length === 0 ? 'Add your first track to get started.' : 'Try adjusting your search or filters.'}
                           </p>
                         </div>
-                        <Button
-                          variant="outline"
-                          onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
-                          className="h-16 px-10 rounded-[2rem] border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-xs gap-4"
-                        >
-                          Clear All Filters
-                        </Button>
+                        {repertoire.length > 0 && (
+                          <Button
+                            variant="outline"
+                            onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
+                            className="h-16 px-10 rounded-[2rem] border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-xs gap-4"
+                          >
+                            Clear All Filters
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
