@@ -86,7 +86,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
       await action();
       showSuccess(successMsg);
     } catch (err) {
-      console.error("Action failed:", err);
+      showError(`Action failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setter(false);
     }

@@ -118,7 +118,6 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
         }
       }
     } catch (err: unknown) {
-      console.error("Failed to update setlist assignment:", err);
       showError(`Failed to update assignment: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);

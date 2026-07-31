@@ -217,8 +217,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
         showSuccess(`AI sequence applied!`);
         setAiInstruction('');
       }
-    } catch (err: unknown) {
-      console.error("AI Sort Error:", err);
+    } catch {
       showError("AI sorting failed. Please try again.");
     } finally {
       setIsAiSorting(false);
