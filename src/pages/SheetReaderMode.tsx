@@ -155,7 +155,7 @@ const SheetReaderMode: React.FC = () => {
       }]);
       if (result[0]) handleLocalSongUpdate(currentSong.id, { ...result[0], master_id: masterId });
     } catch (err) {
-      console.error("Sheet Reader Auto-save failed:", err);
+      showError(`Auto-save failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, [currentSong, user, handleLocalSongUpdate]);
 
@@ -324,7 +324,7 @@ const SheetReaderMode: React.FC = () => {
       if (error) throw new Error(error.message || "Unknown error");
       setLinks(data || []);
     } catch (err: unknown) {
-      console.error("Failed to load links:", err);
+      showError(`Failed to load links: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, [user, currentSong?.master_id, selectedChartType]);
 
