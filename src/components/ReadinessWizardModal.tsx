@@ -20,6 +20,8 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { transposeChords } from '@/utils/chordUtils';
 import { cleanLyrics } from '@/utils/lyricsCleaner';
