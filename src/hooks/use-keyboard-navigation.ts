@@ -32,10 +32,14 @@ export function useKeyboardNavigation({
       if (
         e.target instanceof HTMLInputElement || 
         e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement ||
         (e.target as HTMLElement).isContentEditable
       ) {
         return;
       }
+
+      // Leave browser/OS shortcuts (Cmd+F, Ctrl+Arrow, etc.) alone
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       switch (e.key) {
         case 'ArrowRight':
