@@ -48,7 +48,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
       return validator(song) ? weight : 0;
     });
     earned = results.reduce((a, b) => a + b, 0);
-    return Math.round(Math.min(100, earned));
+    return Math.round(Math.max(0, Math.min(100, earned)));
   }
 
   // Fallback: legacy granular scoring for songs without checklist

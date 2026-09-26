@@ -180,10 +180,16 @@ const Index = () => {
         setlistsWithSongs.push({ id: setlist.id, name: setlist.name, songs, time_goal: setlist.time_goal, set_names: setlist.set_names, stimulus_text: setlist.stimulus_text });
       }
       setAllSetlists(setlistsWithSongs);
-      const defaultId = defaultSetlistId && setlistsWithSongs.some(s => s.id === defaultSetlistId)
-        ? defaultSetlistId
-        : localStorage.getItem('active_setlist_id');
-      setActiveSetlistId(defaultId && setlistsWithSongs.some(s => s.id === defaultId) ? defaultId : (setlistsWithSongs[0]?.id || null));
+      const exists = (id: string | null) => !!id && setlistsWithSongs.some(s => s.id === id);
+      // Keep the setlist the user is viewing across refreshes; only fall back to the default on first load or if it was removed
+      setActiveSetlistId(prev => {
+        if (exists(prev)) return prev;
+        const defaultId = localStorage.getItem('default_setlist_id');
+        if (exists(defaultId)) return defaultId;
+        const lastId = localStorage.getItem('active_setlist_id');
+        if (exists(lastId)) return lastId;
+        return setlistsWithSongs[0]?.id || null;
+      });
     } catch (err: unknown) {
       showError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -354,9 +360,14 @@ const Index = () => {
       if (error) throw new Error(error.message || "Unknown error");
 
       if (data?.orderedIds) {
-        const newSubsetOrder = data.orderedIds
+        // Dedupe AI output and append any songs it dropped so every song keeps a unique sort_order
+        const uniqueIds = Array.from(new Set(data.orderedIds as string[]));
+        const newSubsetOrder = uniqueIds
           .map((id: string) => subsetSongs.find(s => s.id === id))
           .filter(Boolean) as SetlistSong[];
+        subsetSongs.forEach(s => {
+          if (!newSubsetOrder.includes(s)) newSubsetOrder.push(s);
+        });
 
         const originalSortOrders = subsetSongs
           .map(s => allSongs.findIndex(x => x.id === s.id))

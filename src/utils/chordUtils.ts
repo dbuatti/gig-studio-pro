@@ -6,7 +6,7 @@ import { KeyPreference, transposeKey } from './keyUtils';
  * A robust regex for chords including suffixes like m6, maj7, etc.
  * Handles sharps, flats, and slash chords.
  */
-export const CHORD_REGEX = /(?<!\w)([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?(?:(m|M|sus|add|maj|min|dim|aug|[-+^])(?:[0-9]{1,2})?)*(\/[A-G][#b]?)?(?!\w)/g;
+export const CHORD_REGEX = /(?<!\w)([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?(?:(m|M|sus|add|maj|min|dim|aug|[-+^#b])(?:[0-9]{1,2})?)*(\/[A-G][#b]?)?(?!\w)/g;
 
 /**
  * Determines if a line is likely a chord line.
@@ -29,7 +29,7 @@ export const isChordLine = (line: string): boolean => {
 
   for (const word of words) {
     // Check if the word matches the chord pattern exactly
-    if (word.match(/^([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?(?:(m|M|sus|add|maj|min|dim|aug|[-+^])(?:[0-9]{1,2})?)*(\/[A-G][#b]?)?$/)) {
+    if (word.match(/^([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?(?:(m|M|sus|add|maj|min|dim|aug|[-+^#b])(?:[0-9]{1,2})?)*(\/[A-G][#b]?)?$/)) {
       chordCount++;
     } else if (word.length > 2 && !word.includes('|')) {
       // Longer words suggest it's a lyric line, but ignore bar lines
@@ -53,16 +53,20 @@ export const transposeChords = (text: string, semitones: number, preference: Key
   return text.split('\n').map(line => {
     if (!isChordLine(line)) return line;
 
-    return line.replace(CHORD_REGEX, (match, base, suffix, num, complex, slash) => {
+    return line.replace(CHORD_REGEX, (match, base, _suffix, _num, _complex, slash) => {
       const transposedBase = transposeKey(base, semitones, preference);
-      
+
       let transposedSlash = '';
       if (slash) {
         const slashBase = slash.substring(1);
         transposedSlash = '/' + transposeKey(slashBase, semitones, preference);
       }
 
-      return transposedBase + (suffix || '') + (num || '') + (complex || '') + transposedSlash;
+      // The repeated extension group only captures its last iteration, so take the
+      // full quality text (e.g. "maj7sus4") straight from the match instead
+      const quality = match.slice(base.length, match.length - (slash ? slash.length : 0));
+
+      return transposedBase + quality + transposedSlash;
     });
   }).join('\n');
 };
@@ -85,7 +89,8 @@ export const extractKeyFromChords = (text: string): string | null => {
     for (const match of matches) {
       const root = match[1];
       const suffix = match[2] || '';
-      const isMinor = suffix.includes('m') || suffix.includes('min') || suffix.includes('dim');
+      // "maj" and "M" are major qualities; only m/min/dim imply a minor tonality
+      const isMinor = suffix === 'm' || suffix === 'min' || suffix === 'dim';
       const chord = root + (isMinor ? 'm' : '');
       
       if (!firstChord) firstChord = chord;
