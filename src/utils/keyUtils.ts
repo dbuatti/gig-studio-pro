@@ -51,7 +51,8 @@ export const transposeKey = (key: string, semitones: number, preference: KeyPref
   
   if (index === undefined) return key;
   
-  const newIndex = (index + semitones + 12) % 12;
+  // Normalise so shifts beyond an octave (or fractional slider values) still land on a valid note
+  const newIndex = (((index + Math.round(semitones)) % 12) + 12) % 12;
   const list = preference === 'flats' ? PURE_NOTES_FLAT : PURE_NOTES_SHARP;
   return list[newIndex] + (isMinor ? 'm' : '');
 };

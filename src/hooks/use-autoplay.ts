@@ -84,7 +84,8 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
     if (!isManual && isTransitioningRef.current) return;
     if (!isManual && audio.isLoadingAudio) return;
 
-    const progressPercent = audio.duration > 0 ? (audio.progress / audio.duration) : 0;
+    // audio.progress is already a 0-100 percentage
+    const progressPercent = audio.progress / 100;
     if (!isManual && audio.duration > 10 && progressPercent < 0.85) return;
 
     lastTriggerTimeRef.current = now;

@@ -130,6 +130,10 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
     playerRef.current.grainSize = 0.18;
     playerRef.current.overlap = 0.1;
     
+    // The previous player was disposed, so playback state must restart from the top
+    setIsPlaying(false);
+    setProgress(0);
+    playbackOffsetRef.current = 0;
     setDuration(audioBuffer.duration);
     setPitchState(initialPitch);
     setTempoState(1);
@@ -326,11 +330,17 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   }, [fineTune]);
 
   const setTempo = useCallback((t: number) => {
+    if (isPlaying) {
+      // Bank the time played at the old rate so the progress clock doesn't jump
+      const now = Tone.now();
+      playbackOffsetRef.current += (now - playbackStartTimeRef.current) * tempo;
+      playbackStartTimeRef.current = now;
+    }
     setTempoState(t);
     if (playerRef.current) {
       playerRef.current.playbackRate = t;
     }
-  }, []);
+  }, [isPlaying, tempo]);
 
   const setVolume = useCallback((v: number) => {
     setVolumeState(v);

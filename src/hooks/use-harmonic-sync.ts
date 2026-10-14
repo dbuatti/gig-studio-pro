@@ -15,6 +15,7 @@ interface UseHarmonicSyncProps {
 export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference, preventStageKeyOverwrite }: UseHarmonicSyncProps) {
   const isPitchLinkedFromData = formData.is_pitch_linked ?? true;
   const originalKeyFromData = formData.originalKey || 'C';
+  const keyPreference = (formData.key_preference as KeyPreference) || globalKeyPreference;
 
   const [localPitch, setLocalPitch] = useState(formData.pitch ?? 0);
   const [localTargetKey, setLocalTargetKey] = useState(formData.targetKey || originalKeyFromData);
@@ -64,13 +65,13 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference,
       setLocalPitch(newPitch);
     } else if (isPitchLinkedFromData) {
       const updates: Partial<SetlistSong> = { pitch: newPitch };
-      const newTarget = transposeKey(originalKeyFromData, newPitch);
+      const newTarget = transposeKey(originalKeyFromData, newPitch, keyPreference);
       updates.targetKey = newTarget;
       handleAutoSave(updates);
     } else {
       setLocalPitch(newPitch);
     }
-  }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave, isStageKeyLocked, formData.id]);
+  }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave, isStageKeyLocked, formData.id, keyPreference]);
 
   const setTargetKey = useCallback((newTargetKey: string) => {
     if (isStageKeyLocked) {
