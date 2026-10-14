@@ -3,14 +3,14 @@
 import React, { useEffect, Suspense } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { Routes, Route, Navigate } from "react-router-dom";
-import Login from "@/pages/Login";
-import Landing from "@/pages/Landing";
-import NotFound from "@/pages/NotFound";
-import GigEntry from "@/pages/GigEntry";
-import PublicGigView from "@/pages/PublicGigView";
-import PublicRepertoire from "@/pages/PublicRepertoire";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
+const Login = React.lazy(() => import("@/pages/Login"));
+const Landing = React.lazy(() => import("@/pages/Landing"));
+const NotFound = React.lazy(() => import("@/pages/NotFound"));
+const GigEntry = React.lazy(() => import("@/pages/GigEntry"));
+const PublicGigView = React.lazy(() => import("@/pages/PublicGigView"));
+const PublicRepertoire = React.lazy(() => import("@/pages/PublicRepertoire"));
 const Index = React.lazy(() => import("@/pages/Index"));
 const Profile = React.lazy(() => import("@/pages/Profile"));
 const SheetReaderMode = React.lazy(() => import("@/pages/SheetReaderMode"));

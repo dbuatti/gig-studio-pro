@@ -80,9 +80,6 @@ const Login = () => {
         </CardContent>
       </Card>
 
-      <p className="mt-8 text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em]">
-        Secure Enterprise Grade Authentication
-      </p>
     </div>
   );
 };

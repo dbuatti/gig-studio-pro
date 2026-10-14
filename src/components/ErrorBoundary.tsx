@@ -29,7 +29,6 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
-    this.setState({ hasError: false, error: null });
     window.location.reload();
   };
 
@@ -48,7 +47,7 @@ class ErrorBoundary extends Component<Props, State> {
             <div className="space-y-2">
               <h1 className="text-xl font-black text-white uppercase tracking-tight">Something Went Wrong</h1>
               <p className="text-sm text-slate-400">
-                The application encountered an unexpected error. We've logged the issue and you can try reloading.
+                Something unexpected broke the page. Reloading usually fixes it. Your saved setlists and settings are not affected.
               </p>
             </div>
             {this.state.error && (

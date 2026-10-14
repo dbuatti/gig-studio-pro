@@ -4,9 +4,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
-  Waves, Sparkles, Music, Rocket, Globe, 
-  ShieldCheck, Activity, Layers, ArrowRight,
-  Zap, Headphones, Mic2, Star, Check
+  Waves, Sparkles, Rocket, Globe, 
+  ShieldCheck, Activity, Layers, Zap
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { MadeWithDyad } from '@/components/SupportBanner';
@@ -21,7 +20,7 @@ const Landing = () => {
     {
       icon: <Sparkles className="w-6 h-6 text-indigo-400" />,
       title: "AI Metadata Engine",
-      description: "Automatically fetch BPM, musical keys, and high-fidelity metadata for your entire library using our proprietary AI worker."
+      description: "Automatically fill in BPM, musical key and other details for the songs in your library."
     },
     {
       icon: <Waves className="w-6 h-6 text-indigo-400" />,
@@ -61,8 +60,7 @@ const Landing = () => {
           <span className="font-black uppercase tracking-tighter text-foreground text-xl">Gig Studio <span className="text-indigo-600">Pro</span></span>
         </div>
         <div className="flex items-center gap-6">
-          <button className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors hidden md:block">Features</button>
-          <button className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors hidden md:block">Pricing</button>
+          <a href="#features" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors hidden md:block">Features</a>
           <Button 
             onClick={() => navigate(session ? '/dashboard' : '/login')}
             className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-10 px-6 rounded-xl shadow-lg shadow-indigo-600/20"
@@ -99,44 +97,12 @@ const Landing = () => {
             >
               Start Your First Gig <Rocket className="w-4 h-4" />
             </Button>
-            <Button 
-              size="lg"
-              variant="outline"
-              className="w-full sm:w-auto h-16 px-10 rounded-2xl border-border bg-secondary hover:bg-accent font-black uppercase tracking-widest text-xs text-foreground"
-            >
-              Watch Demo
-            </Button>
-          </div>
-        </div>
-
-        {/* Dashboard Preview */}
-        <div className="max-w-6xl mx-auto mt-24 px-4 animate-in fade-in zoom-in duration-1000 delay-500">
-          <div className="bg-secondary rounded-[3rem] border-8 border-border shadow-2xl overflow-hidden aspect-video relative group">
-            <div className="absolute inset-0 bg-background/40 z-10" />
-            <div className="w-full h-full bg-slate-900 flex items-center justify-center">
-               <Waves className="w-32 h-32 text-indigo-600/20 animate-pulse" />
-            </div>
-            <div className="absolute bottom-12 left-12 right-12 flex items-center justify-between z-20">
-              <div className="flex items-center gap-6">
-                <div className="h-16 w-16 bg-indigo-600 rounded-full flex items-center justify-center shadow-xl">
-                  <Mic2 className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h4 className="text-2xl font-black uppercase tracking-tight text-foreground">Stage Ready</h4>
-                  <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest">Optimized for iPad & Desktop</p>
-                </div>
-              </div>
-              <div className="hidden md:flex gap-4">
-                <div className="h-12 w-32 bg-secondary/50 backdrop-blur-md rounded-xl border border-border" />
-                <div className="h-12 w-32 bg-secondary/50 backdrop-blur-md rounded-xl border border-border" />
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
       {/* Features Grid */}
-      <section className="py-40 px-6 bg-background relative">
+      <section id="features" className="py-40 px-6 bg-background relative scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-24">
             <h2 className="text-[10px] font-black uppercase tracking-[0.5em] text-indigo-500 mb-4">Professional Ecosystem</h2>
@@ -157,35 +123,13 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Social Proof / Stats */}
-      <section className="py-40 px-6 border-y border-border bg-card">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-12 text-center">
-          <div>
-            <p className="text-5xl font-black text-indigo-500 mb-2">12K+</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Songs Managed</p>
-          </div>
-          <div>
-            <p className="text-5xl font-black text-indigo-500 mb-2">2.5K</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Active Performers</p>
-          </div>
-          <div>
-            <p className="text-5xl font-black text-indigo-500 mb-2">99.9%</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Engine Uptime</p>
-          </div>
-          <div>
-            <p className="text-5xl font-black text-indigo-500 mb-2">150+</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Countries Served</p>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-40 px-6 text-center relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-600/30 blur-[150px] rounded-full pointer-events-none" />
         
         <div className="max-w-3xl mx-auto relative z-10">
           <h3 className="text-4xl md:text-7xl font-black uppercase tracking-tight text-foreground mb-8">Ready to play?</h3>
-          <p className="text-xl text-muted-foreground mb-12 font-medium">Join thousands of musicians who have already transformed their live workflow with Gig Studio Pro.</p>
+          <p className="text-xl text-muted-foreground mb-12 font-medium">Build your repertoire, sync it across your devices, and take it to the stage.</p>
           <Button 
             size="lg"
             onClick={() => navigate(session ? '/dashboard' : '/login')}
@@ -206,14 +150,7 @@ const Landing = () => {
               </div>
               <span className="font-black uppercase tracking-tighter text-foreground">Gig Studio Pro</span>
             </div>
-            <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">© 2024 Gig Studio Technologies Inc.</p>
-          </div>
-          
-          <div className="flex gap-12 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-            <button className="hover:text-indigo-400 transition-colors">Twitter</button>
-            <button className="hover:text-indigo-400 transition-colors">Instagram</button>
-            <button className="hover:text-indigo-400 transition-colors">Discord</button>
-            <button className="hover:text-indigo-400 transition-colors">Contact</button>
+            <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">© {new Date().getFullYear()} Gig Studio Pro</p>
           </div>
         </div>
         <MadeWithDyad />

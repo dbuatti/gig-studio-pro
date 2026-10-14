@@ -42,7 +42,8 @@ import DashboardHeader from '@/components/DashboardHeader';
 import StorageAuditModal from '@/components/StorageAuditModal';
 import RepertoireSummary from '@/components/RepertoireSummary';
 import DashboardModals from '@/components/dashboard/DashboardModals';
-import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
+import { sortSongsByStrategy, type SortMode } from '@/utils/SetlistGenerator';
+import { calculateSemitones } from '@/utils/keyUtils';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -81,8 +82,8 @@ const Index = () => {
   );
 
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
-  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp' | 'artist'>(() => 
-    (localStorage.getItem('gig_sort_mode') as string) || 'none'
+  const [sortMode, setSortMode] = useState<SortMode>(() => 
+    (localStorage.getItem('gig_sort_mode') as SortMode) || 'none'
   );
   const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
     const saved = localStorage.getItem('gig_active_filters');

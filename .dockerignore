@@ -1,0 +1,5 @@
+# The Docker image only runs the Python audio worker. Ship just what it needs.
+*
+!main.py
+!constants.py
+!requirements.txt

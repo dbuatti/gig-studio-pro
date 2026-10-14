@@ -35,11 +35,13 @@ const Profile = () => {
     if (!currentUser) return;
     
     try {
-      let { data: profileData, error: pError } = await supabase
+      const profileResult = await supabase
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
         .maybeSingle();
+      let profileData = profileResult.data;
+      const pError = profileResult.error;
 
       if (!profileData && !pError) {
         const initialThemeName = theme === 'dark' ? 'Dark Pro' : 'Vibrant Light';

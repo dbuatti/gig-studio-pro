@@ -218,7 +218,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
       deviceChangeHandler = () => {
         deviceErroredRef.current = true;
         if (playerRef.current) {
-          try { playerRef.current.stop(); } catch {}
+          try { playerRef.current.stop(); } catch { /* player already stopped */ }
         }
         setIsPlaying(false);
         setProgress(0);

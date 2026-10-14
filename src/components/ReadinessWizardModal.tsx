@@ -25,7 +25,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { transposeChords } from '@/utils/chordUtils';
 import { cleanLyrics } from '@/utils/lyricsCleaner';
-import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
+import { cleanYoutubeUrl, searchYoutubeVideos, type YoutubeVideo } from '@/utils/youtubeUtils';
 
 type StudioTab = 'config' | 'audio' | 'details' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -177,7 +177,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const isDraggingRef = useRef(false);
   const loadedAudioUrlRef = useRef('');
   const [isSearchingYt, setIsSearchingYt] = useState(false);
-  const [ytResults, setYtResults] = useState<Record<string, unknown>[]>([]);
+  const [ytResults, setYtResults] = useState<YoutubeVideo[]>([]);
   const [showYtResults, setShowYtResults] = useState(false);
   const [isQueuingExtraction, setIsQueuingExtraction] = useState(false);
   const [extractionPollStatus, setExtractionPollStatus] = useState<string | null>(null);
@@ -366,44 +366,10 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     setShowYtResults(true);
     ytSearchInitiated.current = true;
     try {
-      const { data: searchData, error } = await supabase.functions.invoke('youtube-search', {
-        body: { query: searchTerm }
-      });
-      if (!error && searchData?.items?.length > 0) {
-        setYtResults(searchData.items.map((item: Record<string, unknown>) => ({
-          videoId: item.id.videoId,
-          title: item.snippet.title,
-          author: item.snippet.channelTitle,
-          thumbnail: item.snippet.thumbnails?.medium?.url,
-        })));
-        setIsSearchingYt(false);
-        return;
-      }
-    } catch {}
-    // Invidious fallback
-    try {
-      const instances = ['https://iv.ggtyler.dev', 'https://yewtu.be', 'https://invidious.flokinet.to'];
-      for (const instance of instances) {
-        try {
-          const res = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(searchTerm)}`);
-          if (!res.ok) continue;
-          const data = await res.json();
-          const videos = data?.filter?.((i: Record<string, unknown>) => i.type === "video").slice(0, 10);
-          if (videos?.length > 0) {
-            setYtResults(videos.map((v: Record<string, unknown>) => ({
-              videoId: v.videoId,
-              title: v.title,
-              author: v.author,
-              thumbnail: v.videoThumbnails?.[0]?.url,
-            })));
-            setIsSearchingYt(false);
-            return;
-          }
-        } catch {}
-      }
-    } catch {}
-    setYtResults([]);
-    setIsSearchingYt(false);
+      setYtResults(await searchYoutubeVideos(searchTerm));
+    } finally {
+      setIsSearchingYt(false);
+    }
   }, [formData.name, formData.artist]);
 
   const handleQueueExtraction = useCallback(async (overrideUrl?: string) => {
@@ -468,7 +434,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
             }
           }
         }
-      } catch {}
+      } catch { /* keep polling */ }
     }, 3000);
     return () => {
       if (extractionPollRef.current) {
@@ -1077,7 +1043,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                       }}
                       className="w-full flex items-center gap-2 p-2 hover:bg-white/5 text-left text-[10px] font-medium text-slate-300 border-b border-white/5 last:border-0"
                     >
-                      {r.thumbnail && <img src={r.thumbnail as string} alt="" className="w-8 h-6 rounded object-cover shrink-0" />}
+                      {r.videoThumbnails?.[0]?.url && <img src={r.videoThumbnails[0].url} alt="" className="w-8 h-6 rounded object-cover shrink-0" />}
                       <span className="truncate">{r.title as string}</span>
                     </button>
                   ))}

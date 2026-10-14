@@ -17,7 +17,7 @@ function isContextUsable(): boolean {
 }
 
 function recreateToneContext() {
-  try { Tone.getContext().close(); } catch {}
+  try { Tone.getContext().close(); } catch { /* context may already be closed */ }
   Tone.setContext(new (Tone.Context)());
 }
 
@@ -55,7 +55,7 @@ export function AudioContextInitializer({ children }: { children: React.ReactNod
         } catch (error) {
           console.error("[AudioContextInitializer] Failed to resume on visibility change:", error);
           recreateToneContext();
-          try { await Tone.start(); } catch {}
+          try { await Tone.start(); } catch { /* retried on next user gesture */ }
         }
       }
     };

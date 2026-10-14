@@ -5,9 +5,10 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { User, Globe, Check, Clock, Zap, Loader2, Download, PlayCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from '@/components/ui/button';
+import type { YoutubeVideo } from '@/utils/youtubeUtils';
 
 interface YoutubeResultsShelfProps {
-  results: Record<string, unknown>[];
+  results: YoutubeVideo[];
   currentVideoId: string | null;
   onSelect: (videoUrl: string) => void;
   onDownloadAudio: (videoUrl: string) => void;
@@ -99,9 +100,11 @@ const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({
                     </div>
                   )}
 
-                  <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/80 rounded text-[8px] font-mono font-bold text-white">
-                    {video.duration || '0:00'}
-                  </div>
+                  {video.duration && (
+                    <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/80 rounded text-[8px] font-mono font-bold text-white">
+                      {video.duration}
+                    </div>
+                  )}
                 </div>
                 
                 <button
@@ -113,7 +116,7 @@ const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({
                   </h4>
                   <div className="flex items-center justify-between text-[8px] font-black text-slate-500 uppercase tracking-widest">
                     <span className="truncate max-w-[100px]">{video.author}</span>
-                    <span>{video.viewCountText?.split(' ')[0] || 'Vivid'}</span>
+                    {video.viewCountText && <span>{video.viewCountText.split(' ')[0]}</span>}
                   </div>
                 </button>
               </div>

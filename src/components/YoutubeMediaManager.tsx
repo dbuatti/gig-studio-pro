@@ -13,7 +13,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { SetlistSong } from './SetlistManager';
-import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
+import { cleanYoutubeUrl, searchYoutubeVideos, type YoutubeVideo } from '@/utils/youtubeUtils';
 
 interface YoutubeMediaManagerProps {
   song: SetlistSong | null;
@@ -36,7 +36,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 }) => {
   const { user } = useAuth();
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
-  const [ytResults, setYtResults] = useState<Record<string, unknown>[]>([]);
+  const [ytResults, setYtResults] = useState<YoutubeVideo[]>([]);
   const [isQueuingExtraction, setIsQueuingExtraction] = useState(false); 
   const [lastQuery, setLastQuery] = useState("");
 
@@ -75,64 +75,12 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setLastQuery(searchTerm);
 
     try {
-      // Security: Use Edge Function proxy instead of direct client-side API call
-      const { data: searchData, error } = await supabase.functions.invoke('youtube-search', {
-        body: { query: searchTerm }
-      });
-
-      if (error) throw new Error(error.message || "Unknown error");
-
-      if (searchData.items && searchData.items.length > 0) {
-        // Note: The proxy currently returns raw search results. 
-        // For durations, we'd need a second proxy call or a more complex Edge Function.
-        // For now, we map the basic search results.
-        const results = searchData.items.map((item: Record<string, unknown>) => ({
-          videoId: item.id.videoId,
-          title: item.snippet.title,
-          author: item.snippet.channelTitle,
-          videoThumbnails: [{ url: item.snippet.thumbnails.medium.url }],
-          duration: '0:00', // Placeholder
-          viewCountText: 'Vivid'
-        }));
-
-        setYtResults(results);
-        showSuccess(`Discovery Match: ${results.length} records found`);
+      const videos = await searchYoutubeVideos(searchTerm);
+      if (videos.length > 0) {
+        setYtResults(videos);
+        showSuccess(`Discovery Match: ${videos.length} records found`);
       } else {
-        // Fallback to Invidious if API fails or returns nothing
-        throw new Error("No results from primary engine.");
-      }
-    } catch (err) {
-      // Fallback search strategy (Invidious)
-      try {
-        const instances = ['https://iv.ggtyler.dev', 'https://yewtu.be', 'https://invidious.flokinet.to'];
-        let success = false;
-        for (const instance of instances) {
-          if (success) break;
-          try {
-            const artistName = (formData.artist || "").replace(/&/g, 'and');
-            const trackName = (formData.name || "").replace(/&/g, 'and');
-            const searchQuery = encodeURIComponent(`${artistName} ${trackName} official music video`);
-            const response = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(searchQuery)}`);
-            if (!response.ok) continue;
-            const data = await response.json();
-            const videos = data?.filter?.((i: Record<string, unknown>) => i.type === "video").slice(0, 10);
-            if (videos && videos.length > 0) {
-              setYtResults(videos.map((v: Record<string, unknown>) => ({
-                videoId: v.videoId,
-                title: v.title,
-                author: v.author,
-                videoThumbnails: v.videoThumbnails,
-                durationSeconds: v.durationSeconds,
-                duration: v.durationSeconds ? `${Math.floor(v.durationSeconds/60)}:${(v.durationSeconds%60).toString().padStart(2, '0')}` : '0:00',
-                viewCountText: v.viewCountText
-              })));
-              success = true;
-            }
-          } catch (e) { /* Instance failed, try next */ }
-        }
-        if (!success) showError("Global discovery engine congested.");
-      } catch (e) {
-        showError("Search services offline.");
+        showError("No results found. Try a different search.");
       }
     } finally {
       setIsSearchingYoutube(false);

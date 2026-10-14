@@ -25,7 +25,8 @@ export const LogViewer: React.FC<LogViewerProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     setLogs(getLogs());
-    return subscribe(() => setLogs([...getLogs()]));
+    const unsubscribe = subscribe(() => setLogs([...getLogs()]));
+    return () => { unsubscribe(); };
   }, []);
 
   useEffect(() => {

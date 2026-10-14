@@ -141,7 +141,7 @@ const PerformanceSidebar: React.FC<PerformanceSidebarProps> = ({
       {nextSong && (
         <div className="pt-6 border-t border-white/10">
           <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 mb-4 font-mono">Sequence: Next</div>
-          <div className="bg-indigo-600/5 border border-indigo-500/20 rounded-2xl p-6 flex items-center gap-6 cursor-pointer hover:bg-indigo-600/10 transition-all group" onClick={onNext}>
+          <button type="button" onClick={onNext} aria-label={`Play next: ${nextSong.name}`} className="w-full text-left bg-indigo-600/5 border border-indigo-500/20 rounded-2xl p-6 flex items-center gap-6 cursor-pointer hover:bg-indigo-600/10 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
             <div className="bg-indigo-600 p-3 rounded-xl shadow-lg group-hover:scale-110 transition-transform shrink-0">
               <ArrowRight className="w-5 h-5 text-white" />
             </div>
@@ -149,7 +149,7 @@ const PerformanceSidebar: React.FC<PerformanceSidebarProps> = ({
               <div className="text-xl font-black uppercase tracking-tight truncate leading-tight">{nextSong.name}</div>
               <div className="text-[9px] font-bold text-indigo-400/60 uppercase tracking-widest mt-1">{nextSong.artist}</div>
             </div>
-          </div>
+          </button>
         </div>
       )}
     </div>

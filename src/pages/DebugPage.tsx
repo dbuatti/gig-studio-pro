@@ -184,20 +184,6 @@ const DebugPage: React.FC = () => {
     }
   };
 
-  const handleDocumentLoadSuccess = useCallback((pdf: PDFDocumentProxy) => {
-    setPdfDocument(pdf);
-    setPdfNumPages(pdf.numPages);
-    setIsLoadingPdf(false);
-    if (pdfContainerRef.current) {
-      calculatePdfScale(pdf, pdfContainerRef.current, pdfCurrentPage);
-    }
-  }, [pdfCurrentPage, calculatePdfScale]);
-
-  const handleDocumentLoadError = useCallback((error: unknown) => {
-    setPdfError("Failed to load PDF. Please check the URL or file.");
-    setIsLoadingPdf(false);
-  }, []);
-
   const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
     if (!container || !pdf) return;
 
@@ -217,6 +203,20 @@ const DebugPage: React.FC = () => {
     } catch (error) {
       // Error handled silently
     }
+  }, []);
+
+  const handleDocumentLoadSuccess = useCallback((pdf: PDFDocumentProxy) => {
+    setPdfDocument(pdf);
+    setPdfNumPages(pdf.numPages);
+    setIsLoadingPdf(false);
+    if (pdfContainerRef.current) {
+      calculatePdfScale(pdf, pdfContainerRef.current, pdfCurrentPage);
+    }
+  }, [pdfCurrentPage, calculatePdfScale]);
+
+  const handleDocumentLoadError = useCallback((error: unknown) => {
+    setPdfError("Failed to load PDF. Please check the URL or file.");
+    setIsLoadingPdf(false);
   }, []);
 
   useEffect(() => {

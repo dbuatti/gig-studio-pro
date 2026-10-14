@@ -4,6 +4,8 @@ import { SetlistSong, EnergyZone } from "@/components/SetlistManager";
 
 export type FlowStrategy = 'none' | 'manual' | 'ready' | 'work' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp';
 
+export type SortMode = FlowStrategy | 'artist';
+
 const ENERGY_ORDER: Record<EnergyZone, number> = {
   'Ambient': 1,
   'Pulse': 2,

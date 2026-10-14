@@ -40,13 +40,15 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     <div className="space-y-10 md:space-y-16 mb-10 md:mb-20 animate-in fade-in slide-in-from-top-4 duration-700">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 md:gap-12">
         <div className="flex items-center gap-5 md:gap-10">
-          <div 
-            className="bg-indigo-600 p-4 md:p-5 rounded-[1.5rem] md:rounded-[2.5rem] shadow-[0_0_40px_-10px_rgba(79,70,229,0.5)] group hover:scale-105 transition-all cursor-pointer relative overflow-hidden" 
+          <button
+            type="button"
+            aria-label="Gig Studio Pro home"
+            className="bg-indigo-600 p-4 md:p-5 rounded-[1.5rem] md:rounded-[2.5rem] shadow-[0_0_40px_-10px_rgba(79,70,229,0.5)] group hover:scale-105 transition-all cursor-pointer relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background" 
             onClick={() => navigate('/')}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <Waves className="w-8 h-8 md:w-12 md:h-12 text-white relative z-10" />
-          </div>
+          </button>
           <div>
             <h1 className="text-4xl md:text-7xl font-black uppercase tracking-tighter leading-none bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-slate-500">
               Gig Studio <span className="text-indigo-500">Pro</span>
@@ -81,7 +83,8 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             variant="ghost"
             onClick={handleLogout}
             className="h-11 md:h-14 w-11 md:w-14 p-0 rounded-2xl md:rounded-[1.5rem] text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-all"
-            title="Logout"
+            title="Log out"
+            aria-label="Log out"
           >
             <LogOut className="w-5.5 h-5.5" />
           </Button>

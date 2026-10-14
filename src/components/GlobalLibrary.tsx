@@ -168,7 +168,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
                 </div>
                 <div className="space-y-1">
                   <p className="text-[11px] font-black uppercase tracking-[0.1em] text-foreground">Verified Community Sourcing</p>
-                  <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">Search thousands of tracks with master audio and charts already linked by other pros.</p>
+                  <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">Search community tracks with audio and charts already linked by other musicians.</p>
                 </div>
               </div>
             )
