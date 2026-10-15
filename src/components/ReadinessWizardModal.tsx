@@ -7,9 +7,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Check, ArrowRight, Target, ShieldCheck,
-  FileText, Music, Mic2, Music2, X, Upload, Loader2, FileType, Search, Play, Pause, Download, Clock, Lock, Unlock, ChevronDown, ListChecks
+  FileText, Music, Mic2, Music2, X, Upload, Loader2, FileType, Search, Play, Pause, Download, Clock, Lock, Unlock, ChevronDown, ListChecks, Eye
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import ReaderPreview from './ReaderPreview';
 import MasteryRating from './MasteryRating';
 import { SetlistSong } from './SetlistManager';
 import { useAuth } from './AuthProvider';
@@ -128,6 +129,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const [showCelebration, setShowCelebration] = useState(false);
   const [showSummary, setShowSummary] = useState(defaultToSummary ?? false);
   const [activeView, setActiveView] = useState<'summary' | 'lyrics' | 'chords' | 'pdf'>('summary');
+  const [isReaderPreview, setIsReaderPreview] = useState(false);
   const [chordsLocked, setChordsLocked] = useState(true);
   const [navigateToStepId, setNavigateToStepId] = useState<string | null>(null);
   const [manuallyUndone, setManuallyUndone] = useState<Set<string>>(new Set());
@@ -141,6 +143,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || '');
   const chordsSaveTimerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => { setChordsText(formData.ug_chords_text || ''); }, [formData.ug_chords_text]);
+  // Always return to the wizard view when the modal is closed.
+  useEffect(() => { if (!isOpen) setIsReaderPreview(false); }, [isOpen]);
   const handleChordsChange = useCallback((value: string) => {
     setChordsText(value);
     clearTimeout(chordsSaveTimerRef.current);
@@ -967,9 +971,18 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent className="max-w-3xl w-[92vw] h-[90vh] bg-slate-950 text-white border-white/10 rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl [&>button:last-child]:hidden">
+      <DialogContent className={cn(
+        "bg-slate-950 text-white border-white/10 rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl [&>button:last-child]:hidden",
+        isReaderPreview ? "max-w-[97vw] w-[97vw] h-[97vh]" : "max-w-3xl w-[92vw] h-[90vh]"
+      )}
+        onEscapeKeyDown={(e) => { if (isReaderPreview) { e.preventDefault(); setIsReaderPreview(false); } }}
+      >
         <DialogTitle className="sr-only">Readiness Wizard</DialogTitle>
 
+        {isReaderPreview ? (
+          <ReaderPreview song={formData} onExit={() => setIsReaderPreview(false)} />
+        ) : (
+          <>
         {/* ── Header ── */}
         <div className={cn(
           "shrink-0 relative px-6 md:px-10 py-5 md:py-7",
@@ -1116,6 +1129,13 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                 {isPlaying ? 'Playing' : 'Play'}
               </button>
             )}
+            <button
+              onClick={() => setIsReaderPreview(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all bg-white/5 border-white/10 text-slate-500 hover:text-white hover:border-indigo-500/40"
+              title="Preview exactly what the stage reader shows (lead sheet / full score / chords)"
+            >
+              <Eye className="w-3 h-3" /> Reader
+            </button>
             <button
               onClick={() => { setShowSummary(!showSummary); setActiveView('summary'); }}
               className={cn(
@@ -1823,6 +1843,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               );
             })}
           </div>
+          </>
+        )}
         </DialogContent>
     </Dialog>
   );
