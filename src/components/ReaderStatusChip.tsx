@@ -3,7 +3,7 @@
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
 import { getChartStatus } from '@/utils/chartStatus';
-import { CheckCircle2, AlertTriangle, HelpCircle, Brain } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, CircleDashed, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -23,9 +23,11 @@ interface ReaderStatusChipProps {
 const ReaderStatusChip: React.FC<ReaderStatusChipProps> = ({ song, className, compact = false }) => {
   const { readerState, preferredLabel } = getChartStatus(song);
 
-  let Icon = HelpCircle;
+  let Icon = CircleDashed;
   let label = 'Reader not set';
-  let tone = 'bg-amber-500/15 border-amber-500/30 text-amber-400';
+  // Quiet "needs setup" look — over half the library is unset, so this stays
+  // readable without drowning the real problems (missing material) in colour.
+  let tone = 'border-dashed border-indigo-500/40 text-indigo-300 bg-indigo-500/10';
   let tip = 'No preferred reader chosen yet. Open the Readiness Wizard to pick Lead Sheet, Full Score, Chords or Memorised.';
 
   if (readerState === 'memorised') {
