@@ -3,7 +3,7 @@
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
 import { getChartStatus } from '@/utils/chartStatus';
-import { CheckCircle2, AlertTriangle, CircleDashed, Brain } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, CircleDashed } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -16,7 +16,7 @@ interface ReaderStatusChipProps {
 
 /**
  * Always-visible status of a song's preferred reader format:
- * - which format is chosen (Lead Sheet / Full Score / Chords / Memorised), and
+ * - which format is chosen (Lead Sheet / Full Score / UG Chords), and
  * - whether its material has been uploaded or is still missing.
  * Shows a clear "Not set" chip when no preferred reader has been chosen.
  */
@@ -28,14 +28,9 @@ const ReaderStatusChip: React.FC<ReaderStatusChipProps> = ({ song, className, co
   // Quiet "needs setup" look — over half the library is unset, so this stays
   // readable without drowning the real problems (missing material) in colour.
   let tone = 'border-dashed border-indigo-500/40 text-indigo-300 bg-indigo-500/10';
-  let tip = 'No preferred reader chosen yet. Open the Readiness Wizard to pick Lead Sheet, Full Score, Chords or Memorised.';
+  let tip = 'No preferred reader chosen yet. Open the Readiness Wizard to pick UG Chords, Lead Sheet or Full Score.';
 
-  if (readerState === 'memorised') {
-    Icon = Brain;
-    label = 'Memorised';
-    tone = 'bg-slate-500/15 border-slate-500/30 text-slate-300';
-    tip = 'Preferred reader is None (memorised) — no sheet or chords required.';
-  } else if (readerState === 'filled') {
+  if (readerState === 'filled') {
     Icon = CheckCircle2;
     label = preferredLabel || 'Chosen';
     tone = 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400';

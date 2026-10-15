@@ -5,24 +5,25 @@ import { SetlistSong } from '@/components/SetlistManager';
 /**
  * Human labels for the reader format a song prefers (`preferred_reader`).
  * Mirrors READER_OPTIONS in ReadinessWizardModal so wording stays consistent.
+ * Note: `fn` means Full Score (the value written by the audit/recommender
+ * flows) — `fs` is kept as an alias for older data.
  */
 export const READER_OPTIONS_LABELS: Record<string, string> = {
   ug: 'UG Chords',
   ls: 'Lead Sheet',
+  fn: 'Full Score',
   fs: 'Full Score',
-  fn: 'None (memorised)',
   unsure: 'Unsure',
 };
 
 /**
  * What the preferred reader actually needs attached, in short form.
- * `fn` (memorised) needs nothing.
  */
 export const READER_SOURCE_LABELS: Record<string, string | null> = {
   ug: 'Chords',
   ls: 'Lead Sheet',
+  fn: 'Full Score',
   fs: 'Full Score',
-  fn: null,
 };
 
 export interface ChartStatus {
@@ -48,10 +49,9 @@ export interface ChartStatus {
   noReaderChoice: boolean;
   /**
    * The overall state of the song's preferred reader:
-   * - `not-set`   no preferred format chosen yet
-   * - `memorised` reader is "None (memorised)" — nothing to upload
-   * - `filled`    preferred format chosen and its material is present
-   * - `missing`   preferred format chosen but its material is NOT present
+   * - `not-set`  no preferred format chosen yet
+   * - `filled`   preferred format chosen and its material is present
+   * - `missing`  preferred format chosen but its material is NOT present
    */
   readerState: ReaderState;
   /** Number of actionable problems (missing sheet + missing preferred format). */
@@ -60,7 +60,7 @@ export interface ChartStatus {
   hasIssue: boolean;
 }
 
-export type ReaderState = 'not-set' | 'memorised' | 'filled' | 'missing';
+export type ReaderState = 'not-set' | 'filled' | 'missing';
 
 /**
  * Determines whether a song is missing sheet music and/or the sheets/chords
@@ -82,11 +82,10 @@ export const getChartStatus = (song: Partial<SetlistSong>): ChartStatus => {
   } else if (preferred === 'ls' && !hasLeadsheet) {
     needsPreferred = true;
     needsPreferredLabel = 'Lead Sheet';
-  } else if (preferred === 'fs' && !hasScore) {
+  } else if ((preferred === 'fn' || preferred === 'fs') && !hasScore) {
     needsPreferred = true;
     needsPreferredLabel = 'Full Score';
   }
-  // 'fn' (memorised) intentionally requires nothing.
 
   const missingSheet = !hasSheetMusic;
   const noReaderChoice = !preferred || preferred === 'unsure';
@@ -94,7 +93,6 @@ export const getChartStatus = (song: Partial<SetlistSong>): ChartStatus => {
 
   let readerState: ReaderState;
   if (noReaderChoice) readerState = 'not-set';
-  else if (preferred === 'fn') readerState = 'memorised';
   else if (needsPreferred) readerState = 'missing';
   else readerState = 'filled';
 

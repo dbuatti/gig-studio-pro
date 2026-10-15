@@ -50,8 +50,7 @@ const OCTAVES = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 const READER_OPTIONS = [
   { value: 'ug', label: 'UG Chords' },
   { value: 'ls', label: 'Lead Sheet' },
-  { value: 'fs', label: 'Full Score' },
-  { value: 'fn', label: 'None (memorised)' },
+  { value: 'fn', label: 'Full Score' },
   { value: 'unsure', label: 'Unsure' },
 ];
 
@@ -619,7 +618,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     const summaries: Record<string, { label: string; value: string }[]> = {
       reader_ready: [
         { label: 'PDF', value: formData.pdfUrl ? 'Linked' : 'Not linked' },
-        { label: 'Reader', value: formData.preferred_reader === 'ug' ? 'UG Chords' : formData.preferred_reader === 'ls' ? 'Lead Sheet' : formData.preferred_reader === 'fs' ? 'Full Score' : formData.preferred_reader === 'fn' ? 'Memorised' : formData.preferred_reader === 'unsure' ? 'Unsure' : 'Not set' },
+        { label: 'Reader', value: formData.preferred_reader === 'ug' ? 'UG Chords' : formData.preferred_reader === 'ls' ? 'Lead Sheet' : (formData.preferred_reader === 'fn' || formData.preferred_reader === 'fs') ? 'Full Score' : formData.preferred_reader === 'unsure' ? 'Unsure' : 'Not set' },
       ],
       key_and_range_confirmed: [
         { label: 'Original key', value: formatKey(formData.originalKey, formData.key_preference || 'sharps') || '–' },
