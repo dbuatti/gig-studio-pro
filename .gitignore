@@ -28,3 +28,4 @@ cookies.txt
 *.sln
 *.sw?
 .dyad/
+.aider*
