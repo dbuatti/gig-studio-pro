@@ -46,11 +46,21 @@ export interface ChartStatus {
   missingSheet: boolean;
   /** No reader format chosen yet (unset or "unsure"). */
   noReaderChoice: boolean;
+  /**
+   * The overall state of the song's preferred reader:
+   * - `not-set`   no preferred format chosen yet
+   * - `memorised` reader is "None (memorised)" — nothing to upload
+   * - `filled`    preferred format chosen and its material is present
+   * - `missing`   preferred format chosen but its material is NOT present
+   */
+  readerState: ReaderState;
   /** Number of actionable problems (missing sheet + missing preferred format). */
   issueCount: number;
   /** True when anything is worth flagging. */
   hasIssue: boolean;
 }
+
+export type ReaderState = 'not-set' | 'memorised' | 'filled' | 'missing';
 
 /**
  * Determines whether a song is missing sheet music and/or the sheets/chords
@@ -82,6 +92,12 @@ export const getChartStatus = (song: Partial<SetlistSong>): ChartStatus => {
   const noReaderChoice = !preferred || preferred === 'unsure';
   const issueCount = (needsPreferred ? 1 : 0) + (missingSheet ? 1 : 0);
 
+  let readerState: ReaderState;
+  if (noReaderChoice) readerState = 'not-set';
+  else if (preferred === 'fn') readerState = 'memorised';
+  else if (needsPreferred) readerState = 'missing';
+  else readerState = 'filled';
+
   return {
     hasScore,
     hasLeadsheet,
@@ -93,6 +109,7 @@ export const getChartStatus = (song: Partial<SetlistSong>): ChartStatus => {
     needsPreferredLabel,
     missingSheet,
     noReaderChoice,
+    readerState,
     issueCount,
     hasIssue: issueCount > 0,
   };

@@ -13,6 +13,7 @@ import { calculateReadiness } from '@/utils/repertoireSync';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import SetlistMultiSelector from './SetlistMultiSelector';
 import SongChartBadges from './SongChartBadges';
+import ReaderStatusChip from './ReaderStatusChip';
 
 interface RepertoireMobileCardProps {
   song: SetlistSong;
@@ -49,7 +50,10 @@ const RepertoireMobileCard: React.FC<RepertoireMobileCardProps> = ({
           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1 truncate">
             {song.artist || "Unknown Artist"}
           </p>
-          <SongChartBadges song={song} className="mt-2" />
+          <div className="flex items-center gap-1 flex-wrap mt-2">
+            <ReaderStatusChip song={song} />
+            <SongChartBadges song={song} />
+          </div>
         </div>
         
         <div className="flex items-center gap-2">

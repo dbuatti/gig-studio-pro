@@ -16,6 +16,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import SetlistMultiSelector from './SetlistMultiSelector';
 import SongChartBadges from './SongChartBadges';
+import ReaderStatusChip from './ReaderStatusChip';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { showSuccess } from '@/utils/toast';
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
@@ -323,16 +324,17 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             <Table>
               <TableHeader className="sticky top-0 bg-slate-900/90 backdrop-blur-md z-10 border-b border-white/5">
                 <TableRow className="hover:bg-transparent border-none">
-                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[45%]">Song</TableHead>
-                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[15%] text-center">Rdy</TableHead>
-                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[20%] text-center">Key</TableHead>
-                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[20%] text-right">Act</TableHead>
+                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[38%]">Song</TableHead>
+                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[14%] text-center">Reader</TableHead>
+                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[12%] text-center">Rdy</TableHead>
+                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[18%] text-center">Key</TableHead>
+                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[18%] text-right">Act</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredAndSortedRepertoire.length === 0 ? (
                   <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={4} className="py-40 text-center">
+                    <TableCell colSpan={5} className="py-40 text-center">
                       <div className="flex flex-col items-center justify-center space-y-8 animate-in fade-in zoom-in duration-700">
                         <Library className="w-24 h-24 text-indigo-500 opacity-50" />
                         <div>
@@ -392,6 +394,11 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             {isFullyReady && <Check className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/20 shrink-0" />}
                             {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
                             <SongChartBadges song={song} />
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-1.5 px-3 text-center">
+                          <div className="flex items-center justify-center">
+                            <ReaderStatusChip song={song} />
                           </div>
                         </TableCell>
                         <TableCell className="py-1.5 px-3 text-center w-16">

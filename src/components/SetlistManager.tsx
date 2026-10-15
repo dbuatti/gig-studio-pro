@@ -733,6 +733,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-8 text-center"></th>
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-12 text-center">#</th>
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-left">Song</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-28 text-center">Reader</th>
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-16 text-center">Eng</th>
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-20 text-center">Mstr</th>
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-16 text-center cursor-pointer hover:text-indigo-400 transition-colors" onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}>
@@ -750,7 +751,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               <tbody className="divide-y divide-white/5">
                 {processedSongs.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-40 text-center">
+                    <td colSpan={10} className="py-40 text-center">
                       <div className="flex flex-col items-center justify-center space-y-6 opacity-70">
                         <Library className="w-20 h-20 text-indigo-500" />
                         <div>
@@ -765,7 +766,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     <React.Fragment key={groupNum}>
                       {hasMultipleSets && (
                         <tr className="bg-slate-900/60 border-y border-white/10">
-                          <td colSpan={9} className="py-4 px-10">
+                          <td colSpan={10} className="py-4 px-10">
                             <div className="flex items-center justify-between gap-4">
                               <div className="flex items-center gap-4">
                                 <Badge className={cn(
@@ -872,7 +873,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       })}
                       {groupNum !== 99 && (
                         <tr className="bg-slate-950/20 border-b border-white/5">
-                          <td colSpan={9} className="pt-3 pb-2 px-10">
+                          <td colSpan={10} className="pt-3 pb-2 px-10">
                             <div className="relative">
                               <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus-within:border-indigo-500/30 transition-colors">
                                 <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -924,7 +925,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       )}
                       {groupNum !== 99 && (
                         <tr className="bg-slate-950/20 border-b border-white/5">
-                          <td colSpan={9} className="py-3 px-10">
+                          <td colSpan={10} className="py-3 px-10">
                             <div className="flex items-center gap-3">
                                 <Button
                                 variant="outline"
