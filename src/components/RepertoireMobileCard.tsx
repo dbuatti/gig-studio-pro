@@ -12,7 +12,6 @@ import { formatKey } from '@/utils/keyUtils';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import SetlistMultiSelector from './SetlistMultiSelector';
-import SongChartBadges from './SongChartBadges';
 import ReaderStatusChip from './ReaderStatusChip';
 
 interface RepertoireMobileCardProps {
@@ -52,7 +51,6 @@ const RepertoireMobileCard: React.FC<RepertoireMobileCardProps> = ({
           </p>
           <div className="flex items-center gap-1 flex-wrap mt-2">
             <ReaderStatusChip song={song} />
-            <SongChartBadges song={song} />
           </div>
         </div>
         

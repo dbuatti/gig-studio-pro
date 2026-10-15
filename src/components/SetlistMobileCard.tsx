@@ -10,7 +10,6 @@ import {
 import { cn } from '@/lib/utils';
 import { formatKey } from '@/utils/keyUtils';
 import MasteryRating from './MasteryRating';
-import SongChartBadges from './SongChartBadges';
 import ReaderStatusChip from './ReaderStatusChip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { supabase } from '@/integrations/supabase/client';
@@ -76,7 +75,6 @@ const SetlistMobileCard: React.FC<SetlistMobileCardProps> = ({
         </h4>
         <div className="flex items-center gap-1 flex-wrap">
           <ReaderStatusChip song={song} />
-          <SongChartBadges song={song} compact />
         </div>
       </div>
 

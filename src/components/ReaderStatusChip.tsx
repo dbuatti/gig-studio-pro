@@ -21,7 +21,7 @@ interface ReaderStatusChipProps {
  * Shows a clear "Not set" chip when no preferred reader has been chosen.
  */
 const ReaderStatusChip: React.FC<ReaderStatusChipProps> = ({ song, className, compact = false }) => {
-  const { readerState, preferredLabel } = getChartStatus(song);
+  const { readerState, preferredLabel, needsPreferredLabel } = getChartStatus(song);
 
   let Icon = CircleDashed;
   let label = 'Reader not set';
@@ -36,10 +36,12 @@ const ReaderStatusChip: React.FC<ReaderStatusChipProps> = ({ song, className, co
     tone = 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400';
     tip = `Preferred reader: ${preferredLabel}. Material is uploaded.`;
   } else if (readerState === 'missing') {
+    // "No …" here always refers to the material the PREFERRED format needs
+    // (chords for UG, a lead sheet, or a full score) — never generic sheet music.
     Icon = AlertTriangle;
-    label = preferredLabel || 'Chosen';
+    label = `No ${needsPreferredLabel || preferredLabel || 'material'}`;
     tone = 'bg-red-500/15 border-red-500/30 text-red-400';
-    tip = `Preferred reader: ${preferredLabel}. Material is NOT uploaded yet — add it in the song's studio or the Readiness Wizard.`;
+    tip = `Preferred reader is ${preferredLabel}, but the ${needsPreferredLabel || 'material'} hasn't been added yet — add it in the song's studio or the Readiness Wizard.`;
   }
 
   return (

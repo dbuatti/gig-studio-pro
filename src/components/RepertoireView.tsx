@@ -15,7 +15,6 @@ import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import SetlistMultiSelector from './SetlistMultiSelector';
-import SongChartBadges from './SongChartBadges';
 import ReaderStatusChip from './ReaderStatusChip';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { showSuccess } from '@/utils/toast';
@@ -393,7 +392,6 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             </TooltipProvider>
                             {isFullyReady && <Check className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/20 shrink-0" />}
                             {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
-                            <SongChartBadges song={song} />
                           </div>
                         </TableCell>
                         <TableCell className="py-1.5 px-3 text-center">

@@ -283,24 +283,27 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return analyzeEnergyFatigue(processedSongs);
   }, [processedSongs, sortMode]);
 
-  // Songs missing sheet music and/or the format their reader is set to.
+  // Songs whose PREFERRED reader format has no material in the system yet
+  // (e.g. prefers UG Chords but no chords saved, prefers Full Score but no PDF).
+  // Deliberately ignores generic "no sheet music" — that is not what a UG /
+  // chords-based reader needs, and it produced false alarms for songs that are
+  // perfectly readable in the format they're set to.
   const chartIssueSongs = useMemo(
-    () => processedSongs.filter(s => {
-      const st = getChartStatus(s);
-      return st.needsPreferred || st.missingSheet;
-    }),
+    () => processedSongs.filter(s => getChartStatus(s).needsPreferred),
     [processedSongs]
   );
 
   const chartIssueCounts = useMemo(() => {
-    let needsFormat = 0;
-    let missingSheet = 0;
+    const byFormat: Record<string, number> = {};
     chartIssueSongs.forEach(s => {
-      const st = getChartStatus(s);
-      if (st.needsPreferred) needsFormat++;
-      if (st.missingSheet) missingSheet++;
+      const label = getChartStatus(s).needsPreferredLabel;
+      if (label) byFormat[label] = (byFormat[label] || 0) + 1;
     });
-    return { needsFormat, missingSheet };
+    const plural = (label: string, n: number) => (n === 1 || label.endsWith('s') ? label : `${label}s`);
+    const breakdown = Object.entries(byFormat)
+      .map(([label, n]) => `${n} ${plural(label, n)}`)
+      .join(', ');
+    return { needsFormat: chartIssueSongs.length, breakdown };
   }, [chartIssueSongs]);
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
@@ -526,17 +529,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-base font-black uppercase tracking-tight text-amber-400">
-              {chartIssueSongs.length} {chartIssueSongs.length === 1 ? 'Song Needs' : 'Songs Need'} Charts
+              {chartIssueSongs.length} {chartIssueSongs.length === 1 ? 'Song Missing Its' : 'Songs Missing Their'} Reader Format
             </p>
             <p className="text-sm text-slate-400 mt-2 font-medium leading-relaxed max-w-3xl">
-              {chartIssueCounts.missingSheet > 0 && (
-                <span className="text-red-400 font-bold">{chartIssueCounts.missingSheet} with no sheet music linked</span>
-              )}
-              {chartIssueCounts.missingSheet > 0 && chartIssueCounts.needsFormat > 0 && <span>, </span>}
-              {chartIssueCounts.needsFormat > 0 && (
-                <span className="text-amber-400 font-bold">{chartIssueCounts.needsFormat} missing the format their reader is set to</span>
-              )}
-              <span>. Tap a song to upload it.</span>
+              <span className="text-amber-400 font-bold">{chartIssueCounts.breakdown}</span> missing. These songs are set to read in that format, but it hasn't been added to the system yet. Tap a song to add it.
             </p>
             <div className="flex flex-wrap gap-2 mt-4">
               {chartIssueSongs.slice(0, 10).map(s => {
@@ -545,19 +541,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   <button
                     key={s.id}
                     onClick={() => onEdit(s)}
-                    title={
-                      st.needsPreferred
-                        ? `Preferred reader is ${st.preferredLabel} — no ${st.needsPreferredLabel} attached`
-                        : 'No sheet music (PDF / lead sheet) linked'
-                    }
+                    title={`Preferred reader is ${st.preferredLabel} — no ${st.needsPreferredLabel} added yet`}
                     className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/20 border border-white/10 hover:border-amber-500/40 hover:bg-amber-500/10 transition-all max-w-full"
                   >
                     <span className="text-[10px] font-bold text-slate-200 truncate max-w-[150px]">{s.name}</span>
-                    {st.needsPreferred ? (
-                      <span className="text-[8px] font-black uppercase tracking-wider text-amber-400 whitespace-nowrap">Needs {st.needsPreferredLabel}</span>
-                    ) : (
-                      <span className="text-[8px] font-black uppercase tracking-wider text-red-400 whitespace-nowrap">No Sheet</span>
-                    )}
+                    <span className="text-[8px] font-black uppercase tracking-wider text-amber-400 whitespace-nowrap">Needs {st.needsPreferredLabel}</span>
                   </button>
                 );
               })}
