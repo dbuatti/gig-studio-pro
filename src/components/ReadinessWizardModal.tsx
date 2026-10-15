@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Check, ArrowRight, Target, ShieldCheck,
-  FileText, Music, Mic2, Music2, X, Upload, Loader2, FileType, Search, Play, Pause, Download, Clock, Lock, Unlock, ChevronDown, ListChecks, Eye
+  FileText, Music, Mic2, Music2, X, Upload, Loader2, FileType, Search, Play, Pause, Download, Clock, Lock, Unlock, ChevronDown, ListChecks, Eye, ExternalLink
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import ReaderPreview from './ReaderPreview';
@@ -133,8 +133,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const [navigateToStepId, setNavigateToStepId] = useState<string | null>(null);
   const [manuallyUndone, setManuallyUndone] = useState<Set<string>>(new Set());
   const undoSkipNextRef = useRef(false);
-  const [pdfUploading, setPdfUploading] = useState(false);
-  const [uploadType, setUploadType] = useState<'score' | 'leadsheet'>('score');
+  const [pdfUploading, setPdfUploading] = useState<'score' | 'leadsheet' | null>(null);
   const [pdfPreviewScale, setPdfPreviewScale] = useState<number | null>(null);
   const [pdfPreviewDocument, setPdfPreviewDocument] = useState<PDFDocumentProxy | null>(null);
   const [previewPdfType, setPreviewPdfType] = useState<'score' | 'leadsheet'>('score');
@@ -561,37 +560,42 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     return () => resizeObserver.unobserve(container);
   }, [pdfPreviewDocument, calculatePdfPreviewScale]);
 
-  // PDF upload
-  const onPdfDrop = useCallback(async (acceptedFiles: File[]) => {
+  // PDF upload — one handler per document type so a song can hold both a full score and a lead sheet.
+  const uploadPdf = useCallback(async (acceptedFiles: File[], type: 'score' | 'leadsheet') => {
     if (!user || acceptedFiles.length === 0) return;
     const file = acceptedFiles[0];
     if (file.type !== 'application/pdf') { showError('Only PDF files are supported.'); return; }
 
-    setPdfUploading(true);
+    setPdfUploading(type);
     try {
       const sanitize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').trim();
       const artist = sanitize(formData.artist || 'artist');
       const title = sanitize(formData.name || 'track');
       const songId = formData.master_id || formData.id || 'unsaved';
-      const typeLabel = uploadType === 'score' ? 'score' : 'leadsheet';
-      const fileName = `${artist}_${title}_${typeLabel}.pdf`;
+      const fileName = `${artist}_${title}_${type}.pdf`;
       const folder = `${user.id}/${songId}_${artist}_${title}`;
       const url = await r2Storage.upload(`${folder}/${fileName}`, file);
-      const update = uploadType === 'score' ? { pdfUrl: url } : { leadsheetUrl: url };
-      handleAutoSave(update);
-      showSuccess(uploadType === 'score' ? 'Full score uploaded.' : 'Lead sheet uploaded.');
+      handleAutoSave(type === 'score' ? { pdfUrl: url } : { leadsheetUrl: url });
+      showSuccess(type === 'score' ? 'Full score uploaded.' : 'Lead sheet uploaded.');
     } catch (err) {
       showError('PDF upload failed.');
     } finally {
-      setPdfUploading(false);
+      setPdfUploading(null);
     }
-  }, [user, formData, handleAutoSave, uploadType]);
+  }, [user, formData, handleAutoSave]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: onPdfDrop,
+  const scoreDropzone = useDropzone({
+    onDrop: (files) => { void uploadPdf(files, 'score'); },
     accept: { 'application/pdf': ['.pdf'] },
     multiple: false,
-    disabled: pdfUploading,
+    disabled: pdfUploading !== null,
+  });
+
+  const leadDropzone = useDropzone({
+    onDrop: (files) => { void uploadPdf(files, 'leadsheet'); },
+    accept: { 'application/pdf': ['.pdf'] },
+    multiple: false,
+    disabled: pdfUploading !== null,
   });
 
   const handleGoToTab = () => {
@@ -617,7 +621,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     if (!allSubtasksDone || !currentStep) return null;
     const summaries: Record<string, { label: string; value: string }[]> = {
       reader_ready: [
-        { label: 'PDF', value: formData.pdfUrl ? 'Linked' : 'Not linked' },
+        { label: 'Full Score', value: formData.pdfUrl ? 'Linked' : 'Not linked' },
+        { label: 'Lead Sheet', value: formData.leadsheetUrl ? 'Linked' : 'Not linked' },
         { label: 'Reader', value: formData.preferred_reader === 'ug' ? 'UG Chords' : formData.preferred_reader === 'ls' ? 'Lead Sheet' : (formData.preferred_reader === 'fn' || formData.preferred_reader === 'fs') ? 'Full Score' : formData.preferred_reader === 'unsure' ? 'Unsure' : 'Not set' },
       ],
       key_and_range_confirmed: [
@@ -652,6 +657,66 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     );
   };
 
+  // ── Reusable upload slot for a single document (full score or lead sheet) ──
+  const renderPdfSlot = (
+    type: 'score' | 'leadsheet',
+    label: string,
+    url: string | undefined,
+    dz: ReturnType<typeof useDropzone>,
+  ) => {
+    const isUploading = pdfUploading === type;
+    const active = dz.isDragActive;
+    return (
+      <div
+        className={cn(
+          "rounded-xl border p-3 transition-all",
+          url ? "border-emerald-500/25 bg-emerald-500/[0.04]" : "border-white/10 bg-white/[0.02]"
+        )}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-200">{label}</span>
+          {url ? (
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-emerald-400">
+                <Check className="w-3 h-3" /> Linked
+              </span>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors"
+                title={`Open ${label}`}
+              >
+                <ExternalLink className="w-3 h-3" /> Open
+              </a>
+            </div>
+          ) : (
+            <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">Not uploaded</span>
+          )}
+        </div>
+        <div
+          {...dz.getRootProps()}
+          className={cn(
+            "flex items-center gap-3 rounded-lg border-2 border-dashed px-3 py-2 cursor-pointer transition-all",
+            active
+              ? "border-indigo-500 bg-indigo-500/5"
+              : url
+              ? "border-white/10 hover:border-indigo-500/40"
+              : "border-white/15 hover:border-indigo-500/40"
+          )}
+        >
+          <input {...dz.getInputProps()} />
+          <div className={cn("p-1.5 rounded-lg transition-all", active ? "bg-indigo-600 text-white" : "bg-white/5 text-slate-500")}>
+            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : active ? <Upload className="w-4 h-4" /> : <FileType className="w-4 h-4" />}
+          </div>
+          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+            {isUploading ? `Uploading ${label}…` : url ? `Replace ${label}` : `Drop ${label} PDF or click`}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   // ── Inline inputs ──
   const renderInlineInput = (subId: string, done: boolean) => {
     if (done && subId !== 'reader_ready.1' && subId !== 'lyrics.1') return null;
@@ -663,59 +728,13 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
           const query = encodeURIComponent(`${formData.name || ''} ${formData.artist || ''} sheet music filetype:pdf`);
           window.open(`https://www.google.com/search?q=${query}`, '_blank');
         };
-        if (done && (formData.pdfUrl || formData.leadsheetUrl)) {
-          const linkUrl = formData.pdfUrl || formData.leadsheetUrl || '';
-          const linkLabel = formData.pdfUrl ? 'Open Full Score' : 'Open Lead Sheet';
-          return (
-            <div className="mt-2 flex items-center gap-2">
-              <a
-                href={linkUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-[9px] font-black uppercase tracking-widest transition-all"
-              >
-                <FileType className="w-3.5 h-3.5" /> {linkLabel}
-              </a>
-            </div>
-          );
-        }
         return (
           <div className="mt-2 space-y-2">
-            <div className="flex gap-1.5">
-              {[
-                { value: 'score', label: 'Full Score' },
-                { value: 'leadsheet', label: 'Lead Sheet' },
-              ].map(opt => (
-                <button key={opt.value} onClick={() => setUploadType(opt.value as 'score' | 'leadsheet')}
-                  className={cn(
-                    "px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all flex-1",
-                    uploadType === opt.value
-                      ? "bg-indigo-600 border-indigo-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-500 hover:text-slate-300"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <div
-              {...getRootProps()}
-              className={cn(
-                "p-4 border-2 border-dashed rounded-xl cursor-pointer transition-all",
-                isDragActive ? "border-indigo-500 bg-indigo-500/5" : "border-white/10 hover:border-white/20"
-              )}
-            >
-              <input {...getInputProps()} />
-              <div className="flex items-center gap-3">
-                <div className={cn("p-2 rounded-lg transition-all", isDragActive ? "bg-indigo-600 text-white" : "bg-white/5 text-slate-500")}>
-                  {pdfUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : isDragActive ? <Upload className="w-4 h-4" /> : <FileType className="w-4 h-4" />}
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase text-white">{pdfUploading ? 'Uploading...' : isDragActive ? 'Drop PDF' : 'Drop PDF or click'}</p>
-                  {(formData.pdfUrl || formData.leadsheetUrl) && <p className="text-[8px] text-emerald-400 mt-0.5">PDF linked</p>}
-                </div>
-              </div>
-            </div>
+            <p className="text-[8px] font-bold text-slate-500 leading-relaxed">
+              Add <span className="text-slate-300">both</span> if you have them — a <span className="text-slate-300">full score</span> (notation) and a <span className="text-slate-300">lead sheet</span>. The reader shows whichever each song is set to prefer.
+            </p>
+            {renderPdfSlot('score', 'Full Score', formData.pdfUrl, scoreDropzone)}
+            {renderPdfSlot('leadsheet', 'Lead Sheet', formData.leadsheetUrl, leadDropzone)}
             <button onClick={googleSearch} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 text-[9px] font-black uppercase tracking-widest transition-all w-full">
               <Search className="w-3.5 h-3.5" /> Search Google for "{formData.name || 'song'} {formData.artist || ''} sheet music"
             </button>
@@ -1542,15 +1561,30 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                     <p className="text-[8px] text-slate-600 font-medium mt-0.5">Mark as performance-ready for public gigs</p>
             </div>
             {(formData.pdfUrl || formData.leadsheetUrl) && (
-              <a
-                href={formData.pdfUrl || formData.leadsheetUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all bg-emerald-600/20 border-emerald-500/30 text-emerald-400"
-                title="Open sheet music in new tab"
-              >
-                <FileType className="w-3 h-3" /> Sheet
-              </a>
+              <div className="flex items-center gap-1.5">
+                {formData.pdfUrl && (
+                  <a
+                    href={formData.pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all bg-emerald-600/20 border-emerald-500/30 text-emerald-400"
+                    title="Open full score in new tab"
+                  >
+                    <FileType className="w-3 h-3" /> Score
+                  </a>
+                )}
+                {formData.leadsheetUrl && (
+                  <a
+                    href={formData.leadsheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all bg-sky-600/20 border-sky-500/30 text-sky-400"
+                    title="Open lead sheet in new tab"
+                  >
+                    <FileType className="w-3 h-3" /> Lead
+                  </a>
+                )}
+              </div>
             )}
             <button
                     onClick={() => handleAutoSave({ is_ready_to_sing: formData.is_ready_to_sing === true ? false : true })}
@@ -1712,12 +1746,23 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                               <span className={cn("text-xs md:text-sm font-bold transition-colors duration-300", sub.done ? "text-emerald-300" : "text-slate-300")}>
                                 {sub.label}
                               </span>
-                              {sub.id === 'reader_ready.1' && (formData.pdfUrl || formData.leadsheetUrl) && (
-                                <a href={formData.pdfUrl || formData.leadsheetUrl} target="_blank" rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 transition-all"
-                                  title="Open sheet music">
-                                  <FileType className="w-2.5 h-2.5" /> PDF
-                                </a>
+                              {sub.id === 'reader_ready.1' && (
+                                <span className="inline-flex items-center gap-1 ml-2">
+                                  {formData.pdfUrl && (
+                                    <a href={formData.pdfUrl} target="_blank" rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 transition-all"
+                                      title="Open full score">
+                                      <FileType className="w-2.5 h-2.5" /> Score
+                                    </a>
+                                  )}
+                                  {formData.leadsheetUrl && (
+                                    <a href={formData.leadsheetUrl} target="_blank" rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest bg-sky-600/20 text-sky-400 hover:bg-sky-600/30 transition-all"
+                                      title="Open lead sheet">
+                                      <FileType className="w-2.5 h-2.5" /> Lead
+                                    </a>
+                                  )}
+                                </span>
                               )}
                               {sub.id === 'reader_ready.2' && formData.preferred_reader && formData.preferred_reader !== 'unsure' && (
                                 <span className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest bg-indigo-600/20 text-indigo-400">
