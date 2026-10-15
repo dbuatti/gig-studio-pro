@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatKey } from '@/utils/keyUtils';
 import MasteryRating from './MasteryRating';
+import SongChartBadges from './SongChartBadges';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -66,12 +67,13 @@ const SetlistMobileCard: React.FC<SetlistMobileCardProps> = ({
       </button>
 
       <div className="flex items-center gap-2 min-w-0 flex-1">
-        <h4 className={cn("text-xs font-black tracking-tight flex items-center gap-1 text-white truncate", song.isPlayed && "line-through text-slate-500")}>
+        <h4 className={cn("text-xs font-black tracking-tight flex items-center gap-1 text-white truncate min-w-0", song.isPlayed && "line-through text-slate-500")}>
           {song.name}
           {isProcessing && <CloudDownload className="w-3 h-3 text-indigo-500 animate-bounce shrink-0" />}
           {isExtractionFailed && <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" />}
           {isFullyReady && <CheckCircle2 className="w-3 h-3 text-emerald-500 fill-emerald-500/20 shrink-0" />}
         </h4>
+        <SongChartBadges song={song} compact />
       </div>
 
       <div className="flex items-center gap-2 shrink-0">

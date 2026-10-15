@@ -80,6 +80,58 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   return Math.max(0, Math.min(100, Math.round(totalScore)));
 };
 
+const SUBTASK_LABELS: Record<string, string> = {
+  reader_ready_1: 'Sheet music linked',
+  reader_ready_2: 'Preferred reader chosen',
+  key_1: 'Original key set',
+  key_2: 'Performance key set',
+  key_3: 'Highest note noted',
+  key_4: 'Key confirmed',
+  lyrics_1: 'Lyrics added',
+  structure_1: 'Chords added',
+  tricky_1: 'Tricky bits noted',
+  confidence: 'Confidence rated',
+  ready: 'Marked ready to sing',
+};
+
+/**
+ * Human-readable breakdown of a song's readiness score. Mirrors the checklist
+ * scoring in calculateReadiness so the numbers actually add up.
+ */
+export const getReadinessBreakdown = (song: Partial<SetlistSong>): string[] => {
+  if (song.readiness_checklist !== undefined) {
+    const weight = Math.round(100 / TOTAL_SUBTASKS);
+    return Object.entries(SUBTASK_VALIDATORS).map(([id, validator]) => {
+      const done = id === 'confidence' ? (song.comfort_level || 0) > 0 : validator(song);
+      return `${done ? '✅' : '❌'} ${SUBTASK_LABELS[id] || id} (${done ? `+${weight}%` : '0%'})`;
+    });
+  }
+
+  // Fallback: legacy granular scoring for songs without a checklist.
+  const items: string[] = [];
+  const status = (song.extraction_status || "").toLowerCase();
+  if (song.audio_url && status === 'completed') items.push("✅ Full Audio (20%)");
+  else if (song.previewUrl) items.push("⚠️ Preview Only (5%)");
+  else items.push("❌ No Audio");
+
+  const hasLyrics = (song.lyrics || "").length > 50;
+  const hasChords = (song.ug_chords_text || "").length > 20;
+  if (hasLyrics && hasChords) items.push("✅ Lyrics & Chords (20%)");
+  else if (hasLyrics || hasChords) items.push("⚠️ Partial Charts (10%)");
+  else items.push("❌ No Charts");
+
+  if (song.isKeyConfirmed) items.push("✅ Key Confirmed (10%)");
+  if (song.bpm && song.bpm !== "0") items.push("✅ BPM Set (10%)");
+  if (song.pdfUrl || song.leadsheetUrl || song.sheet_music_url) items.push("✅ Sheet Music (5%)");
+  else items.push("❌ No Sheet Music");
+  if (song.isMetadataConfirmed) items.push("✅ Metadata Verified (5%)");
+
+  const comfort = song.comfort_level || 0;
+  items.push(`${comfort > 0 ? '✅' : comfort < 0 ? '⚠️' : '❌'} Confidence: ${comfort > 0 ? '+' : ''}${comfort} (${Math.round(Math.max(0, comfort / 5) * 30)}%)`);
+
+  return items;
+};
+
 export const syncToMasterRepertoire = async (userId: string, songsToSync: Partial<SetlistSong>[]): Promise<SetlistSong[]> => {
   const syncedSongs: SetlistSong[] = [];
   // Syncing songs to master repertoire

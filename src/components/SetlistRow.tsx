@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import SetlistMultiSelector from './SetlistMultiSelector';
 import MasteryRating from './MasteryRating';
+import SongChartBadges from './SongChartBadges';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
@@ -97,6 +98,7 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
           </TooltipProvider>
           {isFullyReady && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/20 shrink-0" />}
           {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+          <SongChartBadges song={song} />
         </div>
       </td>
 

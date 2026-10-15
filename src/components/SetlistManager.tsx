@@ -7,7 +7,7 @@ import {
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle,
   ShieldCheck, Clock, ArrowRight, Check, ChevronDown,
   ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Library,
-  BookOpen, Tv, Sliders, Loader2, RotateCcw, Plus, Sparkles, Search, Music, GripVertical
+  BookOpen, Tv, Sliders, Loader2, RotateCcw, Plus, Sparkles, Search, Music, GripVertical, FileWarning
 } from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
@@ -20,7 +20,8 @@ import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES, DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
-import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
+import { calculateReadiness, syncToMasterRepertoire, getReadinessBreakdown as buildReadinessBreakdown } from '@/utils/repertoireSync';
+import { getChartStatus } from '@/utils/chartStatus';
 import { normalizeSearch } from '@/utils/searchUtils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SheetLink } from './LinkDisplayOverlay';
@@ -282,6 +283,26 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return analyzeEnergyFatigue(processedSongs);
   }, [processedSongs, sortMode]);
 
+  // Songs missing sheet music and/or the format their reader is set to.
+  const chartIssueSongs = useMemo(
+    () => processedSongs.filter(s => {
+      const st = getChartStatus(s);
+      return st.needsPreferred || st.missingSheet;
+    }),
+    [processedSongs]
+  );
+
+  const chartIssueCounts = useMemo(() => {
+    let needsFormat = 0;
+    let missingSheet = 0;
+    chartIssueSongs.forEach(s => {
+      const st = getChartStatus(s);
+      if (st.needsPreferred) needsFormat++;
+      if (st.missingSheet) missingSheet++;
+    });
+    return { needsFormat, missingSheet };
+  }, [chartIssueSongs]);
+
   const handleMove = (id: string, direction: 'up' | 'down') => {
     if (sortMode !== 'manual' || searchTerm) return;
     const index = processedSongs.findIndex(s => s.id === id);
@@ -442,29 +463,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     }
   };
 
-  const getReadinessBreakdown = (song: SetlistSong) => {
-    const items = [];
-    const status = (song.extraction_status || "").toLowerCase();
-    if (song.audio_url && status === 'completed') items.push("✅ Full Audio (20%)");
-    else if (song.previewUrl) items.push("⚠️ Preview Only (5%)");
-    else items.push("❌ No Audio");
-    
-    const hasLyrics = (song.lyrics || "").length > 50;
-    const hasChords = (song.ug_chords_text || "").length > 20;
-    if (hasLyrics && hasChords) items.push("✅ Lyrics & Chords (20%)");
-    else if (hasLyrics || hasChords) items.push("⚠️ Partial Charts (10%)");
-    else items.push("❌ No Charts");
-
-    if (song.isKeyConfirmed) items.push("✅ Key Confirmed (10%)");
-    if (song.bpm && song.bpm !== "0") items.push("✅ BPM Set (10%)");
-    if (song.pdfUrl || song.leadsheetUrl || song.sheet_music_url) items.push("✅ Sheet Music (5%)");
-    if (song.isMetadataConfirmed) items.push("✅ Metadata Verified (5%)");
-    
-    const comfort = song.comfort_level || 0;
-    items.push(`${comfort > 0 ? '✅' : comfort < 0 ? '⚠️' : '❌'} Confidence: ${comfort > 0 ? '+' : ''}${comfort} (${Math.round(Math.max(0, comfort/5) * 30)}%)`);
-
-    return items;
-  };
+  const getReadinessBreakdown = (song: SetlistSong) => buildReadinessBreakdown(song);
 
   const flatSongIndices = useMemo(() => {
     const map = new Map<string, number>();
@@ -516,6 +515,58 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             <p className="text-sm text-slate-400 mt-2 font-medium leading-relaxed max-w-3xl">
               You have {energyFatigueIndices.length} high-energy clusters (3+ 'Peak' songs in a row). Consider adding a 'Pulse' or 'Ambient' track to prevent audience burnout.
             </p>
+          </div>
+        </div>
+      )}
+
+      {chartIssueSongs.length > 0 && (
+        <div className="p-6 bg-amber-600/10 border border-amber-500/20 rounded-[2.5rem] flex items-start gap-6 shadow-2xl shadow-amber-900/10">
+          <div className="bg-amber-600 p-3 rounded-2xl shadow-lg shadow-amber-900/20 shrink-0">
+            <FileWarning className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-black uppercase tracking-tight text-amber-400">
+              {chartIssueSongs.length} {chartIssueSongs.length === 1 ? 'Song Needs' : 'Songs Need'} Charts
+            </p>
+            <p className="text-sm text-slate-400 mt-2 font-medium leading-relaxed max-w-3xl">
+              {chartIssueCounts.missingSheet > 0 && (
+                <span className="text-red-400 font-bold">{chartIssueCounts.missingSheet} with no sheet music linked</span>
+              )}
+              {chartIssueCounts.missingSheet > 0 && chartIssueCounts.needsFormat > 0 && <span>, </span>}
+              {chartIssueCounts.needsFormat > 0 && (
+                <span className="text-amber-400 font-bold">{chartIssueCounts.needsFormat} missing the format their reader is set to</span>
+              )}
+              <span>. Tap a song to upload it.</span>
+            </p>
+            <div className="flex flex-wrap gap-2 mt-4">
+              {chartIssueSongs.slice(0, 10).map(s => {
+                const st = getChartStatus(s);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => onEdit(s)}
+                    title={
+                      st.needsPreferred
+                        ? `Preferred reader is ${st.preferredLabel} — no ${st.needsPreferredLabel} attached`
+                        : 'No sheet music (PDF / lead sheet) linked'
+                    }
+                    className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/20 border border-white/10 hover:border-amber-500/40 hover:bg-amber-500/10 transition-all max-w-full"
+                  >
+                    <span className="text-[10px] font-bold text-slate-200 truncate max-w-[150px]">{s.name}</span>
+                    {st.needsPreferred ? (
+                      <span className="text-[8px] font-black uppercase tracking-wider text-amber-400 whitespace-nowrap">Needs {st.needsPreferredLabel}</span>
+                    ) : (
+                      <span className="text-[8px] font-black uppercase tracking-wider text-red-400 whitespace-nowrap">No Sheet</span>
+                    )}
+                  </button>
+                );
+              })}
+              {chartIssueSongs.length > 10 && (
+                <span className="self-center text-[10px] font-black uppercase tracking-wider text-slate-500 px-1">
+                  +{chartIssueSongs.length - 10} more
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}
