@@ -38,6 +38,8 @@ interface SheetReaderHeaderProps {
   setGroup?: number;
   totalSets?: number;
   onOpenReadinessWizard?: () => void;
+  /** Readiness score (0-100) shown as a pill; also opens the wizard on tap. */
+  readiness?: number;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -66,6 +68,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   setGroup,
   totalSets,
   onOpenReadinessWizard,
+  readiness,
 }) => {
   const isMobile = useIsMobile();
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
@@ -147,6 +150,37 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-1.5 md:gap-3">
+        {currentSong && typeof readiness === 'number' && (
+          <button
+            onClick={onOpenReadinessWizard}
+            title="Readiness score — tap to review what's still missing"
+            aria-label={`Readiness ${readiness} percent. Open readiness wizard.`}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 md:px-2.5 md:py-1 text-[9px] md:text-[11px] font-black tabular-nums transition-all hover:brightness-125 active:scale-95",
+              readiness >= 75
+                ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/30"
+                : readiness >= 50
+                ? "bg-amber-600/20 text-amber-400 border-amber-500/30"
+                : readiness >= 25
+                ? "bg-orange-600/20 text-orange-400 border-orange-500/30"
+                : "bg-red-600/20 text-red-400 border-red-500/30"
+            )}
+          >
+            <span
+              className={cn(
+                "w-1.5 h-1.5 rounded-full",
+                readiness >= 75
+                  ? "bg-emerald-400"
+                  : readiness >= 50
+                  ? "bg-amber-400"
+                  : readiness >= 25
+                  ? "bg-orange-400"
+                  : "bg-red-400"
+              )}
+            />
+            {readiness}%
+          </button>
+        )}
         {currentSong && (
           <span className={cn(
             "inline-flex items-center justify-center w-6 h-6 md:w-7 md:h-7 rounded-full text-[9px] md:text-[11px] font-black border",

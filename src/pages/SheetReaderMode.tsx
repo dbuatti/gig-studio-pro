@@ -505,16 +505,10 @@ const SheetReaderMode: React.FC = () => {
               setGroup={currentSong?.set_group}
               totalSets={totalSets}
               onOpenReadinessWizard={() => setIsReadinessWizardOpen(true)}
+              readiness={currentSong ? calculateReadiness(currentSong) : undefined}
             />
           )}
         </AnimatePresence>
-
-        {!isZenMode && currentSong && (
-          <div className="fixed top-3 right-3 z-[100] flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 shadow-lg select-none">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span className="text-xs font-bold text-emerald-400 tabular-nums">{calculateReadiness(currentSong)}%</span>
-          </div>
-        )}
 
         <div
           ref={chartContainerRef}
