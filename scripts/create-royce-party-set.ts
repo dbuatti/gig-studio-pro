@@ -1,4 +1,4 @@
-import { supabase } from '../src/integrations/supabase/client.js';
+import { supabase } from '@/integrations/supabase/client';
 import { normalizeSearch } from '../src/utils/searchUtils';
 
 interface SongToMatch {
