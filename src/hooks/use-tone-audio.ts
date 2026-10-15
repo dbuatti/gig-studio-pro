@@ -59,6 +59,8 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
   const loadVersionRef = useRef(0);
+  // Guards against firing onEnded twice (rAF + interval can both observe the end).
+  const endedHandledRef = useRef(false);
 
   // Sync onEnded callback to ref to avoid stale closure issues
   useEffect(() => {
@@ -134,6 +136,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
     setIsPlaying(false);
     setProgress(0);
     playbackOffsetRef.current = 0;
+    endedHandledRef.current = false;
     setDuration(audioBuffer.duration);
     setPitchState(initialPitch);
     setTempoState(1);
@@ -269,31 +272,42 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
     }
   }, []);
 
-  const animateProgress = useCallback(() => {
-    if (isPlaying && playerRef.current && duration > 0) {
-      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
-      const currentSeconds = playbackOffsetRef.current + elapsed;
-      const newProgress = (currentSeconds / duration) * 100;
-      
-      if (currentSeconds >= duration) {
-        stopPlayback();
-        if (onEndedRef.current) {
-          onEndedRef.current();
-        }
-        return;
-      }
-      
-      setProgress(newProgress);
-      requestRef.current = requestAnimationFrame(animateProgress);
-    }
-  }, [isPlaying, duration, tempo, stopPlayback]);
+  const tickProgress = useCallback(() => {
+    if (!playerRef.current || duration <= 0) return;
+    const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
+    const currentSeconds = playbackOffsetRef.current + elapsed;
 
-  useEffect(() => {
-    if (isPlaying) {
-      requestRef.current = requestAnimationFrame(animateProgress);
+    if (currentSeconds >= duration) {
+      if (endedHandledRef.current) return;
+      endedHandledRef.current = true;
+      stopPlayback();
+      if (onEndedRef.current) {
+        onEndedRef.current();
+      }
+      return;
     }
-    return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [isPlaying, animateProgress]);
+
+    setProgress((currentSeconds / duration) * 100);
+  }, [duration, tempo, stopPlayback]);
+
+  // Progress clock + end-of-track detection.
+  // requestAnimationFrame keeps the bar smooth for the active tab; the interval
+  // keeps the clock (and auto-advance to the next track) alive when the tab is
+  // hidden, because rAF is suspended in background tabs.
+  useEffect(() => {
+    if (!isPlaying) return;
+    let rafId: number;
+    const loop = () => {
+      tickProgress();
+      rafId = requestAnimationFrame(loop);
+    };
+    rafId = requestAnimationFrame(loop);
+    const intervalId = window.setInterval(tickProgress, 500);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.clearInterval(intervalId);
+    };
+  }, [isPlaying, tickProgress]);
 
   const togglePlayback = useCallback(async () => {
     await ensureAudioContext();
@@ -313,6 +327,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
         const startTime = (progress / 100) * duration;
         playbackOffsetRef.current = startTime;
         playbackStartTimeRef.current = Tone.now();
+        endedHandledRef.current = false;
         playerRef.current.start(0, startTime);
         setIsPlaying(true);
       } catch {
@@ -361,6 +376,7 @@ export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => vo
     if (playerRef.current && duration > 0) {
       const offset = (p / 100) * duration;
       playbackOffsetRef.current = offset;
+      endedHandledRef.current = false;
       if (isPlaying) {
         playerRef.current.stop();
         playbackStartTimeRef.current = Tone.now();

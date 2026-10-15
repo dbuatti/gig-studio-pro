@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { useToneAudio } from '@/hooks/use-tone-audio';
 import { useSettings } from '@/hooks/use-settings';
-import { useAutoplay } from '@/hooks/use-autoplay';
+import { usePlayback } from '@/components/PlaybackProvider';
 import { showSuccess, showInfo, showWarning, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
@@ -67,14 +66,8 @@ const Index = () => {
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
   const [isShortcutSheetOpen, setIsShortcutSheetOpen] = useState(false);
 
-  const playNextRef = useRef<() => void>(() => {});
-  const isAutoplayActiveRef = useRef(false);
-
-  const audio = useToneAudio(true, () => {
-    if (isAutoplayActiveRef.current) {
-      setTimeout(() => playNextRef.current(true), 300);
-    }
-  });
+  const playback = usePlayback();
+  const audio = playback.audio;
 
   const activeSetlist = useMemo(() => 
     allSetlists.find(l => l.id === activeSetlistId), 
@@ -110,27 +103,41 @@ const Index = () => {
     return songs;
   }, [activeSetlist, searchTerm, sortMode]);
 
-  const { 
-    isAutoplayActive, activeSong, handleSelectSong, playNext, toggleAutoplay 
-  } = useAutoplay({ 
-    audio, 
-    filteredSongs: filteredAndSortedSongs, 
-    masterRepertoire, 
-    isShuffleAll: isShuffleAllMode 
-  });
+  const { activeSong, isAutoplayActive } = playback;
 
-  playNextRef.current = playNext;
-  useEffect(() => { isAutoplayActiveRef.current = isAutoplayActive; }, [isAutoplayActive]);
+  // Selecting a song loads it (and plays it while a set is running), and makes
+  // the current setlist view the play queue so next/prev behave as expected.
+  const handleSelectSong = useCallback((song: SetlistSong, forceAutoplay = false) => {
+    playback.selectSong(song, {
+      songs: filteredAndSortedSongs,
+      name: activeSetlist?.name,
+      autoplay: forceAutoplay || isAutoplayActive,
+    });
+  }, [playback, filteredAndSortedSongs, activeSetlist?.name, isAutoplayActive]);
 
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && isAutoplayActiveRef.current && !audio.isPlaying) {
-        setTimeout(() => playNextRef.current(true), 800);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [audio.isPlaying]);
+  const playNext = playback.next;
+  const toggleAutoplay = playback.toggleAutoplay;
+
+  const handleShuffleAll = useCallback(() => {
+    const withAudio = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
+    if (withAudio.length === 0) {
+      showWarning("No songs with audio in your repertoire.");
+      return;
+    }
+    const shuffled = [...withAudio].sort(() => Math.random() - 0.5);
+    setIsShuffleAllMode(true);
+    playback.playQueue(shuffled, 'Shuffle All');
+    showSuccess(`Shuffle All: ${shuffled.length} songs`);
+  }, [masterRepertoire, playback]);
+
+  const handleToggleShuffleAll = useCallback(() => {
+    if (isShuffleAllMode) {
+      setIsShuffleAllMode(false);
+      if (isAutoplayActive) playback.toggleAutoplay();
+    } else {
+      handleShuffleAll();
+    }
+  }, [isShuffleAllMode, isAutoplayActive, playback, handleShuffleAll]);
 
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 
@@ -793,7 +800,7 @@ const Index = () => {
             onOpenStorageAudit={() => setIsStorageAuditOpen(true)}
             onOpenAdmin={() => setIsAdminPanelOpen(true)}
             onOpenMDAudit={() => setIsMDAuditOpen(true)}
-            onToggleShuffleAll={() => setIsShuffleAllMode(!isShuffleAllMode)}
+            onToggleShuffleAll={handleToggleShuffleAll}
             isShuffleAllMode={isShuffleAllMode}
             onOpenKeyMatrix={() => setIsKeyManagementOpen(true)}
             onOpenPreferences={() => setIsPreferencesOpen(true)}
@@ -857,7 +864,7 @@ const Index = () => {
                   }
                   await audio.togglePlayback();
                 }} 
-                onClear={() => { audio.stopPlayback(); }} 
+                onClear={() => playback.clear()} 
                 isLoadingAudio={audio.isLoadingAudio} 
                 nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSong.id) + 1]?.name}
                 onNext={() => playNext(true)} 
@@ -900,7 +907,7 @@ const Index = () => {
             )}
             {activeSetlist && (
               <>
-                <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={toggleAutoplay} isAutoplayActive={isAutoplayActive} />
+                <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={() => (isAutoplayActive ? toggleAutoplay() : playback.playQueue(filteredAndSortedSongs, activeSetlist.name))} isAutoplayActive={isAutoplayActive} />
                 <SetlistManager
                   songs={filteredAndSortedSongs}
                   onSelect={handleSelectSong}
@@ -992,17 +999,7 @@ const Index = () => {
         onOpenPerformance={() => setIsPerformanceOverlayOpen(true)} 
         hasReadableChart={!!activeSong} 
         onToggleLogViewer={() => setIsLogViewerOpen(prev => !prev)} 
-        onShuffleAll={() => {
-          const withAudio = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
-          if (withAudio.length === 0) {
-            showWarning("No songs with audio in your repertoire.");
-            return;
-          }
-          const shuffled = [...withAudio].sort(() => Math.random() - 0.5);
-          setIsShuffleAllMode(true);
-          handleSelectSong(shuffled[0], true);
-          showSuccess(`Shuffle All: ${shuffled.length} songs`);
-        }}
+        onShuffleAll={handleShuffleAll}
       />
 
       <LogViewer isOpen={isLogViewerOpen} onClose={() => setIsLogViewerOpen(false)} />

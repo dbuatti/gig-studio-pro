@@ -15,6 +15,7 @@ import { normalizeSearch } from '@/utils/searchUtils';
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
+import { usePlaybackActions } from '@/components/PlaybackProvider';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import AuditReaderHeader from '@/components/AuditReaderHeader';
 import SheetReaderSidebar from '@/components/SheetReaderSidebar';
@@ -85,6 +86,17 @@ const AuditReaderMode: React.FC = () => {
 
   const audioEngine = useToneAudio(true);
   const { isPlaying, stopPlayback } = audioEngine;
+
+  // The dashboard's background set player owns a separate engine. If this
+  // reader starts its own playback, take over so the two never play at once.
+  const { stop: stopGlobalPlayback } = usePlaybackActions();
+  const stopGlobalRef = useRef(stopGlobalPlayback);
+  stopGlobalRef.current = stopGlobalPlayback;
+  const readerWasPlayingRef = useRef(false);
+  useEffect(() => {
+    if (isPlaying && !readerWasPlayingRef.current) stopGlobalRef.current();
+    readerWasPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);

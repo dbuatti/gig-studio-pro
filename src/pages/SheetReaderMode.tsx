@@ -16,6 +16,7 @@ import { normalizeSearch } from '@/utils/searchUtils';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
+import { usePlaybackActions } from '@/components/PlaybackProvider';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
@@ -112,6 +113,17 @@ const SheetReaderMode: React.FC = () => {
 
   const audioEngine = useToneAudio(true);
   const { isPlaying, stopPlayback, setPitch: setAudioPitch } = audioEngine;
+
+  // The dashboard's background set player owns a separate engine. If the
+  // reader starts its own playback, take over so the two never play at once.
+  const { stop: stopGlobalPlayback } = usePlaybackActions();
+  const stopGlobalRef = useRef(stopGlobalPlayback);
+  stopGlobalRef.current = stopGlobalPlayback;
+  const readerWasPlayingRef = useRef(false);
+  useEffect(() => {
+    if (isPlaying && !readerWasPlayingRef.current) stopGlobalRef.current();
+    readerWasPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
