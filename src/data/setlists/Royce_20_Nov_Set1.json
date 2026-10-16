@@ -1,0 +1,102 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_id": "6f9fd115-fae0-4d91-8840-471220c1b774",
+  "name": "Royce 20 Nov – Set 1",
+  "songs": [
+    {
+      "id": "e72aac40-1329-4fc0-b8e0-e0202be6e623",
+      "name": "The Way You Look Tonight",
+      "artist": "Frank Sinatra",
+      "duration_seconds": 226
+    },
+    {
+      "id": "7a6b8819-a0a1-4024-9185-e04d3c1f6824",
+      "name": "Fly Me to the Moon",
+      "artist": "Frank Sinatra feat. Count Basie and His Orchestra",
+      "duration_seconds": 30
+    },
+    {
+      "id": "6cd036e6-98a3-4b69-acb3-af116662da88",
+      "name": "Misty",
+      "artist": "Erroll Garner",
+      "duration_seconds": 0
+    },
+    {
+      "id": "bbf2be97-7948-4f38-b848-7207f5eacdcd",
+      "name": "Autumn Leaves",
+      "artist": "Frank Sinatra",
+      "duration_seconds": 0
+    },
+    {
+      "id": "9980c2d2-3eec-452d-8b55-637dc93900f4",
+      "name": "On the Street Where You Live",
+      "artist": "My Fair Lady",
+      "duration_seconds": 210
+    },
+    {
+      "id": "78fae0d4-194c-4e84-8de2-05390a6b40c5",
+      "name": "The Girl from Ipanema",
+      "artist": "Frank Sinatra & Antônio Carlos Jobim",
+      "duration_seconds": 0
+    },
+    {
+      "id": "0e36ce73-8a41-47f4-a1f2-f8a2e5e27c61",
+      "name": "Someone to Watch Over Me",
+      "artist": "Gershwin",
+      "duration_seconds": 0
+    },
+    {
+      "id": "c8b9420f-d8b2-43af-9223-10ce66a0048e",
+      "name": "All of Me",
+      "artist": "Frank Sinatra",
+      "duration_seconds": 0
+    },
+    {
+      "id": "cdb609c7-77d1-463f-ac97-5864ad142c84",
+      "name": "Corcovado",
+      "artist": "Antônio Carlos Jobim",
+      "duration_seconds": 210
+    },
+    {
+      "id": "8552491f-00f2-4292-b20c-a3d1e6bc03d4",
+      "name": "Moon River",
+      "artist": "Andy Williams",
+      "duration_seconds": 161
+    },
+    {
+      "id": "0dfb3607-e7d7-4510-a781-4ebb7af2306e",
+      "name": "Dangerous Woman",
+      "artist": "Ariana Grande",
+      "duration_seconds": 210
+    },
+    {
+      "id": "459a1eeb-3ac7-4472-bc8d-701f537cc529",
+      "name": "L-O-V-E",
+      "artist": "Nat \"King\" Cole",
+      "duration_seconds": 208
+    },
+    {
+      "id": "22908a17-36a5-43ce-9201-38a68c86f30c",
+      "name": "My Funny Valentine",
+      "artist": "Chet Baker",
+      "duration_seconds": 139
+    },
+    {
+      "id": "71bcde7d-09c7-4e20-a46b-5788b394822e",
+      "name": "It Had to Be You",
+      "artist": "standard",
+      "duration_seconds": 0
+    },
+    {
+      "id": "517427b4-6200-4890-ba3c-de8ab450af13",
+      "name": "Night and Day",
+      "artist": "Frank Sinatra",
+      "duration_seconds": 0
+    }
+  ],
+  "created_at": "2026-11-20 06:30:00+00",
+  "updated_at": "2026-11-20 06:30:00+00",
+  "time_goal": 2700,
+  "set_names": {},
+  "stimulus_text": "Solo piano/vocal jazz gig at The Royce Hotel, Fri 20 Nov 2026, 6:30-8:30pm, mellow more instrumentals"
+}

@@ -1,0 +1,96 @@
+{
+  "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "user_id": "6f9fd115-fae0-4d91-8840-471220c1b774",
+  "name": "Royce 20 Nov – Set 2",
+  "songs": [
+    {
+      "id": "MISSING_SATIN_DOLL",
+      "name": "Satin Doll",
+      "artist": "MISSING",
+      "duration_seconds": 180
+    },
+    {
+      "id": "0243346d-ce62-4468-b05f-32bb78843236",
+      "name": "The Lady Is a Tramp",
+      "artist": "Ella Fitzgerald feat. Buddy Bregman and His Orchestra",
+      "duration_seconds": 180
+    },
+    {
+      "id": "56331a00-213d-4a16-a457-6f0cf22a6527",
+      "name": "Flowers",
+      "artist": "Miley Cyrus",
+      "duration_seconds": 202
+    },
+    {
+      "id": "41812919-a4e9-4635-b2dc-3cb555d802f1",
+      "name": "Cheek to Cheek",
+      "artist": "Irving Berlin",
+      "duration_seconds": 210
+    },
+    {
+      "id": "MISSING_ESTATE",
+      "name": "Estate",
+      "artist": "MISSING",
+      "duration_seconds": 240
+    },
+    {
+      "id": "7f23b3a9-bd55-4377-b2cc-cbca1e340eef",
+      "name": "Maybe This Time",
+      "artist": "Cabaret",
+      "duration_seconds": 210
+    },
+    {
+      "id": "33dd3753-c5ea-437f-8f21-a28df5e07874",
+      "name": "Come Fly With Me",
+      "artist": "Michael Bublé",
+      "duration_seconds": 180
+    },
+    {
+      "id": "7732f9bf-f104-4b96-b02b-46670c69fbf2",
+      "name": "Georgia on My Mind",
+      "artist": "Ray Charles",
+      "duration_seconds": 240
+    },
+    {
+      "id": "de847ffb-d934-4290-8cca-793692cbce2e",
+      "name": "Beyond the Sea",
+      "artist": "Bobby Darin",
+      "duration_seconds": 180
+    },
+    {
+      "id": "MISSING_I_GET_A_KICK",
+      "name": "I Get a Kick Out of You",
+      "artist": "MISSING",
+      "duration_seconds": 180
+    },
+    {
+      "id": "4b580eca-3fe2-4f6b-9d27-11fc0df5582f",
+      "name": "Moondance",
+      "artist": "Van Morrison",
+      "duration_seconds": 277
+    },
+    {
+      "id": "68159d46-8b31-440a-a069-c550895063e8",
+      "name": "At Last",
+      "artist": "Etta James",
+      "duration_seconds": 178
+    },
+    {
+      "id": "64572929-60a4-45f0-8912-af4ee4c8ef0b",
+      "name": "Feeling Good",
+      "artist": "Michael Bublé",
+      "duration_seconds": 210
+    },
+    {
+      "id": "6ee29ebb-ec4a-4eda-a82a-3c51d48ba311",
+      "name": "New York, New York",
+      "artist": "Frank Sinatra",
+      "duration_seconds": 210
+    }
+  ],
+  "created_at": "2026-11-20 07:35:00+00",
+  "updated_at": "2026-11-20 07:35:00+00",
+  "time_goal": 3300,
+  "set_names": {},
+  "stimulus_text": "Solo piano/vocal jazz gig at The Royce Hotel, Fri 20 Nov 2026, 7:35-8:30pm, a little more lift"
+}

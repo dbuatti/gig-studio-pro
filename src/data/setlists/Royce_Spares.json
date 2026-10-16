@@ -1,0 +1,60 @@
+{
+  "id": "c3d4e5f6-a7b8-9012-cdef-234567890123",
+  "user_id": "6f9fd115-fae0-4d91-8840-471220c1b774",
+  "name": "Royce – Spares",
+  "songs": [
+    {
+      "id": "06fdaeb9-8b59-4c7e-9724-deb181e831cd",
+      "name": "Sway (Quien Sera)",
+      "artist": "Dean Martin",
+      "duration_seconds": 0
+    },
+    {
+      "id": "8e839874-07d0-45ad-bf8e-9f421b45f22e",
+      "name": "Mack the Knife",
+      "artist": "Bobby Darin",
+      "duration_seconds": 0
+    },
+    {
+      "id": "3e8f0e96-e9be-40d3-85a7-e67995d00cc1",
+      "name": "What a Wonderful World",
+      "artist": "Louis Armstrong",
+      "duration_seconds": 139
+    },
+    {
+      "id": "MISSING_ISNT_SHE_LOVELY",
+      "name": "Isn't She Lovely",
+      "artist": "MISSING",
+      "duration_seconds": 240
+    },
+    {
+      "id": "MISSING_HAVENT_MET_YOU_YET",
+      "name": "Haven't Met You Yet",
+      "artist": "MISSING",
+      "duration_seconds": 240
+    },
+    {
+      "id": "MISSING_BLUE_SKIES",
+      "name": "Blue Skies",
+      "artist": "MISSING",
+      "duration_seconds": 180
+    },
+    {
+      "id": "6ffc7616-dcb8-4189-ab9a-fdcbe34ef98f",
+      "name": "Being Alive",
+      "artist": "Company",
+      "duration_seconds": 0
+    },
+    {
+      "id": "MISSING_NEARNESS_OF_YOU",
+      "name": "The Nearness of You",
+      "artist": "MISSING",
+      "duration_seconds": 180
+    }
+  ],
+  "created_at": "2026-11-20 08:30:00+00",
+  "updated_at": "2026-11-20 08:30:00+00",
+  "time_goal": 1800,
+  "set_names": {},
+  "stimulus_text": "Spares for Royce Hotel gig - backup songs if needed"
+}
