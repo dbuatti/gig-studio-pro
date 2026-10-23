@@ -28,6 +28,7 @@ import SongStudioConsolidatedHeader from '@/components/SongStudioConsolidatedHea
 import StudioTabNav from '@/components/StudioTabNav';
 import { autoVibeCheck } from '@/utils/vibeUtils';
 
+import type { ItunesTrack } from '@/utils/itunes';
 export type StudioTab = 'config' | 'audio' | 'details' | 'charts' | 'lyrics' | 'visual' | 'library';
 
 const TABS: StudioTab[] = ['config', 'audio', 'details', 'charts', 'lyrics', 'visual', 'library'];
@@ -216,6 +217,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         appleMusicUrl: data.apple_music_url, 
         pdfUrl: data.pdf_url,
         leadsheetUrl: data.leadsheet_url,
+        sheet_music_url: data.sheet_music_url,
         bpm: data.bpm,
         genre: data.genre,
         isSyncing: false,
@@ -307,7 +309,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }
   }, [pitch, audio, song]);
 
-  const handleProSyncSelect = async (itunesSong: Record<string, unknown>) => {
+  const handleProSyncSelect = async (itunesSong: ItunesTrack) => {
     if (!user) return;
 
     const updates: Partial<SetlistSong> = {
@@ -316,7 +318,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       genre: itunesSong.primaryGenreName,
       appleMusicUrl: itunesSong.trackViewUrl,
       previewUrl: itunesSong.previewUrl,
-      duration_seconds: Math.floor(itunesSong.trackTimeMillis / 1000),
+      duration_seconds: itunesSong.trackTimeMillis ? Math.floor(itunesSong.trackTimeMillis / 1000) : undefined,
       isMetadataConfirmed: true,
       metadata_source: 'itunes_sync'
     };
@@ -399,7 +401,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       <StudioTabNav 
         tabs={TABS}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => setActiveTab(tab as StudioTab)}
       />
       
       <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
@@ -455,7 +457,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         onClose={() => setIsWizardOpen(false)}
         formData={formData}
         handleAutoSave={activeAutoSave}
-        onSwitchTab={setActiveTab}
+        onSwitchTab={(tab) => setActiveTab(tab as StudioTab)}
         allSetlists={allSetlists}
         gigId={gigId}
       />

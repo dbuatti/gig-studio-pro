@@ -10,6 +10,7 @@ import ShortcutLegend from './ShortcutLegend';
 import { formatKey } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
+import type * as Tone from 'tone';
 import { useWakeLock } from '@/hooks/use-wake-lock';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -31,7 +32,7 @@ interface PerformanceOverlayProps {
   onClose: () => void;
   onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
-  analyzer: AnalyserNode | null;
+  analyzer: Tone.Analyser | null;
   onOpenAdmin?: () => void;
   gigId?: string | null;
   isLoadingAudio?: boolean;

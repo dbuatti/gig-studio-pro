@@ -68,7 +68,8 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
       const fileName = `${artist}_${title}_score.pdf`;
       const filePath = `${user.id}/${formData.master_id || formData.id}_${artist}_${title}/${fileName}`;
       const publicUrl = await r2Storage.upload(filePath, file);
-      handleAutoSave({ pdfUrl: publicUrl, leadsheetUrl: undefined });
+      // A song can hold both a full score and a lead sheet, so leave the lead sheet alone
+      handleAutoSave({ pdfUrl: publicUrl });
       showSuccess("PDF uploaded and linked.");
     } catch (err: unknown) {
       showError(`Upload failed: ${err instanceof Error ? err.message : String(err)}`);

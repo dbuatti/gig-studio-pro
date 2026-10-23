@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { searchItunes, type ItunesTrack } from '@/utils/itunes';
 
 interface SongSearchProps {
   onSelectSong: (url: string, name: string, artist: string, youtubeUrl?: string) => void;
@@ -18,7 +19,7 @@ interface SongSearchProps {
 
 export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, externalQuery }) => {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Record<string, unknown>[]>([]);
+  const [results, setResults] = useState<ItunesTrack[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [expandingId, setExpandingId] = useState<number | null>(null);
   
@@ -39,12 +40,7 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
     setIsLoading(true);
     setExpandingId(null);
     try {
-      const url = `https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&entity=song&limit=15`;
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        setResults(data.results || []);
-      }
+      setResults(await searchItunes(searchTerm, 15));
     } catch (err) {
       // Handled silently
     } finally {
@@ -57,7 +53,7 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
     performSearch(query);
   };
 
-  const toggleExpand = (song: Record<string, unknown>) => {
+  const toggleExpand = (song: ItunesTrack) => {
     if (expandingId === song.trackId) {
       setExpandingId(null);
     } else {
@@ -68,9 +64,9 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
     }
   };
 
-  const handleAddClick = (song: Record<string, unknown>) => {
+  const handleAddClick = (song: ItunesTrack) => {
     onAddToSetlist(
-      song.previewUrl, 
+      song.previewUrl || '', 
       song.trackName, 
       song.artistName, 
       manualYtUrl, 
@@ -80,8 +76,8 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
     );
   };
 
-  const handlePreviewClick = (song: Record<string, unknown>) => {
-    onSelectSong(song.previewUrl, song.trackName, song.artistName);
+  const handlePreviewClick = (song: ItunesTrack) => {
+    onSelectSong(song.previewUrl || '', song.trackName, song.artistName);
   };
 
   return (

@@ -98,7 +98,7 @@ const Index = () => {
     
     if (sortMode === 'ready') songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     else if (sortMode === 'work') songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-    else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
+    else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp' || sortMode === 'artist') {
       songs = sortSongsByStrategy(songs, sortMode);
     }
     return songs;
@@ -161,7 +161,7 @@ const Index = () => {
         originalKey: d.original_key || 'TBC', targetKey: d.target_key || d.original_key || 'TBC',
         pitch: d.pitch ?? 0, previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         youtubeUrl: d.youtube_url, ugUrl: d.ug_url, appleMusicUrl: d.apple_music_url, 
-        pdfUrl: d.pdf_url, leadsheetUrl: d.leadsheet_url, bpm: d.bpm, genre: d.genre,
+        pdfUrl: d.pdf_url, leadsheetUrl: d.leadsheet_url, sheet_music_url: d.sheet_music_url, bpm: d.bpm, genre: d.genre,
         isSyncing: false, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
         notes: d.notes, lyrics: d.lyrics, resources: d.resources || [], user_tags: d.user_tags || [],
         is_pitch_linked: d.is_pitch_linked ?? true, duration_seconds: d.duration_seconds,

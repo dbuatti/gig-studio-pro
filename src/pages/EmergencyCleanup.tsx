@@ -46,7 +46,7 @@ const EmergencyCleanup = () => {
       showSuccess("Database purge complete!");
     } catch (err: unknown) {
       addLog(`❌ DB Purge failed: ${err instanceof Error ? err.message : String(err)}`);
-      showError(err.message);
+      showError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsProcessing(false);
     }
@@ -64,7 +64,7 @@ const EmergencyCleanup = () => {
       setManualPath("");
     } catch (err: unknown) {
       addLog(`❌ Manual purge failed: ${err instanceof Error ? err.message : String(err)}`);
-      showError(err.message);
+      showError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsProcessing(false);
     }

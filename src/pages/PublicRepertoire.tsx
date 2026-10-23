@@ -5,14 +5,14 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Loader2, UserCircle2, Calendar } from 'lucide-react';
-import PublicRepertoireView from '@/components/PublicRepertoireView';
+import PublicRepertoireView, { PublicProfile, PublicSong } from '@/components/PublicRepertoireView';
 import { useTheme } from '@/hooks/use-theme';
 import { PUBLIC_THEMES } from '@/utils/themes';
 
 const PublicRepertoire = () => {
   const { slug } = useParams();
-  const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
-  const [songs, setSongs] = useState<Record<string, unknown>[]>([]);
+  const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [songs, setSongs] = useState<PublicSong[]>([]);
   const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
 

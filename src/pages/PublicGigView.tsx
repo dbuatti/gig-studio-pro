@@ -10,14 +10,16 @@ import { SetlistSong } from '@/components/SetlistManager';
 import { cn } from '@/lib/utils';
 import { MadeWithDyad } from '@/components/SupportBanner';
 import { PUBLIC_THEMES } from '@/utils/themes';
+import type { PublicProfile } from '@/components/PublicRepertoireView';
 
 const PublicGigView = () => {
   const { code } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [gigSession, setGigSession] = useState<Record<string, unknown> | null>(null);
-  const [setlist, setSetlist] = useState<Record<string, unknown> | null>(null);
-  const [performer, setPerformer] = useState<Record<string, unknown> | null>(null);
+  const [gigSession, setGigSession] = useState<{ id: string; setlist_id: string; user_id: string } | null>(null);
+  const [setlist, setSetlist] = useState<{ id: string; name: string; songs?: SetlistSong[] | null } | null>(null);
+  const [setlistSongs, setSetlistSongs] = useState<SetlistSong[]>([]);
+  const [performer, setPerformer] = useState<PublicProfile | null>(null);
 
   useEffect(() => {
     const fetchGigData = async () => {
@@ -41,6 +43,29 @@ const PublicGigView = () => {
 
         if (setlistError) throw setlistError;
         setSetlist(setlistData);
+
+        // Setlist songs live in the setlist_songs junction table (the same source
+        // the dashboard uses); the legacy setlists.songs field is only a fallback
+        const { data: junctionData } = await supabase
+          .from('setlist_songs')
+          .select('id, song_id, sort_order, set_group')
+          .eq('setlist_id', sessionData.setlist_id)
+          .order('sort_order', { ascending: true });
+        const songIds = (junctionData || []).map(j => j.song_id);
+        if (songIds.length > 0) {
+          const { data: repertoireData } = await supabase
+            .from('repertoire')
+            .select('id, title, artist, genre, is_ready_to_sing')
+            .in('id', songIds);
+          const byId = new Map((repertoireData || []).map(r => [r.id, r]));
+          setSetlistSongs((junctionData || []).flatMap(j => {
+            const r = byId.get(j.song_id);
+            return r ? [{
+              id: j.id, master_id: r.id, name: r.title, artist: r.artist, genre: r.genre,
+              is_ready_to_sing: r.is_ready_to_sing, previewUrl: '', pitch: 0, set_group: j.set_group,
+            } as SetlistSong] : [];
+          }));
+        }
 
         const { data: profileData } = await supabase
           .from('profiles')
@@ -92,7 +117,7 @@ const PublicGigView = () => {
     );
   }
 
-  const songs = ((setlist.songs as SetlistSong[]) || []).filter(s => s.is_ready_to_sing !== false);
+  const songs = (setlistSongs.length > 0 ? setlistSongs : (setlist.songs || [])).filter(s => s.is_ready_to_sing !== false);
 
   return (
     <div 

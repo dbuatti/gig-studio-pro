@@ -12,7 +12,7 @@ import GlobalSearchModal from "@/components/GlobalSearchModal";
 import SetlistSortModal from "@/components/SetlistSortModal";
 import SetlistSettingsModal from "@/components/SetlistSettingsModal";
 import MDAuditModal from "@/components/MDAuditModal";
-import GigPlannerModal from "@/components/GigPlannerModal";
+import GigPlannerModal, { ExternalSuggestion } from "@/components/GigPlannerModal";
 import ShortcutCheatSheet from "@/components/ShortcutCheatSheet";
 import StorageAuditModal from "@/components/StorageAuditModal";
 import ReadinessWizardModal from "@/components/ReadinessWizardModal";
@@ -80,13 +80,13 @@ interface DashboardModalsProps {
   onSelectSong: (song: SetlistSong) => void;
   onUpdateSongInSetlist: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => void;
-  onDeleteSetlist: () => void;
-  onRenameSetlist: (name: string) => void;
+  onDeleteSetlist: (id: string) => void;
+  onRenameSetlist: (id: string) => void;
   onReorderSongs: (songs: SetlistSong[]) => void;
-  onRefreshRepertoire: () => void;
+  onRefreshRepertoire: () => Promise<void>;
   onAddExistingSong: (song: SetlistSong) => void;
-  onGlobalSearchAdd: (song: SetlistSong) => void;
-  onBuildGig: (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: Record<string, unknown>[], setNames: Record<string, string>, stimulusText: string) => Promise<void>;
+  onGlobalSearchAdd: (url: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string) => void;
+  onBuildGig: (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: ExternalSuggestion[], setNames: Record<string, string>, stimulusText: string) => Promise<void>;
   onSetSongStudioVisibleSongs: (songs: SetlistSong[] | null) => void;
   onSetSongStudioModalGigId: (id: string | 'library' | null) => void;
   onSetSongStudioModalSongId: (id: string | null) => void;
@@ -207,7 +207,11 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
               onSelectSong(songs[songs.length - 1]);
             }
           }}
-          onShuffle={() => {}}
+          onShuffle={() => {
+            const songs = activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs;
+            const others = songs.filter(s => s.id !== activeSong.id);
+            if (others.length > 0) onSelectSong(others[Math.floor(Math.random() * others.length)]);
+          }}
           onClose={() => {
             setIsPerformanceOverlayOpen(false);
             setActiveSetGroup(null);
@@ -287,8 +291,6 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
         isOpen={isGigPlannerOpen} 
         onClose={() => setIsGigPlannerOpen(false)} 
         repertoire={masterRepertoire} 
-        onAddExternalSong={async () => {}} 
-        onAddLibrarySong={async () => {}} 
         onBuildGig={onBuildGig} 
       />
       <ShortcutCheatSheet 

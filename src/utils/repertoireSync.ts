@@ -195,6 +195,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.appleMusicUrl !== undefined) dbUpdates.apple_music_url = song.appleMusicUrl;
     if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdfUrl;
     if (song.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = song.leadsheetUrl;
+    if (song.sheet_music_url !== undefined) dbUpdates.sheet_music_url = song.sheet_music_url;
     
     if (song.pitch !== undefined) dbUpdates.pitch = Number(song.pitch);
     if (song.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(Number(song.duration_seconds || 0));
@@ -279,6 +280,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       appleMusicUrl: result.apple_music_url,
       pdfUrl: result.pdf_url,
       leadsheetUrl: result.leadsheet_url,
+      sheet_music_url: result.sheet_music_url,
       originalKey: result.original_key,
       targetKey: result.target_key,
       pitch: result.pitch ?? 0,

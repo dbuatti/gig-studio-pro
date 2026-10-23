@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Sparkles, Loader2, Music, Search, Target, ListPlus, XCircle, RotateCcw, Lightbulb, Clock, AlertCircle } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,7 +11,7 @@ import { Label } from './ui/label';
 import { showSuccess } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { useSongSuggestions } from '@/hooks/use-song-suggestions';
+import { useSongSuggestions, type SongSuggestion } from '@/hooks/use-song-suggestions';
 
 interface SongSuggestionsProps {
   repertoire: SetlistSong[];
@@ -35,22 +35,28 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     dismissSuggestion
   } = useSongSuggestions({ repertoire, limit: 10 });
 
+  // Auto-fetch once per seed; without this an all-filtered (empty) result would
+  // re-trigger the AI call in a loop
+  const autoFetchedForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (repertoire.length > 0 && suggestions.length === 0 && !isLoading && !error) {
+    const seedKey = seedSong?.id || 'none';
+    if (repertoire.length > 0 && suggestions.length === 0 && !isLoading && !error && autoFetchedForRef.current !== seedKey) {
+      autoFetchedForRef.current = seedKey;
       fetchSuggestions(seedSong || undefined);
     }
   }, [repertoire.length, fetchSuggestions, suggestions.length, isLoading, error, seedSong]);
 
-  const handleAdd = (song: Record<string, unknown>) => {
+  const handleAdd = (song: SongSuggestion) => {
     if (onAddExistingSong) {
       onAddExistingSong({
         id: crypto.randomUUID(),
-        name: song.name || song.title,
+        name: song.name || song.title || "Untitled",
         artist: song.artist || song.artistName || "Unknown Artist",
         previewUrl: "",
         pitch: 0,
-        originalKey: "C",
-        targetKey: "C",
+        // Unknown until the user checks; "C" would falsely count as a set key in readiness
+        originalKey: "TBC",
+        targetKey: "TBC",
         isPlayed: false,
         isSyncing: true,
         isMetadataConfirmed: false,

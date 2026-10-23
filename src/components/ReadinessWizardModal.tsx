@@ -1336,17 +1336,15 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   { label: 'Notes', done: !!(formData.notes && formData.notes.length > 5) },
                 ].map(b => {
                   const isView = b.label === 'Lyrics' || b.label === 'Chords' || (b.label === 'PDF' && b.done);
-                  const isActive = (b.label === 'Lyrics' && activeView === 'lyrics') || (b.label === 'Chords' && activeView === 'chords') || (b.label === 'PDF' && activeView === 'pdf');
                   if (isView) {
                     return (
                       <button key={b.label}
                         onClick={() => {
-                          if (b.label === 'PDF') setActiveView(activeView === 'pdf' ? 'summary' : 'pdf');
-                          else setActiveView(b.label.toLowerCase() as 'lyrics' | 'chords');
+                          // These badges only render on the summary view, so each opens its view
+                          setActiveView(b.label.toLowerCase() as 'pdf' | 'lyrics' | 'chords');
                         }}
                         className={cn(
                           "px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all",
-                          isActive ? "bg-indigo-600/20 border-indigo-500/30 text-indigo-400" :
                           b.done ? "bg-emerald-600/20 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/10 text-slate-600 hover:text-slate-300"
                         )}
                       >

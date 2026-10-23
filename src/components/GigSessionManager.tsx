@@ -19,7 +19,7 @@ interface GigSessionManagerProps {
 
 const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<Record<string, unknown>[]>([]);
+  const [sessions, setSessions] = useState<{ id: string; access_code: string; is_active: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [newCode, setNewCode] = useState("");

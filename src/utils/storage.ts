@@ -7,7 +7,7 @@
 export const readStoredJSON = <T,>(key: string, fallback: T): T => {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    return raw ? ((JSON.parse(raw) as T) ?? fallback) : fallback;
   } catch {
     return fallback;
   }

@@ -26,7 +26,7 @@ import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer';
-import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
+import { sortSongsByStrategy, type SortMode } from '@/utils/SetlistGenerator';
 import { useDrag } from '@use-gesture/react';
 import { animated } from '@react-spring/web';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -171,7 +171,7 @@ const AuditReaderMode: React.FC = () => {
       const targetId = routeSongId || searchParams.get('id');
       const activeFilters = { ...DEFAULT_FILTERS, ...readStoredJSON<Partial<typeof DEFAULT_FILTERS>>('gig_active_filters', {}) };
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
-      const sortMode = (localStorage.getItem('gig_sort_mode') as string) || 'none';
+      const sortMode = (localStorage.getItem('gig_sort_mode') as SortMode) || 'none';
 
       const { data: masterData, error: masterError } = await supabase
         .from('repertoire')
@@ -195,6 +195,7 @@ const AuditReaderMode: React.FC = () => {
         appleMusicUrl: d.apple_music_url,
         pdfUrl: d.pdf_url,
         leadsheetUrl: d.leadsheet_url,
+        sheet_music_url: d.sheet_music_url,
         bpm: d.bpm,
         genre: d.genre,
         isSyncing: false,
@@ -270,7 +271,7 @@ const AuditReaderMode: React.FC = () => {
           filteredSongs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
         } else if (sortMode === 'work') {
           filteredSongs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-        } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
+        } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp' || sortMode === 'artist') {
           filteredSongs = sortSongsByStrategy(filteredSongs, sortMode);
         }
       }
@@ -440,7 +441,7 @@ const AuditReaderMode: React.FC = () => {
       chordBold: ugChordsChordBold,
       chordColor: ugChordsChordColor,
       lineSpacing: ugChordsLineSpacing,
-      textAlign: ugChordsTextAlign as React.CSSProperties['textAlign'],
+      textAlign: ugChordsTextAlign,
     };
 
     if (currentSong.ug_chords_config) {

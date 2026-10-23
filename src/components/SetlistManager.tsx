@@ -25,7 +25,7 @@ import { getChartStatus } from '@/utils/chartStatus';
 import { normalizeSearch } from '@/utils/searchUtils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SheetLink } from './LinkDisplayOverlay';
-import { sortSongsByStrategy, analyzeEnergyFatigue } from '@/utils/SetlistGenerator';
+import { sortSongsByStrategy, analyzeEnergyFatigue, type SortMode } from '@/utils/SetlistGenerator';
 import SongRecommender from './SongRecommender';
 import { supabase } from '@/integrations/supabase/client';
 import { nextSortOrder } from '@/utils/sortOrder';
@@ -109,6 +109,8 @@ export interface SetlistSong {
   set_group?: number;
   sort_order?: number;
   readiness_checklist?: string[];
+  /** Album art from iTunes search results (not persisted) */
+  artworkUrl?: string;
 }
 
 export interface Setlist {
@@ -133,7 +135,7 @@ interface SetlistManagerProps {
   onReorder: (newSongs: SetlistSong[]) => void;
   currentSongId?: string;
   onOpenAdmin?: () => void;
-  sortMode: 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp';
+  sortMode: SortMode;
   setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp') => void;
   activeFilters: FilterState;
   setActiveFilters: (filters: FilterState) => void;
@@ -250,7 +252,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (sortMode === 'work') {
       songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-    } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
+    } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp' || sortMode === 'artist') {
       songs = sortSongsByStrategy(songs, sortMode);
     }
 

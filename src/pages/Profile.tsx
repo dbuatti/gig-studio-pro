@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
 import { Globe, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, Link as LinkIcon, Check, Copy, UserPlus, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import PublicRepertoireView from '@/components/PublicRepertoireView';
+import PublicRepertoireView, { PublicProfile, PublicSong } from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useTheme } from '@/hooks/use-theme';
@@ -24,8 +24,8 @@ const Profile = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
-  const [songs, setSongs] = useState<Record<string, unknown>[]>([]);
+  const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [songs, setSongs] = useState<PublicSong[]>([]);
   const { theme } = useTheme();
   const { isFetchingSettings } = useSettings();
 
