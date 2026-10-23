@@ -134,7 +134,8 @@ const SetlistMobileCard: React.FC<SetlistMobileCardProps> = ({
                     onClick={async (e) => {
                       e.stopPropagation();
                       try {
-                        await supabase.from('setlist_songs').update({ set_group: num }).eq('id', song.id);
+                        const { error } = await supabase.from('setlist_songs').update({ set_group: num }).eq('id', song.id);
+                        if (error) throw error;
                         showSuccess(`Moved to ${getSetLabel(num)}`);
                         onUpdateSong(song.id, { set_group: num });
                       } catch (err) {

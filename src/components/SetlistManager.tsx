@@ -28,6 +28,7 @@ import { SheetLink } from './LinkDisplayOverlay';
 import { sortSongsByStrategy, analyzeEnergyFatigue } from '@/utils/SetlistGenerator';
 import SongRecommender from './SongRecommender';
 import { supabase } from '@/integrations/supabase/client';
+import { nextSortOrder } from '@/utils/sortOrder';
 import SetlistRow from './SetlistRow';
 import SetlistMobileCard from './SetlistMobileCard';
 import SetlistControls from './SetlistControls';
@@ -220,7 +221,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       const { error } = await supabase.from('setlist_songs').insert({
         setlist_id: activeSetlistId,
         song_id: songIdToInsert,
-        sort_order: rawSongs.filter(s => s.set_group === targetGroup).length,
+        sort_order: nextSortOrder(rawSongs),
         set_group: targetGroup,
       });
       if (error) throw error;
@@ -349,10 +350,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     const flatSongs = sortedSetGroups.flatMap(g => groupedBySet[g] || []);
     if (source.index >= flatSongs.length || destination.index >= flatSongs.length) return;
 
-    const srcSong = flatSongs[source.index];
-    const srcGroup = processedSongs.find(s => s.id === srcSong.id)?.set_number;
-    const dstSong = flatSongs[destination.index];
-    const dstGroup = processedSongs.find(s => s.id === dstSong.id)?.set_number;
+    // Songs can only be reordered within their own set block
+    const groupOf = (id: string) => sortedSetGroups.find(g => (groupedBySet[g] || []).some(s => s.id === id));
+    const srcGroup = groupOf(flatSongs[source.index].id);
+    const dstGroup = groupOf(flatSongs[destination.index].id);
 
     if (srcGroup !== dstGroup) return;
 
@@ -368,7 +369,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     }
 
     onReorder(newSongs);
-  }, [groupedBySet, sortedSetGroups, processedSongs, onReorder]);
+  }, [groupedBySet, sortedSetGroups, onReorder]);
 
   const getSetLabel = (group: number) => {
     if (activeSetlistId) {

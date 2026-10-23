@@ -42,6 +42,7 @@ import SongInfoOverlay from '@/components/SongInfoOverlay';
 import KeyReminderPill from '@/components/KeyReminderPill';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useIsMobile } from '@/hooks/use-mobile';
+import { readStoredJSON } from '@/utils/storage';
 
 // Ensure worker is configured
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -231,8 +232,7 @@ const SheetReaderMode: React.FC = () => {
       const readerViewMode = sessionStorage.getItem('reader_view_mode');
       const readerSetlistId = sessionStorage.getItem('reader_setlist_id');
       const targetId = routeSongId || searchParams.get('id');
-      const savedFilters = localStorage.getItem('gig_active_filters');
-      const activeFilters = savedFilters ? JSON.parse(savedFilters) : DEFAULT_FILTERS;
+      const activeFilters = { ...DEFAULT_FILTERS, ...readStoredJSON<Partial<typeof DEFAULT_FILTERS>>('gig_active_filters', {}) };
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
       const sortMode = (localStorage.getItem('gig_sort_mode') as string) || 'none';
 

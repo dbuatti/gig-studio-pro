@@ -32,6 +32,7 @@ import { animated } from '@react-spring/web';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
+import { readStoredJSON } from '@/utils/storage';
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
@@ -168,8 +169,7 @@ const AuditReaderMode: React.FC = () => {
 
     try {
       const targetId = routeSongId || searchParams.get('id');
-      const savedFilters = localStorage.getItem('gig_active_filters');
-      const activeFilters = savedFilters ? JSON.parse(savedFilters) : DEFAULT_FILTERS;
+      const activeFilters = { ...DEFAULT_FILTERS, ...readStoredJSON<Partial<typeof DEFAULT_FILTERS>>('gig_active_filters', {}) };
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
       const sortMode = (localStorage.getItem('gig_sort_mode') as string) || 'none';
 

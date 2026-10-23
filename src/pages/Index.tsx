@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { nextSortOrder } from '@/utils/sortOrder';
 import { useAuth } from '@/components/AuthProvider';
 import { useSettings } from '@/hooks/use-settings';
 import { usePlayback } from '@/components/PlaybackProvider';
@@ -593,10 +594,12 @@ const Index = () => {
           showWarning(`"${song.name}" is already in this setlist.`);
           return;
         }
-        await supabase.from('setlist_songs').insert({ setlist_id: setlistId, song_id: songMasterId, sort_order: targetSetlist?.songs.length || 0, set_group: setGroup || 1 });
+        const { error } = await supabase.from('setlist_songs').insert({ setlist_id: setlistId, song_id: songMasterId, sort_order: nextSortOrder(targetSetlist?.songs), set_group: setGroup || 1 });
+        if (error) throw new Error(error.message);
         showSuccess(`"${song.name}" added to setlist.`);
       } else {
-        await supabase.from('setlist_songs').delete().eq('setlist_id', setlistId).eq('song_id', song.master_id || song.id);
+        const { error } = await supabase.from('setlist_songs').delete().eq('setlist_id', setlistId).eq('song_id', song.master_id || song.id);
+        if (error) throw new Error(error.message);
       }
       await fetchSetlistsAndRepertoire();
     } catch (err: unknown) { showError(`Failed to update setlist: ${err instanceof Error ? err.message : String(err)}`); }
@@ -626,6 +629,7 @@ const Index = () => {
     if (!newSetlist) throw new Error("Failed to create setlist");
 
     let sortIndex = 0;
+    let addedCount = 0;
 
     for (const extSong of externalSongs) {
       const synced = await syncToMasterRepertoire(userId, [{
@@ -633,27 +637,34 @@ const Index = () => {
         artist: extSong.artist as string,
       }]);
       if (synced.length > 0) {
-        await supabase.from('setlist_songs').insert({
+        const { error } = await supabase.from('setlist_songs').insert({
           setlist_id: newSetlist.id,
           song_id: synced[0].master_id || synced[0].id,
           sort_order: sortIndex++,
           set_group: (extSong.setGroup as number) || 1,
         });
+        if (!error) addedCount++;
       }
     }
 
     for (const libSong of librarySongs) {
-      await supabase.from('setlist_songs').insert({
+      const { error } = await supabase.from('setlist_songs').insert({
         setlist_id: newSetlist.id,
         song_id: libSong.id,
         sort_order: sortIndex++,
         set_group: libSong.setGroup || 1,
       });
+      if (!error) addedCount++;
     }
 
     await fetchSetlistsAndRepertoire();
     setActiveSetlistId(newSetlist.id);
-    showSuccess(`"${proposedName}" gig created with ${librarySongs.length + externalSongs.length} songs!`);
+    const requestedCount = librarySongs.length + externalSongs.length;
+    if (addedCount < requestedCount) {
+      showWarning(`"${proposedName}" created, but only ${addedCount} of ${requestedCount} songs could be added.`);
+    } else {
+      showSuccess(`"${proposedName}" gig created with ${addedCount} songs!`);
+    }
   }, [userId, fetchSetlistsAndRepertoire]);
 
   const handleAutoLink = useCallback(async () => {

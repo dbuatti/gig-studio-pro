@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ListMusic, Check, Plus, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { nextSortOrder } from '@/utils/sortOrder';
 import { showSuccess, showError } from '@/utils/toast';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
@@ -87,9 +88,17 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
     setLoading(true);
     try {
       if (isChecked) {
+        // Append to the end of the setlist instead of jumping to the top
+        const { data: lastRow } = await supabase
+          .from('setlist_songs')
+          .select('sort_order')
+          .eq('setlist_id', setlistId)
+          .order('sort_order', { ascending: false })
+          .limit(1)
+          .maybeSingle();
         const { error } = await supabase
           .from('setlist_songs')
-          .insert({ setlist_id: setlistId, song_id: repertoireDbId, sort_order: 0, is_confirmed: false }); 
+          .insert({ setlist_id: setlistId, song_id: repertoireDbId, sort_order: nextSortOrder(lastRow ? [lastRow] : []), is_confirmed: false });
         if (error) throw new Error(error.message || "Unknown error");
         setAssignedSetlistIds(prev => new Set(prev).add(setlistId));
         showSuccess(`Added to "${allSetlists.find(s => s.id === setlistId)?.name}"`);

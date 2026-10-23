@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Sparkles, Plus, Play, Pause, ExternalLink, Music, Check, AlertCircle, Clock, Zap, Ban, RotateCcw, Eye, EyeOff, X, Search } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { supabase } from '@/integrations/supabase/client';
+import { nextSortOrder } from '@/utils/sortOrder';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { cn } from '@/lib/utils';
@@ -292,7 +293,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       const { error: insertError } = await supabase.from('setlist_songs').insert({
         setlist_id: setlistId,
         song_id: songIdToInsert,
-        sort_order: subsetSongs.length,
+        sort_order: nextSortOrder(subsetSongs),
         set_group: setGroup,
       });
 
@@ -344,7 +345,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       const { error: insertError } = await supabase.from('setlist_songs').insert({
         setlist_id: setlistId,
         song_id: songIdToInsert,
-        sort_order: subsetSongs.length,
+        sort_order: nextSortOrder(subsetSongs),
         set_group: setGroup,
       });
       if (insertError) throw insertError;
@@ -404,7 +405,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
         const { error: insertError } = await supabase.from('setlist_songs').insert({
           setlist_id: setlistId,
           song_id: songIdToInsert,
-          sort_order: subsetSongs.length,
+          sort_order: nextSortOrder(subsetSongs) + added,
           set_group: setGroup,
         });
 

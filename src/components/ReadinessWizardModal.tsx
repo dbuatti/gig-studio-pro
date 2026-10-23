@@ -15,6 +15,7 @@ import MasteryRating from './MasteryRating';
 import { SetlistSong } from './SetlistManager';
 import { useAuth } from './AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { nextSortOrder } from '@/utils/sortOrder';
 import { r2Storage } from '@/utils/r2Storage';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -233,7 +234,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
           (s.master_id || s.id) === songId && (s.set_group || 1) === setGroup
         );
         if (junction?.id) {
-          await supabase.from('setlist_songs').delete().eq('id', junction.id);
+          const { error } = await supabase.from('setlist_songs').delete().eq('id', junction.id);
+          if (error) throw error;
         }
         setLocalSetAdditions(prev => {
           const next = new Set(prev);
@@ -243,12 +245,11 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
         showSuccess(`Removed from ${getSetLabel(targetSetlist || { set_names: {} }, setGroup)}!`);
       } else {
         const targetSetlist = allSetlists.find(sl => sl.id === setlistId);
-        const songCount = targetSetlist?.songs.filter(s => (s.set_group || 1) === setGroup).length || 0;
 
         const { error } = await supabase.from('setlist_songs').insert({
           setlist_id: setlistId,
           song_id: songId,
-          sort_order: songCount,
+          sort_order: nextSortOrder(targetSetlist?.songs),
           set_group: setGroup,
         });
         if (error) throw error;

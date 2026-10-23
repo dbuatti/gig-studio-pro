@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { readStoredJSON } from '@/utils/storage';
 
 export type KeyPreference = 'flats' | 'sharps' | 'neutral';
 
@@ -57,12 +58,14 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   wizardMode: false,
 };
 
+const loadStoredSettings = (): GlobalSettings =>
+  ({ ...DEFAULT_GLOBAL_SETTINGS, ...readStoredJSON<Partial<GlobalSettings>>('gig_global_settings', {}) });
+
 export function useSettings() {
   const { user, loading: authLoading } = useAuth();
   const [settings, setSettings] = useState<GlobalSettings>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('gig_global_settings');
-      return saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS;
+      return loadStoredSettings();
     }
     return DEFAULT_GLOBAL_SETTINGS;
   });
@@ -89,8 +92,7 @@ export function useSettings() {
             .single();
 
           if (error && error.code !== 'PGRST116') {
-            const saved = localStorage.getItem('gig_global_settings');
-            setSettings(saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS);
+            setSettings(loadStoredSettings());
           } else if (data) {
             const loadedSettings: Partial<GlobalSettings> = {};
             if (data.key_preference) loadedSettings.keyPreference = data.key_preference as KeyPreference;
@@ -129,14 +131,12 @@ export function useSettings() {
             });
           }
         } catch (err) {
-          const saved = localStorage.getItem('gig_global_settings');
-          setSettings(saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS);
+          setSettings(loadStoredSettings());
         } finally {
           setIsFetchingSettings(false);
         }
       } else {
-        const saved = localStorage.getItem('gig_global_settings');
-        setSettings(saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS);
+        setSettings(loadStoredSettings());
         setIsFetchingSettings(false);
       }
     };

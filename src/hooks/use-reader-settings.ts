@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { readStoredJSON } from '@/utils/storage';
 
 export type ReaderResourceForce = 'default' | 'force-pdf' | 'force-ug' | 'force-chords' | 'simulation';
 
@@ -21,8 +22,7 @@ const DEFAULT_READER_SETTINGS: ReaderSettings = {
 export function useReaderSettings() {
   const [settings, setSettings] = useState<ReaderSettings>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('gig_reader_settings');
-      return saved ? { ...DEFAULT_READER_SETTINGS, ...JSON.parse(saved) } : DEFAULT_READER_SETTINGS;
+      return { ...DEFAULT_READER_SETTINGS, ...readStoredJSON<Partial<ReaderSettings>>('gig_reader_settings', {}) };
     }
     return DEFAULT_READER_SETTINGS;
   });
