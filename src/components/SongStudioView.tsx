@@ -114,12 +114,17 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       lastPendingUpdatesRef.current = {};
       const identifyingUpdates = {
         ...currentUpdates,
+        // Save by record id; matching on title/artist would create a duplicate
+        // song whenever the title or artist itself is being edited
+        id: targetSong.master_id || targetSong.id,
         name: currentUpdates.name || targetSong.name,
         artist: currentUpdates.artist || targetSong.artist
       };
       
       const syncedSongs = await syncToMasterRepertoire(user.id, [identifyingUpdates]);
       const syncedSong = syncedSongs[0];
+      // The sync helper logs and skips failed rows rather than throwing
+      if (!syncedSong) throw new Error("The change could not be saved.");
 
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));

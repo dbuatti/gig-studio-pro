@@ -215,10 +215,11 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     if (currentSong) {
       const urlToLoad = currentSong.audio_url || currentSong.previewUrl;
-      audioEngine.setPitch(currentSong.pitch || 0);
+      // Use the harmonic-sync pitch so a session stage-key override is heard, not the saved pitch
+      audioEngine.setPitch(effectivePitch);
       audioEngine.setTempo(currentSong.tempo || 1); 
       audioEngine.setFineTune(currentSong.fineTune || 0);
-      if (urlToLoad) audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0, true);
+      if (urlToLoad) audioEngine.loadFromUrl(urlToLoad, effectivePitch, true);
       else audioEngine.resetEngine();
     } else {
       audioEngine.resetEngine();

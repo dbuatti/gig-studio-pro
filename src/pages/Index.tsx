@@ -578,6 +578,7 @@ const Index = () => {
     try {
       const synced = await syncToMasterRepertoire(userId, [newSong]);
       const song = synced[0];
+      if (!song) throw new Error("Sync failed");
       autoVibeCheck(userId, song);
       if (activeDashboardView === 'gigs' && activeSetlistId) await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
       else await fetchSetlistsAndRepertoire();
