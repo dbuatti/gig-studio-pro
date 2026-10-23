@@ -42,7 +42,7 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
         </div>
         <Button 
           onClick={handleDownloadAll} 
-          className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] md:text-xs h-12 md:h-14 gap-2 px-8 md:px-10 rounded-xl md:rounded-2xl shadow-xl shadow-indigo-600/20"
+          className="w-full md:w-auto bg-indigo-600 text-white hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] md:text-xs h-12 md:h-14 gap-2 px-8 md:px-10 rounded-xl md:rounded-2xl shadow-xl shadow-indigo-600/20"
         >
           <Download className="w-4 h-4" /> DOWNLOAD ALL ASSETS
         </Button>

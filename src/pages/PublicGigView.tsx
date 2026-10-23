@@ -23,7 +23,8 @@ const PublicGigView = () => {
 
   useEffect(() => {
     const fetchGigData = async () => {
-      if (!code) return;
+      // e.g. the /setlist/:id route has no gig code; show the not-found state instead of loading forever
+      if (!code) { setLoading(false); return; }
       try {
         const { data: sessionData, error: sessionError } = await supabase
           .from('gig_sessions')
@@ -111,7 +112,7 @@ const PublicGigView = () => {
           </div>
           <h1 className="text-3xl font-black uppercase tracking-tight">Code Expired</h1>
           <p className="text-muted-foreground font-medium">This gig code is no longer active or was entered incorrectly.</p>
-          <Button onClick={() => navigate('/gig')} className="w-full bg-indigo-600 h-14 rounded-2xl font-black uppercase tracking-widest">Try Another Code</Button>
+          <Button onClick={() => navigate('/gig')} className="w-full bg-indigo-600 text-white hover:bg-indigo-700 h-14 rounded-2xl font-black uppercase tracking-widest">Try Another Code</Button>
         </div>
       </div>
     );

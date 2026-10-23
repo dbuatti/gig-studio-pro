@@ -85,7 +85,7 @@ const PublicRepertoire = () => {
         </div>
         <h1 className="text-4xl font-black uppercase tracking-tight">Studio Link Offline</h1>
         <p className="text-muted-foreground font-medium">This repertoire is currently private or does not exist.</p>
-        <Button onClick={() => window.location.href = '/'} className="w-full bg-indigo-600 h-14 rounded-2xl font-black uppercase tracking-widest">Return to Gig Studio</Button>
+        <Button onClick={() => window.location.href = '/'} className="w-full bg-indigo-600 text-white h-14 rounded-2xl font-black uppercase tracking-widest">Return to Gig Studio</Button>
       </div>
     </div>
   );

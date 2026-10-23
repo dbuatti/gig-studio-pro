@@ -350,7 +350,7 @@ const Profile = () => {
             <div className="flex items-center gap-2">
               <div className="bg-card border border-border rounded-xl px-4 py-2 flex items-center gap-4 shadow-xl">
                  <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[200px]">{publicUrl}</span>
-                 <Button onClick={copyLink} size="sm" className="bg-indigo-600 hover:bg-indigo-700 h-8 px-4 text-[10px] font-black uppercase rounded-lg">
+                 <Button onClick={copyLink} size="sm" className="bg-indigo-600 text-white hover:bg-indigo-700 h-8 px-4 text-[10px] font-black uppercase rounded-lg">
                    <Copy className="w-3.5 h-3.5 mr-2" /> Copy Link
                  </Button>
               </div>

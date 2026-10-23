@@ -543,7 +543,7 @@ const AuditReaderMode: React.FC = () => {
               <div className="absolute bottom-24 right-4 z-30">
                 <Sheet open={isRehearsalPanelOpen} onOpenChange={setIsRehearsalPanelOpen}>
                   <SheetTrigger asChild>
-                    <Button size="icon" className="h-12 w-12 rounded-full bg-indigo-600 shadow-xl shadow-indigo-600/30">
+                    <Button size="icon" className="h-12 w-12 rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-600/30">
                       <Settings2 className="w-6 h-6" />
                     </Button>
                   </SheetTrigger>

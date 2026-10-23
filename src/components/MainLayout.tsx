@@ -72,6 +72,8 @@ const MainLayout = () => {
           <Route path="/gig/:code" element={<PublicGigView />} />
           <Route path="/setlist/:id" element={<PublicGigView />} />
           <Route path="/dashboard" element={<Navigate to="/" replace />} />
+          {/* The landing page now lives at "/" for signed-out visitors */}
+          <Route path="/landing" element={<Navigate to="/" replace />} />
           
           {/* Protected Routes */}
           <Route path="/emergency-cleanup" element={<ProtectedRoute><EmergencyCleanup /></ProtectedRoute>} />

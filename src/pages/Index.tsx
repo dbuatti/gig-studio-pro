@@ -208,7 +208,7 @@ const Index = () => {
 
   useEffect(() => {
     if (!authLoading && userId) fetchSetlistsAndRepertoire(true);
-    else if (!authLoading && !userId) navigate('/landing');
+    else if (!authLoading && !userId) navigate('/');
   }, [userId, authLoading, fetchSetlistsAndRepertoire, navigate]);
 
   // Modal states

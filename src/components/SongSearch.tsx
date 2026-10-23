@@ -96,7 +96,7 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
         <Button 
           type="submit" 
           disabled={isLoading}
-          className="bg-indigo-600 hover:bg-indigo-700 h-11 px-6 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-600/20"
+          className="bg-indigo-600 text-white hover:bg-indigo-700 h-11 px-6 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-600/20"
         >
           {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "SEARCH"}
         </Button>

@@ -142,7 +142,7 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
         <Button 
           onClick={createSession} 
           disabled={isCreating || !newCode.trim()}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] rounded-xl px-6"
+          className="h-11 bg-indigo-600 text-white hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] rounded-xl px-6"
         >
           {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />} Create
         </Button>

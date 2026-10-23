@@ -54,7 +54,7 @@ const ShortcutLegend: React.FC<ShortcutLegendProps> = ({ onClose }) => {
 
         <Button 
           onClick={onClose}
-          className="w-full mt-8 bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-[0.2em] text-[10px]"
+          className="w-full mt-8 bg-indigo-600 text-white hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-[0.2em] text-[10px]"
         >
           Return to Stage
         </Button>

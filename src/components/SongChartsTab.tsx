@@ -226,7 +226,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                   </p>
                   <Button 
                     onClick={() => window.open(currentChartUrl, '_blank')} 
-                    className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6"
+                    className="bg-indigo-600 text-white hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6"
                   >
                     <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
                   </Button>

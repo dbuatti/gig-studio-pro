@@ -198,7 +198,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                   size="sm" 
                   onClick={handleSaveYtKey} 
                   disabled={isSavingYtKey} 
-                  className="bg-indigo-600 hover:bg-indigo-700 h-12 px-6 font-black uppercase text-[10px] rounded-xl shadow-lg shadow-indigo-600/20"
+                  className="bg-indigo-600 text-white hover:bg-indigo-700 h-12 px-6 font-black uppercase text-[10px] rounded-xl shadow-lg shadow-indigo-600/20"
                 >
                   {isSavingYtKey ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
                 </Button>
