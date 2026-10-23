@@ -30,6 +30,7 @@ import { filterAndSortRepertoire } from '@/utils/repertoireFilters';
 import { useIsMobile } from '@/hooks/use-mobile';
 import RepertoireMobileCard from './RepertoireMobileCard';
 
+import type { SortMode } from '@/utils/SetlistGenerator';
 interface RepertoireViewProps {
   repertoire: SetlistSong[];
   onEditSong: (song: SetlistSong, defaultTab?: 'details' | 'audio' | 'charts' | 'lyrics' | 'visual' | 'config' | 'library') => void;
@@ -39,8 +40,8 @@ interface RepertoireViewProps {
   onAddSong: (song: SetlistSong) => Promise<SetlistSong | undefined> | SetlistSong | undefined;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  sortMode: 'none' | 'ready' | 'work' | 'manual' | 'artist';
-  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual' | 'artist') => void;
+  sortMode: SortMode;
+  setSortMode: (mode: SortMode) => void;
   activeFilters: FilterState;
   setActiveFilters: (filters: FilterState) => void;
   onAutoLink?: () => Promise<void>;

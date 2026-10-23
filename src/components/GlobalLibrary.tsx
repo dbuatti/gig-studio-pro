@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Globe, Music, Loader2, Plus, ShieldCheck, User, Star, FileText, CloudDownload, AlertTriangle } from 'lucide-react';
@@ -11,6 +11,28 @@ import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
 
+/** A public repertoire row joined with its owner's profile. */
+interface CommunitySong {
+  id: string;
+  title: string;
+  artist: string;
+  original_key?: string;
+  target_key?: string;
+  bpm?: string;
+  lyrics?: string;
+  preview_url?: string;
+  audio_url?: string;
+  youtube_url?: string;
+  ug_url?: string;
+  pdf_url?: string;
+  user_tags?: string[];
+  duration_seconds?: number;
+  readiness_score?: number;
+  extraction_status?: SetlistSong['extraction_status'];
+  last_sync_log?: string;
+  profiles?: { first_name?: string | null; last_name?: string | null } | null;
+}
+
 interface GlobalLibraryProps {
   onImport: (song: Partial<SetlistSong>) => void;
 }
@@ -18,12 +40,18 @@ interface GlobalLibraryProps {
 const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
   const { keyPreference } = useSettings();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Record<string, unknown>[]>([]);
+  const [results, setResults] = useState<CommunitySong[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const searchVersionRef = useRef(0);
 
-  const searchGlobal = async (searchTerm: string) => {
-    if (!searchTerm.trim()) {
+  const searchGlobal = async (rawTerm: string) => {
+    const version = ++searchVersionRef.current;
+    // Commas, parentheses and wildcards are PostgREST filter syntax; a title like
+    // "Hello, Goodbye" would otherwise break the query
+    const searchTerm = rawTerm.replace(/[,()%*\\]/g, ' ').trim();
+    if (!searchTerm) {
       setResults([]);
+      setIsLoading(false);
       return;
     }
 
@@ -41,18 +69,18 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
         .limit(30);
 
       if (error) throw new Error(error.message || "Unknown error");
-      setResults(data || []);
+      // Drop responses that arrive after a newer search has started
+      if (version === searchVersionRef.current) setResults((data || []) as CommunitySong[]);
     } catch (err) {
-      // Error handled by toast in parent component
+      if (version === searchVersionRef.current) setResults([]);
     } finally {
-      setIsLoading(false);
+      if (version === searchVersionRef.current) setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (query) searchGlobal(query);
-    }, 500);
+    // Also runs for an empty query so clearing the box clears stale results
+    const timer = setTimeout(() => searchGlobal(query), 500);
     return () => clearTimeout(timer);
   }, [query]);
 

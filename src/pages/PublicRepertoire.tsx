@@ -5,14 +5,14 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Loader2, UserCircle2, Calendar } from 'lucide-react';
-import PublicRepertoireView from '@/components/PublicRepertoireView';
+import PublicRepertoireView, { PublicProfile, PublicSong } from '@/components/PublicRepertoireView';
 import { useTheme } from '@/hooks/use-theme';
 import { PUBLIC_THEMES } from '@/utils/themes';
 
 const PublicRepertoire = () => {
   const { slug } = useParams();
-  const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
-  const [songs, setSongs] = useState<Record<string, unknown>[]>([]);
+  const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [songs, setSongs] = useState<PublicSong[]>([]);
   const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
 
@@ -85,7 +85,7 @@ const PublicRepertoire = () => {
         </div>
         <h1 className="text-4xl font-black uppercase tracking-tight">Studio Link Offline</h1>
         <p className="text-muted-foreground font-medium">This repertoire is currently private or does not exist.</p>
-        <Button onClick={() => window.location.href = '/'} className="w-full bg-indigo-600 h-14 rounded-2xl font-black uppercase tracking-widest">Return to Gig Studio</Button>
+        <Button onClick={() => window.location.href = '/'} className="w-full bg-indigo-600 text-white h-14 rounded-2xl font-black uppercase tracking-widest">Return to Gig Studio</Button>
       </div>
     </div>
   );

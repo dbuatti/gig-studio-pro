@@ -21,11 +21,22 @@ interface GigPlannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   repertoire: SetlistSong[];
-  onAddExternalSong: (song: Record<string, unknown>, setGroup?: number) => Promise<void>;
-  onAddLibrarySong: (songId: string, setGroup?: number) => Promise<void>;
-  onBuildGig: (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: Record<string, unknown>[], setNames: Record<string, string>, stimulusText: string) => Promise<void>;
+  /** Optional per-song actions; their buttons are hidden when not provided
+   *  (Build Gig already adds every suggested song). */
+  onAddExternalSong?: (song: ExternalSuggestion, setGroup?: number) => Promise<void>;
+  onAddLibrarySong?: (songId: string, setGroup?: number) => Promise<void>;
+  onBuildGig: (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: ExternalSuggestion[], setNames: Record<string, string>, stimulusText: string) => Promise<void>;
   activeSetlistName?: string;
   initialStimulus?: string;
+}
+
+/** A song the planner suggests that isn't in the user's library yet. */
+export interface ExternalSuggestion {
+  name: string;
+  artist?: string;
+  setGroup?: number;
+  artworkUrl?: string;
+  [key: string]: unknown;
 }
 
 interface GigPlan {
@@ -37,7 +48,7 @@ interface GigPlan {
     specialRequests: string[];
   };
   suggestedLibrarySongs: {id: string, setGroup: number}[];
-  suggestedExternalSongs: Record<string, unknown>[];
+  suggestedExternalSongs: ExternalSuggestion[];
 }
 
 const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
@@ -96,6 +107,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
   };
 
   const handleAddLibrary = async (songId: string, setGroup?: number) => {
+    if (!onAddLibrarySong) return;
     try {
       await onAddLibrarySong(songId, setGroup);
       setAddedSongs(prev => new Set(prev).add(songId));
@@ -104,7 +116,8 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
     }
   };
 
-  const handleAddExternal = async (song: Record<string, unknown>, index: number) => {
+  const handleAddExternal = async (song: ExternalSuggestion, index: number) => {
+    if (!onAddExternalSong) return;
     try {
       await onAddExternalSong(song, song.setGroup);
       setAddedSongs(prev => new Set(prev).add(`ext-${index}`));
@@ -140,15 +153,19 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
     return `Set ${group}`;
   };
 
+  type PlannedItem =
+    | ({ type: 'library'; id: string; setGroup: number })
+    | (ExternalSuggestion & { type: 'external'; extIndex: number });
+
   const groupedSongs = plan ? [
     ...plan.suggestedLibrarySongs.map(s => ({ ...s, type: 'library' as const })),
     ...plan.suggestedExternalSongs.map((s, i) => ({ ...s, type: 'external' as const, extIndex: i }))
-  ].reduce((acc, song) => {
+  ].reduce((acc, song: PlannedItem) => {
     const group = song.setGroup || 1;
     if (!acc[group]) acc[group] = [];
     acc[group].push(song);
     return acc;
-  }, {} as Record<number, Record<string, unknown>[]>) : {};
+  }, {} as Record<number, PlannedItem[]>) : {};
 
   const sortedGroups = Object.keys(groupedSongs).map(Number).sort((a, b) => {
     if (a === 99) return 1;
@@ -323,18 +340,20 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                                       <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 truncate">{song.artist}</p>
                                     </div>
                                   </div>
-                                  <Button 
-                                    size="sm" 
-                                    disabled={isAdded}
-                                    onClick={() => handleAddLibrary(song.id, groupNum)}
-                                    className={cn(
-                                      "h-8 md:h-9 px-3 md:px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all shrink-0",
-                                      isAdded ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-indigo-600 hover:bg-indigo-500 text-white"
-                                    )}
-                                  >
-                                    {isAdded ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                                    <span className="hidden xs:inline">{isAdded ? "Added" : "Add to Gig"}</span>
-                                  </Button>
+                                  {onAddLibrarySong && (
+                                    <Button 
+                                      size="sm" 
+                                      disabled={isAdded}
+                                      onClick={() => handleAddLibrary(song.id, groupNum)}
+                                      className={cn(
+                                        "h-8 md:h-9 px-3 md:px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all shrink-0",
+                                        isAdded ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                                      )}
+                                    >
+                                      {isAdded ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                                      <span className="hidden xs:inline">{isAdded ? "Added" : "Add to Gig"}</span>
+                                    </Button>
+                                  )}
                                 </div>
                               );
                             } else {
@@ -362,18 +381,20 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                                         In Library
                                       </Badge>
                                     )}
-                                    <Button 
-                                      size="sm" 
-                                      disabled={isAdded}
-                                      onClick={() => handleAddExternal(item, item.extIndex)}
-                                      className={cn(
-                                        "h-8 md:h-9 px-3 md:px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all",
-                                        isAdded ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-purple-600 hover:bg-purple-50 text-white"
-                                      )}
-                                    >
-                                      {isAdded ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                                      <span className="hidden xs:inline">{isAdded ? "Added" : "Add to Library"}</span>
-                                    </Button>
+                                    {onAddExternalSong && (
+                                      <Button 
+                                        size="sm" 
+                                        disabled={isAdded}
+                                        onClick={() => handleAddExternal(item, item.extIndex)}
+                                        className={cn(
+                                          "h-8 md:h-9 px-3 md:px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all",
+                                          isAdded ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-purple-600 hover:bg-purple-50 text-white"
+                                        )}
+                                      >
+                                        {isAdded ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                                        <span className="hidden xs:inline">{isAdded ? "Added" : "Add to Library"}</span>
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               );

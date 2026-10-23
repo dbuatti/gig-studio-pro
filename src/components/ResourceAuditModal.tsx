@@ -86,7 +86,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
             return true;
         }
       } else {
-        const sheetUrl = (s as Record<string, unknown>).sheet_music_url as string || s.pdfUrl || s.leadsheetUrl;
+        const sheetUrl = s.sheet_music_url || s.pdfUrl || s.leadsheetUrl;
         const hasLink = !!sheetUrl && sheetUrl.trim() !== "";
         
         switch (activeFilter) {
@@ -106,9 +106,9 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
       if (!urlToVerify) return;
       onVerify(song.id, { ugUrl: sanitizeUGUrl(urlToVerify) }); 
     } else {
-      const urlToVerify = customUrl || (song as Record<string, unknown>).sheet_music_url as string || song.pdfUrl || song.leadsheetUrl;
+      const urlToVerify = customUrl || song.sheet_music_url || song.pdfUrl || song.leadsheetUrl;
       if (!urlToVerify) return;
-      onVerify(song.id, { sheet_music_url: urlToVerify } as Record<string, unknown>);
+      onVerify(song.id, { sheet_music_url: urlToVerify });
     }
     
     setEditingId(null);
@@ -120,7 +120,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
     setEditingId(song.id);
       const currentUrl = activeTab === 'ug' 
       ? song.ugUrl 
-      : (((song as Record<string, unknown>).sheet_music_url as string) || song.pdfUrl || song.leadsheetUrl);
+      : ((song.sheet_music_url) || song.pdfUrl || song.leadsheetUrl);
     setEditValue(currentUrl || "");
     
     const query = encodeURIComponent(`${song.artist || ''} ${song.name} ${activeTab === 'ug' ? 'chords' : 'sheet music pdf'}`);
@@ -331,7 +331,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
               )}
               {auditList.map((song) => {
                 const isEditing = editingId === song.id;
-                const sheetUrl = (song as Record<string, unknown>).sheet_music_url as string || song.pdfUrl || song.leadsheetUrl;
+                const sheetUrl = song.sheet_music_url || song.pdfUrl || song.leadsheetUrl;
                 const hasLink = activeTab === 'ug' ? !!song.ugUrl : !!sheetUrl;
                 const hasChords = !!song.ug_chords_text && song.ug_chords_text.trim() !== "";
 

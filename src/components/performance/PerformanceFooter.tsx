@@ -52,7 +52,7 @@ const PerformanceFooter: React.FC<PerformanceFooterProps> = ({
           disabled={isLoadingAudio || isExtractionFailed} 
           className={cn(
             "h-16 w-16 md:h-28 md:w-28 rounded-2xl md:rounded-[2.5rem] shadow-2xl flex items-center justify-center p-0 transition-all hover:scale-110 active:scale-90",
-            isLoadingAudio || isExtractionFailed ? "bg-slate-600 cursor-not-allowed" : isPlaying ? "bg-red-600 hover:bg-red-700 shadow-[0_0_60px_rgba(220,38,38,0.4)]" : "bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_60px_rgba(79,70,229,0.4)]"
+            isLoadingAudio || isExtractionFailed ? "bg-slate-600 cursor-not-allowed" : isPlaying ? "bg-red-600 text-white hover:bg-red-700 shadow-[0_0_60px_rgba(220,38,38,0.4)]" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_0_60px_rgba(79,70,229,0.4)]"
           )}
         >
           {isLoadingAudio ? <Loader2 className="w-8 h-8 md:w-14 md:h-14 animate-spin text-white" /> : isExtractionFailed ? <AlertTriangle className="w-8 h-8 md:w-14 md:h-14 text-white" /> : isPlaying ? <Pause className="w-8 h-8 md:w-14 md:h-14 text-white" /> : <Play className="w-8 h-8 md:w-14 md:h-14 ml-1 md:ml-2.5 fill-current text-white" />}

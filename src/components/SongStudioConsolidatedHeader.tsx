@@ -216,8 +216,8 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
           className={cn(
             "h-10 md:h-12 px-4 md:px-8 rounded-xl font-black uppercase tracking-widest text-[9px] md:text-[10px] gap-2 md:gap-3 shadow-2xl transition-all active:scale-95",
             isPlaying 
-              ? "bg-red-600 hover:bg-red-700 shadow-red-600/30" 
-              : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30"
+              ? "bg-red-600 text-white hover:bg-red-700 shadow-red-600/30" 
+              : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/30"
           )}
         >
           {isLoadingAudio ? (

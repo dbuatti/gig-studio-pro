@@ -146,7 +146,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
                 aria-label={isPlaying ? "Pause playback" : "Play audio"}
                 className={cn(
                   "h-16 w-16 md:h-32 md:w-32 rounded-full shadow-2xl flex items-center justify-center transition-all",
-                  isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
+                  isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : "bg-indigo-600 text-white hover:bg-indigo-700"
                 )}
               >
                 {isLoadingAudio ? (
@@ -173,7 +173,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
               <Button 
                 onClick={handleLoadAudio} 
                 disabled={isLoadingAudio}
-                className="bg-indigo-600 font-black uppercase text-[9px] md:text-[10px] h-9 md:h-10 px-5 md:px-6 rounded-xl gap-2"
+                className="bg-indigo-600 text-white font-black uppercase text-[9px] md:text-[10px] h-9 md:h-10 px-5 md:px-6 rounded-xl gap-2"
               >
                 {isLoadingAudio ? <Loader2 className="w-3 h-3 md:w-3.5 md:h-3.5 animate-spin" /> : <Play className="w-3 h-3 md:w-3.5 md:h-3.5" />} 
                 {isLoadingAudio ? "Loading..." : "Load iTunes Preview"}

@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
 import { Globe, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, Link as LinkIcon, Check, Copy, UserPlus, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import PublicRepertoireView from '@/components/PublicRepertoireView';
+import PublicRepertoireView, { PublicProfile, PublicSong } from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useTheme } from '@/hooks/use-theme';
@@ -24,8 +24,8 @@ const Profile = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
-  const [songs, setSongs] = useState<Record<string, unknown>[]>([]);
+  const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [songs, setSongs] = useState<PublicSong[]>([]);
   const { theme } = useTheme();
   const { isFetchingSettings } = useSettings();
 
@@ -350,7 +350,7 @@ const Profile = () => {
             <div className="flex items-center gap-2">
               <div className="bg-card border border-border rounded-xl px-4 py-2 flex items-center gap-4 shadow-xl">
                  <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[200px]">{publicUrl}</span>
-                 <Button onClick={copyLink} size="sm" className="bg-indigo-600 hover:bg-indigo-700 h-8 px-4 text-[10px] font-black uppercase rounded-lg">
+                 <Button onClick={copyLink} size="sm" className="bg-indigo-600 text-white hover:bg-indigo-700 h-8 px-4 text-[10px] font-black uppercase rounded-lg">
                    <Copy className="w-3.5 h-3.5 mr-2" /> Copy Link
                  </Button>
               </div>

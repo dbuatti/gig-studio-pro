@@ -11,8 +11,8 @@ interface SetlistSettingsModalProps {
   onClose: () => void;
   setlistId: string;
   setlistName: string;
-  onDelete: (id: string) => Promise<void>;
-  onRename: (id: string) => Promise<void>;
+  onDelete: (id: string) => void | Promise<void>;
+  onRename: (id: string) => void | Promise<void>;
   onRefresh?: () => Promise<void>;
 }
 

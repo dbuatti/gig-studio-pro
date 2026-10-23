@@ -20,13 +20,17 @@ const getEnergyScore = (song: SetlistSong): number => {
 /**
  * Sorts songs based on the selected flow strategy.
  */
-export const sortSongsByStrategy = (songs: SetlistSong[], strategy: FlowStrategy): SetlistSong[] => {
+export const sortSongsByStrategy = (songs: SetlistSong[], strategy: SortMode): SetlistSong[] => {
   if (strategy === 'none' || strategy === 'manual' || strategy === 'ready' || strategy === 'work') {
     // These modes are handled by the parent component's existing logic/state
     return songs;
   }
 
   const sorted = [...songs];
+
+  if (strategy === 'artist') {
+    return sorted.sort((a, b) => (a.artist || '').localeCompare(b.artist || '') || (a.name || '').localeCompare(b.name || ''));
+  }
 
   if (strategy === 'energy-asc') {
     return sorted.sort((a, b) => getEnergyScore(a) - getEnergyScore(b));

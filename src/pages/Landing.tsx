@@ -63,7 +63,7 @@ const Landing = () => {
           <a href="#features" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors hidden md:block">Features</a>
           <Button 
             onClick={() => navigate(session ? '/dashboard' : '/login')}
-            className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-10 px-6 rounded-xl shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 text-white hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-10 px-6 rounded-xl shadow-lg shadow-indigo-600/20"
           >
             {session ? 'Go to Dashboard' : 'Sign In'}
           </Button>
@@ -93,7 +93,7 @@ const Landing = () => {
             <Button 
               size="lg"
               onClick={() => navigate(session ? '/dashboard' : '/login')}
-              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs gap-3 shadow-2xl shadow-indigo-600/30"
+              className="w-full sm:w-auto bg-indigo-600 text-white hover:bg-indigo-700 h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs gap-3 shadow-2xl shadow-indigo-600/30"
             >
               Start Your First Gig <Rocket className="w-4 h-4" />
             </Button>

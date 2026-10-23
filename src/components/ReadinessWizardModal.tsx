@@ -15,6 +15,7 @@ import MasteryRating from './MasteryRating';
 import { SetlistSong } from './SetlistManager';
 import { useAuth } from './AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { nextSortOrder } from '@/utils/sortOrder';
 import { r2Storage } from '@/utils/r2Storage';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -233,7 +234,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
           (s.master_id || s.id) === songId && (s.set_group || 1) === setGroup
         );
         if (junction?.id) {
-          await supabase.from('setlist_songs').delete().eq('id', junction.id);
+          const { error } = await supabase.from('setlist_songs').delete().eq('id', junction.id);
+          if (error) throw error;
         }
         setLocalSetAdditions(prev => {
           const next = new Set(prev);
@@ -243,12 +245,11 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
         showSuccess(`Removed from ${getSetLabel(targetSetlist || { set_names: {} }, setGroup)}!`);
       } else {
         const targetSetlist = allSetlists.find(sl => sl.id === setlistId);
-        const songCount = targetSetlist?.songs.filter(s => (s.set_group || 1) === setGroup).length || 0;
 
         const { error } = await supabase.from('setlist_songs').insert({
           setlist_id: setlistId,
           song_id: songId,
-          sort_order: songCount,
+          sort_order: nextSortOrder(targetSetlist?.songs),
           set_group: setGroup,
         });
         if (error) throw error;
@@ -1335,17 +1336,15 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   { label: 'Notes', done: !!(formData.notes && formData.notes.length > 5) },
                 ].map(b => {
                   const isView = b.label === 'Lyrics' || b.label === 'Chords' || (b.label === 'PDF' && b.done);
-                  const isActive = (b.label === 'Lyrics' && activeView === 'lyrics') || (b.label === 'Chords' && activeView === 'chords') || (b.label === 'PDF' && activeView === 'pdf');
                   if (isView) {
                     return (
                       <button key={b.label}
                         onClick={() => {
-                          if (b.label === 'PDF') setActiveView(activeView === 'pdf' ? 'summary' : 'pdf');
-                          else setActiveView(b.label.toLowerCase() as 'lyrics' | 'chords');
+                          // These badges only render on the summary view, so each opens its view
+                          setActiveView(b.label.toLowerCase() as 'pdf' | 'lyrics' | 'chords');
                         }}
                         className={cn(
                           "px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all",
-                          isActive ? "bg-indigo-600/20 border-indigo-500/30 text-indigo-400" :
                           b.done ? "bg-emerald-600/20 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/10 text-slate-600 hover:text-slate-300"
                         )}
                       >

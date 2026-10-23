@@ -118,11 +118,14 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { activeSongRef.current = activeSong; }, [activeSong]);
 
-  // Safety net: if a set is still active but stalled when the tab returns,
-  // nudge it forward.
+  // Safety net: if a set is still active but stalled at the end of a track
+  // when the tab returns, nudge it forward.
   useEffect(() => {
     const handler = () => {
-      if (document.visibilityState === 'visible' && isAutoplayActiveRef.current && !audioRef.current.isPlaying) {
+      const a = audioRef.current;
+      // Only a finished track (progress reset to 0) counts as stalled; a mid-song
+      // pause is deliberate and must not skip ahead.
+      if (document.visibilityState === 'visible' && isAutoplayActiveRef.current && !a.isPlaying && !a.isLoadingAudio && a.progress === 0) {
         setTimeout(() => playNextRef.current(true), 800);
       }
     };

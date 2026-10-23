@@ -10,6 +10,7 @@ import ShortcutLegend from './ShortcutLegend';
 import { formatKey } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
+import type * as Tone from 'tone';
 import { useWakeLock } from '@/hooks/use-wake-lock';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -31,7 +32,7 @@ interface PerformanceOverlayProps {
   onClose: () => void;
   onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
-  analyzer: AnalyserNode | null;
+  analyzer: Tone.Analyser | null;
   onOpenAdmin?: () => void;
   gigId?: string | null;
   isLoadingAudio?: boolean;
@@ -166,7 +167,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                   <div className="h-full w-full flex flex-col items-center justify-center p-6 text-center bg-slate-950">
                     <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
                     <h4 className="text-2xl md:text-6xl font-black uppercase tracking-tight mb-4 text-white">Asset Protected</h4>
-                    <Button onClick={() => window.open(currentSong.pdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 px-8 font-black uppercase tracking-widest text-xs rounded-2xl shadow-2xl gap-4">
+                    <Button onClick={() => window.open(currentSong.pdfUrl, '_blank')} className="bg-indigo-600 text-white hover:bg-indigo-700 h-16 px-8 font-black uppercase tracking-widest text-xs rounded-2xl shadow-2xl gap-4">
                       <ExternalLink className="w-6 h-6" /> Launch Chart
                     </Button>
                   </div>

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { readStoredJSON } from '@/utils/storage';
 
 export interface FilterState {
   hasAudio: 'all' | 'full' | 'itunes' | 'none';
@@ -69,11 +70,10 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
   const [isSavePresetOpen, setIsSavePresetOpen] = useState(false);
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<SavedPreset[]>(() => {
-    const saved = localStorage.getItem('gig_filter_presets');
-    return saved ? JSON.parse(saved) : [
+    return readStoredJSON<SavedPreset[]>('gig_filter_presets', [
       { id: 'broken', name: 'Needs Attention', filters: { ...DEFAULT_FILTERS, readiness: 40 } },
       { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes', isApproved: 'yes', hasUgChords: 'yes', hasLyrics: 'yes' } }
-    ];
+    ]);
   });
 
   const savePreset = () => {

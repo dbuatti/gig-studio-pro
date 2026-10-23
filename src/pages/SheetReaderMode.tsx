@@ -37,11 +37,12 @@ import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer';
 import LinkEditorOverlay from '@/components/LinkEditorOverlay';
 import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay';
 import LinkSizeModal from '@/components/LinkSizeModal';
-import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
+import { sortSongsByStrategy, type SortMode } from '@/utils/SetlistGenerator';
 import SongInfoOverlay from '@/components/SongInfoOverlay';
 import KeyReminderPill from '@/components/KeyReminderPill';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useIsMobile } from '@/hooks/use-mobile';
+import { readStoredJSON } from '@/utils/storage';
 
 // Ensure worker is configured
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -214,10 +215,11 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     if (currentSong) {
       const urlToLoad = currentSong.audio_url || currentSong.previewUrl;
-      audioEngine.setPitch(currentSong.pitch || 0);
+      // Use the harmonic-sync pitch so a session stage-key override is heard, not the saved pitch
+      audioEngine.setPitch(effectivePitch);
       audioEngine.setTempo(currentSong.tempo || 1); 
       audioEngine.setFineTune(currentSong.fineTune || 0);
-      if (urlToLoad) audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0, true);
+      if (urlToLoad) audioEngine.loadFromUrl(urlToLoad, effectivePitch, true);
       else audioEngine.resetEngine();
     } else {
       audioEngine.resetEngine();
@@ -231,15 +233,14 @@ const SheetReaderMode: React.FC = () => {
       const readerViewMode = sessionStorage.getItem('reader_view_mode');
       const readerSetlistId = sessionStorage.getItem('reader_setlist_id');
       const targetId = routeSongId || searchParams.get('id');
-      const savedFilters = localStorage.getItem('gig_active_filters');
-      const activeFilters = savedFilters ? JSON.parse(savedFilters) : DEFAULT_FILTERS;
+      const activeFilters = { ...DEFAULT_FILTERS, ...readStoredJSON<Partial<typeof DEFAULT_FILTERS>>('gig_active_filters', {}) };
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
-      const sortMode = (localStorage.getItem('gig_sort_mode') as string) || 'none';
+      const sortMode = (localStorage.getItem('gig_sort_mode') as SortMode) || 'none';
 
       const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
       
-      const masterRepertoireList: SetlistSong[] = (masterData || []).map((d: Record<string, unknown>) => ({
+      const masterRepertoireList: SetlistSong[] = (masterData || []).map((d) => ({
         id: d.id, master_id: d.id, name: d.title, artist: d.artist,
         originalKey: d.original_key ?? 'TBC', targetKey: d.target_key ?? d.original_key ?? 'TBC',
         pitch: d.pitch ?? 0, previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
@@ -309,7 +310,7 @@ const SheetReaderMode: React.FC = () => {
 
       if (sortMode === 'ready') filteredSongs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
       else if (sortMode === 'work') filteredSongs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-      else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') filteredSongs = sortSongsByStrategy(filteredSongs, sortMode);
+      else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp' || sortMode === 'artist') filteredSongs = sortSongsByStrategy(filteredSongs, sortMode);
 
       const readableSongs = filteredSongs.filter(s => s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url);
       setAllSongs(readableSongs);
@@ -469,7 +470,7 @@ const SheetReaderMode: React.FC = () => {
       chordBold: ugChordsChordBold,
       chordColor: ugChordsChordColor,
       lineSpacing: ugChordsLineSpacing,
-      textAlign: ugChordsTextAlign as React.CSSProperties['textAlign'],
+      textAlign: ugChordsTextAlign,
     };
     if (currentSong.ug_chords_config) {
       return { ...baseConfig, ...currentSong.ug_chords_config, fontSize: (currentSong.ug_chords_config.fontSize || ugChordsFontSize) + 1 };

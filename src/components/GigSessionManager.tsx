@@ -19,7 +19,7 @@ interface GigSessionManagerProps {
 
 const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<Record<string, unknown>[]>([]);
+  const [sessions, setSessions] = useState<{ id: string; access_code: string; is_active: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [newCode, setNewCode] = useState("");
@@ -142,7 +142,7 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
         <Button 
           onClick={createSession} 
           disabled={isCreating || !newCode.trim()}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] rounded-xl px-6"
+          className="h-11 bg-indigo-600 text-white hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] rounded-xl px-6"
         >
           {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />} Create
         </Button>

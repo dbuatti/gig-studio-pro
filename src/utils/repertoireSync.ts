@@ -100,10 +100,16 @@ const SUBTASK_LABELS: Record<string, string> = {
  */
 export const getReadinessBreakdown = (song: Partial<SetlistSong>): string[] => {
   if (song.readiness_checklist !== undefined) {
-    const weight = Math.round(100 / TOTAL_SUBTASKS);
+    const weight = 100 / TOTAL_SUBTASKS;
     return Object.entries(SUBTASK_VALIDATORS).map(([id, validator]) => {
-      const done = id === 'confidence' ? (song.comfort_level || 0) > 0 : validator(song);
-      return `${done ? '✅' : '❌'} ${SUBTASK_LABELS[id] || id} (${done ? `+${weight}%` : '0%'})`;
+      if (id === 'confidence') {
+        // Confidence is scored on a sliding scale, same as calculateReadiness
+        const share = Math.round(weight * Math.max(-1, Math.min(1, (song.comfort_level || 0) / 5)));
+        const icon = share > 0 ? '✅' : share < 0 ? '⚠️' : '❌';
+        return `${icon} ${SUBTASK_LABELS[id]} (${share > 0 ? '+' : ''}${share}%)`;
+      }
+      const done = validator(song);
+      return `${done ? '✅' : '❌'} ${SUBTASK_LABELS[id] || id} (${done ? `+${Math.round(weight)}%` : '0%'})`;
     });
   }
 
@@ -127,7 +133,8 @@ export const getReadinessBreakdown = (song: Partial<SetlistSong>): string[] => {
   if (song.isMetadataConfirmed) items.push("✅ Metadata Verified (5%)");
 
   const comfort = song.comfort_level || 0;
-  items.push(`${comfort > 0 ? '✅' : comfort < 0 ? '⚠️' : '❌'} Confidence: ${comfort > 0 ? '+' : ''}${comfort} (${Math.round(Math.max(0, comfort / 5) * 30)}%)`);
+  items.push(`${comfort > 0 ? '✅' : comfort < 0 ? '⚠️' : '❌'} Confidence: ${comfort > 0 ? '+' : ''}${comfort} (${Math.round((comfort / 5) * 30)}%)`);
+  if (song.is_ready_to_sing === false) items.push("⚠️ Not Ready to Sing (-50%)");
 
   return items;
 };
@@ -188,6 +195,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.appleMusicUrl !== undefined) dbUpdates.apple_music_url = song.appleMusicUrl;
     if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdfUrl;
     if (song.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = song.leadsheetUrl;
+    if (song.sheet_music_url !== undefined) dbUpdates.sheet_music_url = song.sheet_music_url;
     
     if (song.pitch !== undefined) dbUpdates.pitch = Number(song.pitch);
     if (song.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(Number(song.duration_seconds || 0));
@@ -272,6 +280,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       appleMusicUrl: result.apple_music_url,
       pdfUrl: result.pdf_url,
       leadsheetUrl: result.leadsheet_url,
+      sheet_music_url: result.sheet_music_url,
       originalKey: result.original_key,
       targetKey: result.target_key,
       pitch: result.pitch ?? 0,

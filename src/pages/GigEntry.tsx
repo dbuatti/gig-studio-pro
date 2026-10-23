@@ -38,7 +38,7 @@ const GigEntry = () => {
               placeholder="E.G. ROCKBAR-25"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="h-20 bg-card border-border rounded-3xl text-center text-3xl font-black uppercase tracking-[0.2em] focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+              className="h-20 bg-card border-border rounded-3xl text-center text-xl sm:text-3xl font-black uppercase tracking-[0.12em] sm:tracking-[0.2em] focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
             />
             <div className="absolute inset-0 rounded-3xl border-2 border-indigo-500/0 group-hover:border-indigo-500/10 pointer-events-none transition-all" />
           </div>

@@ -13,6 +13,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { r2Storage } from '@/utils/r2Storage';
+import { SetlistSong } from './SetlistManager';
 
 interface StorageFile {
   Key: string;
@@ -24,7 +25,7 @@ interface StorageFile {
 interface StorageAuditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  repertoire: Record<string, unknown>[];
+  repertoire: SetlistSong[];
 }
 
 const StorageAuditModal: React.FC<StorageAuditModalProps> = ({ isOpen, onClose, repertoire }) => {
@@ -38,7 +39,7 @@ const StorageAuditModal: React.FC<StorageAuditModalProps> = ({ isOpen, onClose, 
     setIsLoading(true);
     try {
       const files = await r2Storage.list(`${user.id}/`);
-      setStorageFiles(files.map(f => ({ ...f, path: f.Key })));
+      setStorageFiles((files as unknown as Omit<StorageFile, 'path'>[]).map(f => ({ ...f, path: f.Key })));
     } catch (err: unknown) {
       showError(`Failed to scan R2 storage: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -53,16 +54,21 @@ const StorageAuditModal: React.FC<StorageAuditModalProps> = ({ isOpen, onClose, 
   }, [isOpen]);
 
   const auditResults = useMemo(() => {
-    const dbUrls = new Set();
+    const dbUrls = new Set<string>();
     repertoire.forEach(song => {
       if (song.audio_url) dbUrls.add(song.audio_url.split('?')[0]);
       if (song.pdfUrl) dbUrls.add(song.pdfUrl.split('?')[0]);
       if (song.leadsheetUrl) dbUrls.add(song.leadsheetUrl.split('?')[0]);
       if (song.sheet_music_url) dbUrls.add(song.sheet_music_url.split('?')[0]);
+      if (song.previewUrl) dbUrls.add(song.previewUrl.split('?')[0]);
     });
 
+    // With no songs loaded every file would look orphaned and "purge all" would
+    // wipe the bucket, so only flag files once the library is actually present
+    const canJudge = repertoire.length > 0;
+
     return storageFiles.map(file => {
-      const isOrphaned = !Array.from(dbUrls).some((url: unknown) => typeof url === 'string' && url.endsWith(file.path));
+      const isOrphaned = canJudge && !Array.from(dbUrls).some(url => url.endsWith(file.path));
       return { ...file, isOrphaned };
     });
   }, [storageFiles, repertoire]);

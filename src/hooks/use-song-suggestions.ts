@@ -5,6 +5,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { SetlistSong } from '@/components/SetlistManager';
 import { showError } from '@/utils/toast';
 
+/** An AI song suggestion; the edge function has used both naming styles. */
+export interface SongSuggestion {
+  name?: string;
+  title?: string;
+  artist?: string;
+  artistName?: string;
+  reason?: string;
+  [key: string]: unknown;
+}
+
 interface UseSongSuggestionsProps {
   repertoire: SetlistSong[];
   limit?: number;
@@ -12,7 +22,7 @@ interface UseSongSuggestionsProps {
 }
 
 export function useSongSuggestions({ repertoire, limit = 10, activeSetlistSongs = [] }: UseSongSuggestionsProps) {
-  const [suggestions, setSuggestions] = useState<Record<string, unknown>[]>([]);
+  const [suggestions, setSuggestions] = useState<SongSuggestion[]>([]);
   const [ignoredKeys, setIgnored] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +87,7 @@ export function useSongSuggestions({ repertoire, limit = 10, activeSetlistSongs 
 
       const rawBatch = Array.isArray(data) ? data : (data?.suggestions || []);
       
-      const filtered = rawBatch.filter((s: Record<string, unknown>) => {
+      const filtered = rawBatch.filter((s: SongSuggestion) => {
         const songName = s.name || s.title || "";
         const songArtist = s.artist || s.artistName || "";
         const key = getNormalizedKey(songName, songArtist);
@@ -92,10 +102,10 @@ export function useSongSuggestions({ repertoire, limit = 10, activeSetlistSongs 
     }
   }, [repertoire, ignoredKeys, existingKeys, limit]);
 
-  const dismissSuggestion = useCallback((song: Record<string, unknown>) => {
-    const key = getNormalizedKey(song.name || song.title, song.artist || song.artistName || "");
+  const dismissSuggestion = useCallback((song: SongSuggestion) => {
+    const key = getNormalizedKey(song.name || song.title || "", song.artist || song.artistName || "");
     setIgnored(prev => new Set(prev).add(key));
-    setSuggestions(prev => prev.filter(s => getNormalizedKey(s.name || s.title, s.artist || s.artistName || "") !== key));
+    setSuggestions(prev => prev.filter(s => getNormalizedKey(s.name || s.title || "", s.artist || s.artistName || "") !== key));
   }, []);
 
   return {

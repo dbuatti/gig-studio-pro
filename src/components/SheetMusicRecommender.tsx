@@ -17,6 +17,10 @@ interface SheetMusicRecommenderProps {
 
 type ReaderType = 'ug' | 'ls' | 'fn' | null;
 
+/** 'fs' is a legacy alias for Full Score; 'unsure' means no choice made yet. */
+const normalizeReader = (reader: string | null | undefined): ReaderType =>
+  reader === 'fs' ? 'fn' : reader === 'ug' || reader === 'ls' || reader === 'fn' ? reader : null;
+
 const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({ 
   song, 
   formData, 
@@ -32,9 +36,9 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
     
     const determineReader = () => {
       // Check for explicit user preference
-      if (formData.preferred_reader) {
+      if (normalizeReader(formData.preferred_reader)) {
         setIsManualOverride(true);
-        return formData.preferred_reader as ReaderType;
+        return normalizeReader(formData.preferred_reader);
       } else {
         setIsManualOverride(false);
       }
@@ -118,7 +122,7 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
     }
   };
 
-  const currentReader = formData.preferred_reader || recommendedReader;
+  const currentReader = normalizeReader(formData.preferred_reader) || recommendedReader;
 
   return (
     <div className="space-y-4">
@@ -146,8 +150,8 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
           {['ug', 'ls', 'fn'].map((readerKey: ReaderType) => {
             const info = getReaderInfo(readerKey);
             const IconComponent = info.icon;
-            const isActive = formData.preferred_reader === readerKey;
-            const isRecommended = !formData.preferred_reader && recommendedReader === readerKey;
+            const isActive = normalizeReader(formData.preferred_reader) === readerKey;
+            const isRecommended = !normalizeReader(formData.preferred_reader) && recommendedReader === readerKey;
 
             return (
               <Button 

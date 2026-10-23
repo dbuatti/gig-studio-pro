@@ -7,10 +7,33 @@ import { Search, User, Music, ArrowUpDown, UserCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/use-theme';
 import { normalizeSearch } from '@/utils/searchUtils';
+import { PublicTheme } from '@/utils/themes';
+
+export interface PublicSong {
+  id: string;
+  readiness_score?: number;
+  title?: string;
+  name?: string;
+  artist?: string;
+  genre?: string;
+}
+
+export interface PublicProfile {
+  id?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  avatar_url?: string | null;
+  repertoire_bio?: string | null;
+  custom_theme?: string | null;
+  custom_colors?: PublicTheme | null;
+  repertoire_slug?: string | null;
+  repertoire_threshold?: number | null;
+  is_repertoire_public?: boolean | null;
+}
 
 interface PublicRepertoireViewProps {
-  profile: Record<string, unknown>;
-  songs: Record<string, unknown>[];
+  profile: PublicProfile;
+  songs: PublicSong[];
   isPreview?: boolean;
   themes: { name: string; primary: string; background: string; text: string; border: string }[];
 }
@@ -22,17 +45,22 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
 
   const processedSongs = useMemo(() => {
     const q = normalizeSearch(searchTerm);
-    const uniqueMap = new Map();
-    
+    const isUnknown = (artist?: string) => !artist || artist === 'Unknown Artist';
+    // Key on title + artist so same-named songs by different artists both show,
+    // then drop "Unknown Artist" copies of a title that also has a real artist
+    const uniqueMap = new Map<string, PublicSong>();
     songs.forEach(s => {
-      const title = (s.title || s.name || "").trim();
-      const existing = uniqueMap.get(title);
-      if (!existing || (existing.artist === 'Unknown Artist' && s.artist !== 'Unknown Artist')) {
-        uniqueMap.set(title, s);
-      }
+      const key = `${normalizeSearch((s.title || s.name || "").trim())}|${isUnknown(s.artist) ? '' : normalizeSearch(s.artist!)}`;
+      if (!uniqueMap.has(key)) uniqueMap.set(key, s);
     });
+    const knownTitles = new Set(
+      Array.from(uniqueMap.values()).filter(s => !isUnknown(s.artist)).map(s => normalizeSearch((s.title || s.name || "").trim()))
+    );
+    const deduped = Array.from(uniqueMap.values()).filter(s =>
+      !isUnknown(s.artist) || !knownTitles.has(normalizeSearch((s.title || s.name || "").trim()))
+    );
 
-    return Array.from(uniqueMap.values()).filter(s => 
+    return deduped.filter(s => 
       normalizeSearch(s.title || s.name || "").includes(q) || 
       normalizeSearch(s.artist || "").includes(q)
     );
@@ -46,7 +74,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
         return titleA.localeCompare(titleB);
       });
 
-      const alphaGroups: Record<string, Record<string, unknown>[]> = {};
+      const alphaGroups: Record<string, PublicSong[]> = {};
       sorted.forEach(s => {
         const title = (s.title || s.name || "").replace(/^(the |a |an )/i, '');
         const letter = title[0]?.toUpperCase() || '#';
@@ -56,12 +84,12 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
       });
 
       return Object.entries(alphaGroups).map(([letter, items]) => ({
-        letter,
+        label: letter,
         songs: items
       }));
     }
 
-    const groups: Record<string, Record<string, unknown>[]> = {};
+    const groups: Record<string, PublicSong[]> = {};
     processedSongs.forEach(s => {
       const artist = s.artist || 'Unknown Artist';
       if (!groups[artist]) groups[artist] = [];
@@ -77,13 +105,13 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
         return a.localeCompare(b);
       })
       .map(([artist, artistSongs]) => ({
-        artist,
+        label: artist,
         songs: artistSongs.sort((a, b) => (a.title || a.name || "").localeCompare(b.title || b.name || ""))
       }));
   }, [processedSongs, sortMode]);
 
   const colors = useMemo(() => {
-    if (profile.custom_theme) {
+    if (profile?.custom_theme) {
       const preset = themes.find(t => t.name === profile.custom_theme);
       if (preset) return preset;
     }
@@ -93,7 +121,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
       text: 'hsl(var(--foreground))',
       border: 'hsl(var(--border))',
     };
-  }, [profile.custom_theme, themes, theme]);
+  }, [profile?.custom_theme, themes, theme]);
 
   if (!profile) return null;
 
@@ -178,13 +206,13 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 md:gap-x-12 gap-y-10 md:gap-y-16">
-              {(groupedSongs as Record<string, unknown>[]).map((group) => (
-                <section key={sortMode === 'artist' ? group.artist : group.letter} className="space-y-4">
+              {groupedSongs.map((group) => (
+                <section key={group.label} className="space-y-4">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-border pb-2" style={{ color: colors.primary, borderColor: 'hsl(var(--border))' }}>
-                    {sortMode === 'artist' ? group.artist : group.letter}
+                    {group.label}
                   </h3>
                   <div className="flex flex-col gap-2.5">
-                    {group.songs.map((song: Record<string, unknown>) => (
+                    {group.songs.map((song: PublicSong) => (
                       <div key={song.id} className="flex items-center justify-between group py-0.5">
                         <div className="flex flex-col min-w-0">
                           <span className="text-[13px] font-bold tracking-tight group-hover:translate-x-1 transition-transform truncate" style={{ color: colors.text }}>

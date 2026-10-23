@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { nextSortOrder } from '@/utils/sortOrder';
 import { useAuth } from '@/components/AuthProvider';
 import { useSettings } from '@/hooks/use-settings';
 import { usePlayback } from '@/components/PlaybackProvider';
@@ -97,7 +98,7 @@ const Index = () => {
     
     if (sortMode === 'ready') songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     else if (sortMode === 'work') songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-    else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
+    else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp' || sortMode === 'artist') {
       songs = sortSongsByStrategy(songs, sortMode);
     }
     return songs;
@@ -160,7 +161,7 @@ const Index = () => {
         originalKey: d.original_key || 'TBC', targetKey: d.target_key || d.original_key || 'TBC',
         pitch: d.pitch ?? 0, previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         youtubeUrl: d.youtube_url, ugUrl: d.ug_url, appleMusicUrl: d.apple_music_url, 
-        pdfUrl: d.pdf_url, leadsheetUrl: d.leadsheet_url, bpm: d.bpm, genre: d.genre,
+        pdfUrl: d.pdf_url, leadsheetUrl: d.leadsheet_url, sheet_music_url: d.sheet_music_url, bpm: d.bpm, genre: d.genre,
         isSyncing: false, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
         notes: d.notes, lyrics: d.lyrics, resources: d.resources || [], user_tags: d.user_tags || [],
         is_pitch_linked: d.is_pitch_linked ?? true, duration_seconds: d.duration_seconds,
@@ -207,7 +208,7 @@ const Index = () => {
 
   useEffect(() => {
     if (!authLoading && userId) fetchSetlistsAndRepertoire(true);
-    else if (!authLoading && !userId) navigate('/landing');
+    else if (!authLoading && !userId) navigate('/');
   }, [userId, authLoading, fetchSetlistsAndRepertoire, navigate]);
 
   // Modal states
@@ -577,6 +578,7 @@ const Index = () => {
     try {
       const synced = await syncToMasterRepertoire(userId, [newSong]);
       const song = synced[0];
+      if (!song) throw new Error("Sync failed");
       autoVibeCheck(userId, song);
       if (activeDashboardView === 'gigs' && activeSetlistId) await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
       else await fetchSetlistsAndRepertoire();
@@ -593,10 +595,12 @@ const Index = () => {
           showWarning(`"${song.name}" is already in this setlist.`);
           return;
         }
-        await supabase.from('setlist_songs').insert({ setlist_id: setlistId, song_id: songMasterId, sort_order: targetSetlist?.songs.length || 0, set_group: setGroup || 1 });
+        const { error } = await supabase.from('setlist_songs').insert({ setlist_id: setlistId, song_id: songMasterId, sort_order: nextSortOrder(targetSetlist?.songs), set_group: setGroup || 1 });
+        if (error) throw new Error(error.message);
         showSuccess(`"${song.name}" added to setlist.`);
       } else {
-        await supabase.from('setlist_songs').delete().eq('setlist_id', setlistId).eq('song_id', song.master_id || song.id);
+        const { error } = await supabase.from('setlist_songs').delete().eq('setlist_id', setlistId).eq('song_id', song.master_id || song.id);
+        if (error) throw new Error(error.message);
       }
       await fetchSetlistsAndRepertoire();
     } catch (err: unknown) { showError(`Failed to update setlist: ${err instanceof Error ? err.message : String(err)}`); }
@@ -626,6 +630,7 @@ const Index = () => {
     if (!newSetlist) throw new Error("Failed to create setlist");
 
     let sortIndex = 0;
+    let addedCount = 0;
 
     for (const extSong of externalSongs) {
       const synced = await syncToMasterRepertoire(userId, [{
@@ -633,27 +638,34 @@ const Index = () => {
         artist: extSong.artist as string,
       }]);
       if (synced.length > 0) {
-        await supabase.from('setlist_songs').insert({
+        const { error } = await supabase.from('setlist_songs').insert({
           setlist_id: newSetlist.id,
           song_id: synced[0].master_id || synced[0].id,
           sort_order: sortIndex++,
           set_group: (extSong.setGroup as number) || 1,
         });
+        if (!error) addedCount++;
       }
     }
 
     for (const libSong of librarySongs) {
-      await supabase.from('setlist_songs').insert({
+      const { error } = await supabase.from('setlist_songs').insert({
         setlist_id: newSetlist.id,
         song_id: libSong.id,
         sort_order: sortIndex++,
         set_group: libSong.setGroup || 1,
       });
+      if (!error) addedCount++;
     }
 
     await fetchSetlistsAndRepertoire();
     setActiveSetlistId(newSetlist.id);
-    showSuccess(`"${proposedName}" gig created with ${librarySongs.length + externalSongs.length} songs!`);
+    const requestedCount = librarySongs.length + externalSongs.length;
+    if (addedCount < requestedCount) {
+      showWarning(`"${proposedName}" created, but only ${addedCount} of ${requestedCount} songs could be added.`);
+    } else {
+      showSuccess(`"${proposedName}" gig created with ${addedCount} songs!`);
+    }
   }, [userId, fetchSetlistsAndRepertoire]);
 
   const handleAutoLink = useCallback(async () => {

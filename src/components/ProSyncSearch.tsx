@@ -7,17 +7,18 @@ import { Search, Music, Loader2, Check, Globe, Disc, Star, X } from 'lucide-reac
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { searchItunes, type ItunesTrack } from '@/utils/itunes';
 
 interface ProSyncSearchProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (song: Record<string, unknown>) => void;
+  onSelect: (song: ItunesTrack) => void;
   initialQuery?: string;
 }
 
 const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect, initialQuery }) => {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Record<string, unknown>[]>([]);
+  const [results, setResults] = useState<ItunesTrack[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const performSearch = async (searchQuery: string) => {
@@ -25,14 +26,7 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
 
     setIsLoading(true);
     try {
-      const targetUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=25`;
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-      const response = await fetch(proxyUrl);
-      if (response.ok) {
-        const proxyData = await response.json();
-        const data = JSON.parse(proxyData.contents);
-        setResults(data.results || []);
-      }
+      setResults(await searchItunes(searchQuery, 25));
     } catch (err) {
       // Error handled by toast in parent component
     } finally {
@@ -137,7 +131,7 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
                     <div className="shrink-0 flex flex-col items-end gap-1 ml-auto">
                       <Disc className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
                       <span className="text-[9px] font-mono font-bold text-slate-500">
-                        {new Date(song.releaseDate).getFullYear()}
+                        {song.releaseDate ? new Date(song.releaseDate).getFullYear() : ''}
                       </span>
                     </div>
                   </button>

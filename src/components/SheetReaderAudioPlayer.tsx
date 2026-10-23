@@ -106,8 +106,8 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
             isDisabled
               ? "bg-slate-600 cursor-not-allowed"
               : isPlaying
-                ? "bg-red-600 hover:bg-red-700 shadow-[0_0_20px_rgba(220,38,38,0.3)]"
-                : "bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_20px_rgba(79,70,229,0.3)]"
+                ? "bg-red-600 text-white hover:bg-red-700 shadow-[0_0_20px_rgba(220,38,38,0.3)]"
+                : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_0_20px_rgba(79,70,229,0.3)]"
           )}
         >
           {isLoadingAudio || isProcessing ? (
