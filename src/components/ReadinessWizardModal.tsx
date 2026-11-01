@@ -1335,12 +1335,12 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   { label: 'Notes', done: !!(formData.notes && formData.notes.length > 5) },
                 ].map(b => {
                   const isView = b.label === 'Lyrics' || b.label === 'Chords' || (b.label === 'PDF' && b.done);
-                  const isActive = (b.label === 'Lyrics' && activeView === 'lyrics') || (b.label === 'Chords' && activeView === 'chords') || (b.label === 'PDF' && activeView === 'pdf');
+                  const isActive = (b.label === 'Lyrics' && (activeView as string) === 'lyrics') || (b.label === 'Chords' && (activeView as string) === 'chords') || (b.label === 'PDF' && (activeView as string) === 'pdf');
                   if (isView) {
                     return (
                       <button key={b.label}
                         onClick={() => {
-                          if (b.label === 'PDF') setActiveView(activeView === 'pdf' ? 'summary' : 'pdf');
+                          if (b.label === 'PDF') setActiveView((activeView as string) === 'pdf' ? 'summary' : 'pdf');
                           else setActiveView(b.label.toLowerCase() as 'lyrics' | 'chords');
                         }}
                         className={cn(

@@ -15,7 +15,7 @@ interface SheetMusicRecommenderProps {
   onOpenInApp?: (app: string, url?: string) => void;
 }
 
-type ReaderType = 'ug' | 'ls' | 'fn' | null;
+type ReaderType = 'ug' | 'ls' | 'fn' | 'fs' | 'unsure' | null;
 
 const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({ 
   song, 

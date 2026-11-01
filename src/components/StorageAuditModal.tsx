@@ -13,6 +13,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { r2Storage } from '@/utils/r2Storage';
+import { SetlistSong } from './SetlistManager';
 
 interface StorageFile {
   Key: string;
@@ -24,7 +25,7 @@ interface StorageFile {
 interface StorageAuditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  repertoire: Record<string, unknown>[];
+  repertoire: SetlistSong[];
 }
 
 const StorageAuditModal: React.FC<StorageAuditModalProps> = ({ isOpen, onClose, repertoire }) => {
@@ -38,7 +39,7 @@ const StorageAuditModal: React.FC<StorageAuditModalProps> = ({ isOpen, onClose, 
     setIsLoading(true);
     try {
       const files = await r2Storage.list(`${user.id}/`);
-      setStorageFiles(files.map(f => ({ ...f, path: f.Key })));
+      setStorageFiles(files.map(f => ({ ...f, path: String(f.Key) })) as StorageFile[]);
     } catch (err: unknown) {
       showError(`Failed to scan R2 storage: ${err instanceof Error ? err.message : String(err)}`);
     } finally {

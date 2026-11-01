@@ -80,12 +80,12 @@ interface DashboardModalsProps {
   onSelectSong: (song: SetlistSong) => void;
   onUpdateSongInSetlist: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => void;
-  onDeleteSetlist: () => void;
-  onRenameSetlist: (name: string) => void;
-  onReorderSongs: (songs: SetlistSong[]) => void;
+  onDeleteSetlist: (id: string) => void | Promise<void>;
+  onRenameSetlist: (name: string) => void | Promise<void>;
+  onReorderSongs: (songs: SetlistSong[]) => void | Promise<void>;
   onRefreshRepertoire: () => void;
   onAddExistingSong: (song: SetlistSong) => void;
-  onGlobalSearchAdd: (song: SetlistSong) => void;
+  onGlobalSearchAdd: (url: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string) => void;
   onBuildGig: (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: Record<string, unknown>[], setNames: Record<string, string>, stimulusText: string) => Promise<void>;
   onSetSongStudioVisibleSongs: (songs: SetlistSong[] | null) => void;
   onSetSongStudioModalGigId: (id: string | 'library' | null) => void;
@@ -229,7 +229,7 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
       <AdminPanel 
         isOpen={isAdminPanelOpen} 
         onClose={() => setIsAdminPanelOpen(false)} 
-        onRefreshRepertoire={onRefreshRepertoire} 
+        onRefreshRepertoire={async () => { await onRefreshRepertoire(); }} 
         repertoire={masterRepertoire} 
       />
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
@@ -271,9 +271,9 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
             onClose={() => setIsSetlistSettingsOpen(false)} 
             setlistId={activeSetlist.id} 
             setlistName={activeSetlist.name} 
-            onDelete={onDeleteSetlist} 
-            onRename={onRenameSetlist} 
-            onRefresh={onRefreshRepertoire} 
+            onDelete={async (id) => { await onDeleteSetlist(id); }} 
+            onRename={async (name) => { await onRenameSetlist(name); }} 
+            onRefresh={async () => { await onRefreshRepertoire(); }} 
           />
         </>
       )}

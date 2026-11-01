@@ -309,7 +309,7 @@ const SheetReaderMode: React.FC = () => {
 
       if (sortMode === 'ready') filteredSongs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
       else if (sortMode === 'work') filteredSongs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-      else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') filteredSongs = sortSongsByStrategy(filteredSongs, sortMode);
+      else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') filteredSongs = sortSongsByStrategy(filteredSongs, sortMode as any);
 
       const readableSongs = filteredSongs.filter(s => s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url);
       setAllSongs(readableSongs);

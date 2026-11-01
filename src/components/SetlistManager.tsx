@@ -47,6 +47,8 @@ export interface SetlistSong {
   id: string;
   master_id?: string;
   name: string;
+  artworkUrl?: string;
+  set_number?: number;
   artist?: string;
   previewUrl: string;
   youtubeUrl?: string;

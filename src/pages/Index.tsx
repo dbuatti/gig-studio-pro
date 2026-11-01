@@ -41,7 +41,7 @@ import DashboardHeader from '@/components/DashboardHeader';
 import StorageAuditModal from '@/components/StorageAuditModal';
 import RepertoireSummary from '@/components/RepertoireSummary';
 import DashboardModals from '@/components/dashboard/DashboardModals';
-import { sortSongsByStrategy, type SortMode } from '@/utils/SetlistGenerator';
+import { sortSongsByStrategy, type SortMode, type FlowStrategy } from '@/utils/SetlistGenerator';
 import { calculateSemitones } from '@/utils/keyUtils';
 
 const Index = () => {
@@ -98,7 +98,7 @@ const Index = () => {
     if (sortMode === 'ready') songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     else if (sortMode === 'work') songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
     else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
-      songs = sortSongsByStrategy(songs, sortMode);
+      songs = sortSongsByStrategy(songs, sortMode as FlowStrategy);
     }
     return songs;
   }, [activeSetlist, searchTerm, sortMode]);
@@ -929,8 +929,8 @@ const Index = () => {
                   activeSetlistId={activeSetlistId}
                   isFilterOpen={isFilterOpen}
                   setIsFilterOpen={setIsFilterOpen}
-                  sortMode={sortMode}
-                  setSortMode={setSortMode}
+                  sortMode={sortMode as any}
+                  setSortMode={setSortMode as any}
                   activeFilters={activeFilters}
                   setActiveFilters={setActiveFilters}
                   searchTerm={searchTerm}
@@ -959,8 +959,8 @@ const Index = () => {
               onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
               searchTerm={searchTerm} 
               setSearchTerm={setSearchTerm} 
-              sortMode={sortMode} 
-              setSortMode={setSortMode} 
+              sortMode={sortMode as any} 
+              setSortMode={setSortMode as any} 
               activeFilters={activeFilters} 
               setActiveFilters={setActiveFilters} 
               onUpdateSetlistSongs={handleUpdateSetlistSongs} 

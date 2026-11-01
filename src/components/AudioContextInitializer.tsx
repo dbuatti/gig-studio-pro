@@ -17,7 +17,7 @@ function isContextUsable(): boolean {
 }
 
 function recreateToneContext() {
-  try { Tone.getContext().close(); } catch { /* context may already be closed */ }
+  try { (Tone.getContext() as any).close?.(); } catch { /* context may already be closed */ }
   Tone.setContext(new (Tone.Context)());
 }
 
@@ -49,7 +49,7 @@ export function AudioContextInitializer({ children }: { children: React.ReactNod
     const handleVisibility = async () => {
       if (document.visibilityState === 'visible') {
         try {
-          if (Tone.getContext().state === 'suspended' || Tone.getContext().state === 'interrupted') {
+          if (Tone.getContext().state === 'suspended' || (Tone.getContext().state as string) === 'interrupted') {
             await Tone.start();
           }
         } catch (error) {

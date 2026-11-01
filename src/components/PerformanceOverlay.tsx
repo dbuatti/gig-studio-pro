@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import * as Tone from 'tone';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { X, Waves, ShieldCheck, ExternalLink, Check, Menu } from 'lucide-react';
@@ -31,7 +32,7 @@ interface PerformanceOverlayProps {
   onClose: () => void;
   onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
-  analyzer: AnalyserNode | null;
+  analyzer: Tone.Analyser | null;
   onOpenAdmin?: () => void;
   gigId?: string | null;
   isLoadingAudio?: boolean;

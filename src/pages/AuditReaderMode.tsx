@@ -271,7 +271,7 @@ const AuditReaderMode: React.FC = () => {
         } else if (sortMode === 'work') {
           filteredSongs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
         } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
-          filteredSongs = sortSongsByStrategy(filteredSongs, sortMode);
+          filteredSongs = sortSongsByStrategy(filteredSongs, sortMode as any);
         }
       }
 
