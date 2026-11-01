@@ -106,7 +106,8 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
 
   const handleAddExternal = async (song: Record<string, unknown>, index: number) => {
     try {
-      await onAddExternalSong(song, song.setGroup);
+      const setGroup = (song as any).setGroup ?? undefined;
+      await onAddExternalSong(song, setGroup);
       setAddedSongs(prev => new Set(prev).add(`ext-${index}`));
     } catch (err) {
       showError("Failed to add external song.");
@@ -144,7 +145,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
     ...plan.suggestedLibrarySongs.map(s => ({ ...s, type: 'library' as const })),
     ...plan.suggestedExternalSongs.map((s, i) => ({ ...s, type: 'external' as const, extIndex: i }))
   ].reduce((acc, song) => {
-    const group = song.setGroup || 1;
+    const group = (song as any).setGroup || 1;
     if (!acc[group]) acc[group] = [];
     acc[group].push(song);
     return acc;
@@ -339,21 +340,23 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                               );
                             } else {
                               const isAdded = addedSongs.has(`ext-${item.extIndex}`);
-                              const inLibrary = repertoire.some(s => s.name.toLowerCase() === item.name.toLowerCase() && s.artist?.toLowerCase() === item.artist?.toLowerCase());
+                              const itemName = (item as any).name as string ?? '';
+                              const itemArtist = (item as any).artist as string ?? '';
+                              const inLibrary = repertoire.some(s => s.name.toLowerCase() === itemName.toLowerCase() && s.artist?.toLowerCase() === itemArtist.toLowerCase());
                               
                               return (
                                 <div key={`ext-${item.extIndex}`} className="flex items-center justify-between p-3 md:p-4 bg-indigo-600/5 border border-indigo-500/10 rounded-2xl group hover:border-indigo-500/30 transition-all">
                                   <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                                    {item.artworkUrl ? (
-                                      <img src={item.artworkUrl} alt={item.name} className="w-8 h-8 md:w-10 md:h-10 rounded-xl shadow-lg shrink-0" />
+                                    {(item as any).artworkUrl ? (
+                                      <img src={(item as any).artworkUrl} alt={(item as any).name} className="w-8 h-8 md:w-10 md:h-10 rounded-xl shadow-lg shrink-0" />
                                     ) : (
                                       <div className="bg-purple-600/20 p-2 rounded-xl text-purple-400 shrink-0">
                                         <ExternalLink className="w-4 h-4" />
                                       </div>
                                     )}
                                     <div className="min-w-0">
-                                      <p className="text-xs font-black uppercase tracking-tight truncate">{item.name}</p>
-                                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 truncate">{item.artist}</p>
+                                      <p className="text-xs font-black uppercase tracking-tight truncate">{(item as any).name}</p>
+                                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 truncate">{(item as any).artist}</p>
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 md:gap-3 shrink-0">
