@@ -105,6 +105,51 @@ const Index = () => {
 
   const { activeSong, isAutoplayActive } = playback;
 
+  // Global keyboard shortcuts (R = Sheet Reader, P = Stage Mode, ? = cheat sheet, etc.)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable)) {
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      switch (e.key) {
+        case '?':
+          e.preventDefault();
+          setIsShortcutSheetOpen(true);
+          break;
+        case 'p':
+        case 'P':
+          e.preventDefault();
+          setIsPerformanceOverlayOpen(true);
+          break;
+        case 'r':
+        case 'R':
+          e.preventDefault();
+          navigate((activeSong?.master_id || activeSong?.id) ? `/sheet-reader/${activeSong?.master_id || activeSong?.id}` : '/sheet-reader');
+          break;
+        case 'h':
+        case 'H':
+          e.preventDefault();
+          setShowHeatmap((prev) => {
+            const next = !prev;
+            localStorage.setItem('gig_show_heatmap', next.toString());
+            return next;
+          });
+          break;
+        case ' ':
+          e.preventDefault();
+          audio.togglePlayback();
+          break;
+        default:
+          break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [activeSong?.master_id, activeSong?.id, navigate, audio]);
+
   // Selecting a song loads it (and plays it while a set is running), and makes
   // the current setlist view the play queue so next/prev behave as expected.
   const handleSelectSong = useCallback((song: SetlistSong, forceAutoplay = false) => {
@@ -982,7 +1027,7 @@ const Index = () => {
       <FloatingCommandDock 
         onOpenSearch={() => setIsGlobalSearchOpen(true)} 
         onOpenPractice={() => {}} 
-        onOpenReader={(id) => navigate(`/sheet-reader/${id || ''}`)} 
+        onOpenReader={(id) => navigate(id ? `/sheet-reader/${id}` : '/sheet-reader')} 
         onOpenRandomReader={handleOpenRandomReader}
         onOpenAdmin={() => setIsAdminPanelOpen(true)} 
         onOpenPreferences={() => setIsPreferencesOpen(true)} 
@@ -993,7 +1038,7 @@ const Index = () => {
         hasPlayableSong={!!activeSong} 
         isPlaying={audio.isPlaying} 
         onTogglePlayback={audio.togglePlayback} 
-        activeSongId={activeSong?.id} 
+        activeSongId={activeSong?.master_id || activeSong?.id} 
         onSetMenuOpen={setFloatingDockMenuOpen} 
         isMenuOpen={floatingDockMenuOpen} 
         onOpenPerformance={() => setIsPerformanceOverlayOpen(true)} 

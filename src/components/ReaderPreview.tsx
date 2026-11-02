@@ -5,8 +5,10 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { ArrowLeft, FileText, Layout, Guitar, Loader2, Eye } from 'lucide-react';
+import { ArrowLeft, FileText, Layout, Guitar, Loader2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDrag } from '@use-gesture/react';
+import { animated } from '@react-spring/web';
 import { SetlistSong, UGChordsConfig } from './SetlistManager';
 import UGChordsReader from './UGChordsReader';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
@@ -44,6 +46,13 @@ interface ReaderPreviewProps {
  */
 const ReaderPreview: React.FC<ReaderPreviewProps> = ({ song, onExit }) => {
   const isMobile = useIsMobile();
+  const [isLandscape, setIsLandscape] = useState(() => typeof window !== 'undefined' && window.innerWidth > window.innerHeight);
+  const [isWide, setIsWide] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 800);
+  useEffect(() => {
+    const handler = () => { setIsLandscape(window.innerWidth > window.innerHeight); setIsWide(window.innerWidth >= 800); };
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
   const {
     keyPreference,
     ugChordsFontFamily,
@@ -115,17 +124,33 @@ const ReaderPreview: React.FC<ReaderPreviewProps> = ({ song, onExit }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [pdfScale, setPdfScale] = useState<number | null>(null);
+  const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
+  const [pdfNumPages, setPdfNumPages] = useState<number | null>(null);
   const pdfUrl = chartType === 'leadsheet' ? leadUrl : scoreUrl;
+  const showTwoPages = useMemo(() => !isMobile && isLandscape && isWide && chartType !== 'chords', [isMobile, isLandscape, isWide, chartType]);
 
-  useEffect(() => { setPdfDocument(null); setPdfScale(null); }, [pdfUrl, chartType]);
+  useEffect(() => { setPdfDocument(null); setPdfScale(null); setPdfCurrentPage(1); setPdfNumPages(null); }, [pdfUrl, chartType]);
 
-  const fitPdf = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement) => {
+  useEffect(() => {
+    if (showTwoPages && pdfCurrentPage % 2 === 0) setPdfCurrentPage((p) => Math.max(1, p - 1));
+  }, [showTwoPages]);
+
+  const fitPdf = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number, twoPage: boolean) => {
     if (!container || !pdf) return;
     try {
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1 });
-      const scaleX = (container.clientWidth * 0.98) / viewport.width;
-      const scaleY = (container.clientHeight * 0.98) / viewport.height;
+      const page1 = await pdf.getPage(pageNumber);
+      const vp1 = page1.getViewport({ scale: 1 });
+      let totalWidth = vp1.width;
+      let maxHeight = vp1.height;
+      if (twoPage && pageNumber + 1 <= pdf.numPages) {
+        const page2 = await pdf.getPage(pageNumber + 1);
+        const vp2 = page2.getViewport({ scale: 1 });
+        totalWidth += vp2.width;
+        maxHeight = Math.max(maxHeight, vp2.height);
+      }
+      const gap = twoPage ? 16 : 0;
+      const scaleX = (container.clientWidth * 0.98 - gap) / totalWidth;
+      const scaleY = (container.clientHeight * 0.98) / maxHeight;
       setPdfScale(Math.min(scaleX, scaleY));
     } catch (error) {
       console.error('[ReaderPreview] PDF scale error:', error);
@@ -135,11 +160,44 @@ const ReaderPreview: React.FC<ReaderPreviewProps> = ({ song, onExit }) => {
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !pdfDocument) return;
-    fitPdf(pdfDocument, container);
-    const ro = new ResizeObserver(() => fitPdf(pdfDocument, container));
+    fitPdf(pdfDocument, container, pdfCurrentPage, showTwoPages);
+    const ro = new ResizeObserver(() => fitPdf(pdfDocument, container, pdfCurrentPage, showTwoPages));
     ro.observe(container);
     return () => ro.disconnect();
-  }, [pdfDocument, fitPdf]);
+  }, [pdfDocument, pdfCurrentPage, showTwoPages, fitPdf]);
+
+  const goPrevPage = useCallback(() => {
+    const step = showTwoPages ? 2 : 1;
+    setPdfCurrentPage((p) => (p > 1 ? Math.max(1, p - step) : p));
+  }, [showTwoPages]);
+  const goNextPage = useCallback(() => {
+    const step = showTwoPages ? 2 : 1;
+    setPdfCurrentPage((p) => (pdfNumPages && p < pdfNumPages ? Math.min(p + step, pdfNumPages) : p));
+  }, [pdfNumPages, showTwoPages]);
+
+  const navigatedRef = useRef(false);
+  const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
+    if (first) navigatedRef.current = false;
+    if (!down || navigatedRef.current) return;
+    const isFastSwipe = Math.abs(vx) > 0.15;
+    const isLongSwipe = Math.abs(mx) > 40;
+    if (isLongSwipe || isFastSwipe) {
+      navigatedRef.current = true;
+      if (typeof cancel === 'function') cancel();
+      if (dx < 0) goNextPage();
+      else goPrevPage();
+    }
+  }, { threshold: 5, filterTaps: true, axis: 'x' });
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goNextPage(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goPrevPage(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [goNextPage, goPrevPage]);
 
   const emptyLabel = chartType === 'leadsheet' ? 'lead sheet' : 'full score';
 
@@ -215,21 +273,49 @@ const ReaderPreview: React.FC<ReaderPreviewProps> = ({ song, onExit }) => {
             <EmptyChartState label="chords" />
           )
         ) : pdfUrl ? (
-          <Document
-            file={pdfUrl}
-            onLoadSuccess={(pdf) => setPdfDocument(pdf)}
-            onLoadError={(error) => console.error('[ReaderPreview] PDF load error:', error)}
-            loading={<Loader2 className="w-10 h-10 animate-spin text-indigo-400" />}
-            className="flex items-center justify-center"
+          <animated.div
+            {...bind()}
+            style={{ touchAction: 'none', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+            className="relative"
+            onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              if (x < rect.width / 3) goPrevPage();
+              else if (x > (rect.width * 2) / 3) goNextPage();
+            }}
           >
-            <Page
-              pageNumber={1}
-              scale={pdfScale || 1}
-              renderAnnotationLayer={false}
-              renderTextLayer={false}
-              loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-            />
-          </Document>
+            <Document
+              file={pdfUrl}
+              onLoadSuccess={(pdf) => { setPdfDocument(pdf); setPdfNumPages(pdf.numPages); setPdfCurrentPage(1); }}
+              onLoadError={(error) => console.error('[ReaderPreview] PDF load error:', error)}
+              loading={<Loader2 className="w-10 h-10 animate-spin text-indigo-400" />}
+              className="flex items-center justify-center gap-4"
+            >
+              <Page
+                pageNumber={pdfCurrentPage}
+                scale={pdfScale || 1}
+                renderAnnotationLayer={false}
+                renderTextLayer={false}
+                loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+              />
+              {showTwoPages && pdfNumPages && pdfCurrentPage + 1 <= pdfNumPages && (
+                <Page
+                  pageNumber={pdfCurrentPage + 1}
+                  scale={pdfScale || 1}
+                  renderAnnotationLayer={false}
+                  renderTextLayer={false}
+                  loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                />
+              )}
+            </Document>
+            {pdfNumPages && pdfNumPages > 1 && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest backdrop-blur">
+                <button onClick={(e) => { e.stopPropagation(); goPrevPage(); }} disabled={pdfCurrentPage <= 1} className="p-0.5 disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
+                <span>{pdfCurrentPage} / {pdfNumPages}</span>
+                <button onClick={(e) => { e.stopPropagation(); goNextPage(); }} disabled={pdfCurrentPage >= pdfNumPages} className="p-0.5 disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
+              </div>
+            )}
+          </animated.div>
         ) : (
           <EmptyChartState label={emptyLabel} />
         )}

@@ -420,13 +420,29 @@ const SheetReaderMode: React.FC = () => {
     setIsAudioPlayerVisible(isZenMode);
   }, [isZenMode]);
 
-  const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
+  const showTwoPages = useMemo(() => {
+    if (isPortrait) return false;
+    if (typeof window === 'undefined') return false;
+    if (window.innerWidth < 800) return false;
+    return selectedChartType === 'pdf' || selectedChartType === 'leadsheet';
+  }, [isPortrait, selectedChartType]);
+
+  const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number, twoPage: boolean) => {
     if (!container || !pdf) return;
     try {
-      const page = await pdf.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: 1 });
-      const scaleX = (container.clientWidth * 0.98) / viewport.width;
-      const scaleY = (container.clientHeight * 0.98) / viewport.height;
+      const page1 = await pdf.getPage(pageNumber);
+      const vp1 = page1.getViewport({ scale: 1 });
+      let totalWidth = vp1.width;
+      let maxHeight = vp1.height;
+      if (twoPage && pageNumber + 1 <= pdf.numPages) {
+        const page2 = await pdf.getPage(pageNumber + 1);
+        const vp2 = page2.getViewport({ scale: 1 });
+        totalWidth += vp2.width;
+        maxHeight = Math.max(maxHeight, vp2.height);
+      }
+      const gap = twoPage ? 16 : 0;
+      const scaleX = (container.clientWidth * 0.98 - gap) / totalWidth;
+      const scaleY = (container.clientHeight * 0.98) / maxHeight;
       setPdfScale(Math.min(scaleX, scaleY));
     } catch (error) {
       console.error("[SheetReaderMode] Scale error:", error);
@@ -435,11 +451,19 @@ const SheetReaderMode: React.FC = () => {
 
   useEffect(() => {
     const container = chartContainerRef.current;
-    if (!container || !pdfDocument) return; 
-    const resizeObserver = new ResizeObserver(() => calculatePdfScale(pdfDocument, container, pdfCurrentPage));
-    resizeObserver.observe(container);
-    return () => resizeObserver.unobserve(container);
-  }, [pdfDocument, pdfCurrentPage, calculatePdfScale]); 
+    if (!container || !pdfDocument) return;
+    calculatePdfScale(pdfDocument, container, pdfCurrentPage, showTwoPages);
+    const ro = new ResizeObserver(() => calculatePdfScale(pdfDocument, container, pdfCurrentPage, showTwoPages));
+    ro.observe(container);
+    return () => ro.unobserve(container);
+  }, [pdfDocument, pdfCurrentPage, showTwoPages, calculatePdfScale]);
+
+  // Keep the first page of a spread on an odd page when switching to two-page view.
+  useEffect(() => {
+    if (showTwoPages && pdfCurrentPage % 2 === 0) {
+      setPdfCurrentPage((p) => Math.max(1, p - 1));
+    }
+  }, [showTwoPages]); 
 
   const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
     if (first) navigatedRef.current = false;
@@ -449,13 +473,14 @@ const SheetReaderMode: React.FC = () => {
     if (isLongSwipe || isFastSwipe) {
       navigatedRef.current = true; 
       if (typeof cancel === 'function') cancel(); 
+      const step = showTwoPages ? 2 : 1;
       if (dx < 0) { 
         if (selectedChartType === 'chords') handleNext();
-        else if (pdfCurrentPage < (pdfNumPages || 1)) setPdfCurrentPage(prev => prev + 1);
+        else if (pdfCurrentPage < (pdfNumPages || 1)) setPdfCurrentPage(prev => Math.min(prev + step, pdfNumPages || 1));
         else handleNext(); 
       } else { 
         if (selectedChartType === 'chords') handlePrev();
-        else if (pdfCurrentPage > 1) setPdfCurrentPage(prev => prev - 1);
+        else if (pdfCurrentPage > 1) setPdfCurrentPage(prev => Math.max(1, prev - step));
         else handlePrev(); 
       }
     }
@@ -480,6 +505,28 @@ const SheetReaderMode: React.FC = () => {
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   const shouldDisableScroll = disablePortraitPdfScroll && isPortrait && (selectedChartType === 'pdf' || selectedChartType === 'leadsheet');
+
+  // Keyboard navigation for PDF pages / songs
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
+      const step = showTwoPages ? 2 : 1;
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (pdfCurrentPage < (pdfNumPages || 1)) setPdfCurrentPage((p) => Math.min(p + step, pdfNumPages || 1));
+        else handleNext();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (pdfCurrentPage > 1) setPdfCurrentPage((p) => Math.max(1, p - step));
+        else handlePrev();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedChartType, pdfCurrentPage, pdfNumPages, showTwoPages, handleNext, handlePrev]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
@@ -550,9 +597,12 @@ const SheetReaderMode: React.FC = () => {
                       onLoadSuccess={(pdf) => { setPdfNumPages(pdf.numPages); setPdfDocument(pdf); setIsChartContentLoading(false); }}
                       onLoadError={() => setIsChartContentLoading(false)}
                       loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
-                      className="flex items-center justify-center" 
+                      className="flex items-center justify-center gap-4" 
                     >
                       <Page pageNumber={pdfCurrentPage} scale={pdfScale || 1} renderAnnotationLayer={true} renderTextLayer={true} loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />} onRenderSuccess={() => setIsChartContentLoading(false)} inputRef={pageRef} />
+                      {showTwoPages && pdfNumPages && pdfCurrentPage + 1 <= pdfNumPages && (
+                        <Page pageNumber={pdfCurrentPage + 1} scale={pdfScale || 1} renderAnnotationLayer={true} renderTextLayer={true} loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />} />
+                      )}
                     </Document>
                   ) : (
                     <div className="text-slate-500 text-sm italic">No chart asset linked.</div>

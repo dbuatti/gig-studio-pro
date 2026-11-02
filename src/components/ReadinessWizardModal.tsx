@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { r2Storage } from '@/utils/r2Storage';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -136,6 +137,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const [pdfUploading, setPdfUploading] = useState<'score' | 'leadsheet' | null>(null);
   const [pdfPreviewScale, setPdfPreviewScale] = useState<number | null>(null);
   const [pdfPreviewDocument, setPdfPreviewDocument] = useState<PDFDocumentProxy | null>(null);
+  const [pdfPreviewPage, setPdfPreviewPage] = useState(1);
+  const [pdfPreviewNumPages, setPdfPreviewNumPages] = useState<number | null>(null);
   const [previewPdfType, setPreviewPdfType] = useState<'score' | 'leadsheet'>('score');
   const pdfPreviewRef = useRef<HTMLDivElement>(null);
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || '');
@@ -143,6 +146,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   useEffect(() => { setChordsText(formData.ug_chords_text || ''); }, [formData.ug_chords_text]);
   // Always return to the wizard view when the modal is closed.
   useEffect(() => { if (!isOpen) setIsReaderPreview(false); }, [isOpen]);
+  useEffect(() => { setPdfPreviewPage(1); setPdfPreviewNumPages(null); setPdfPreviewDocument(null); setPdfPreviewScale(null); }, [previewPdfType]);
   const handleChordsChange = useCallback((value: string) => {
     setChordsText(value);
     clearTimeout(chordsSaveTimerRef.current);
@@ -539,10 +543,10 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     setPendingOctave(m?.[2] || '');
   }, [formData.highest_note_original]);
 
-  const calculatePdfPreviewScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement) => {
+  const calculatePdfPreviewScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
     if (!container || !pdf) return;
     try {
-      const page = await pdf.getPage(1);
+      const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
       const scaleX = (container.clientWidth * 0.98) / viewport.width;
       const scaleY = (container.clientHeight * 0.98) / viewport.height;
@@ -555,10 +559,21 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   useEffect(() => {
     const container = pdfPreviewRef.current;
     if (!container || !pdfPreviewDocument) return;
-    const resizeObserver = new ResizeObserver(() => calculatePdfPreviewScale(pdfPreviewDocument, container));
+    calculatePdfPreviewScale(pdfPreviewDocument, container, pdfPreviewPage);
+    const resizeObserver = new ResizeObserver(() => calculatePdfPreviewScale(pdfPreviewDocument, container, pdfPreviewPage));
     resizeObserver.observe(container);
     return () => resizeObserver.unobserve(container);
-  }, [pdfPreviewDocument, calculatePdfPreviewScale]);
+  }, [pdfPreviewDocument, pdfPreviewPage, calculatePdfPreviewScale]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (activeView !== 'pdf' || isReaderPreview) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); setPdfPreviewPage((p) => (pdfPreviewNumPages && p < pdfPreviewNumPages ? p + 1 : p)); }
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); setPdfPreviewPage((p) => (p > 1 ? p - 1 : p)); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [activeView, isReaderPreview, pdfPreviewNumPages]);
 
   // PDF upload — one handler per document type so a song can hold both a full score and a lead sheet.
   const uploadPdf = useCallback(async (acceptedFiles: File[], type: 'score' | 'leadsheet') => {
@@ -1294,25 +1309,44 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   ← Back to Summary
                 </button>
               </div>
-              <div ref={pdfPreviewRef} className="rounded-xl bg-white/5 border border-white/10 overflow-hidden flex-1 min-h-0 flex items-center justify-center">
+              <div ref={pdfPreviewRef} className="rounded-xl bg-white/5 border border-white/10 overflow-hidden flex-1 min-h-0 flex items-center justify-center relative">
                 {(() => {
                   const pdfUrl = previewPdfType === 'leadsheet' ? formData.leadsheetUrl : formData.pdfUrl;
                   return pdfUrl ? (
-                    <Document
-                      file={pdfUrl}
-                      onLoadSuccess={(pdf) => setPdfPreviewDocument(pdf)}
-                      onLoadError={(error) => console.error("[ReadinessWizard] PDF load error:", error)}
-                      loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-                      className="flex items-center justify-center"
-                    >
-                      <Page
-                        pageNumber={1}
-                        scale={pdfPreviewScale || 1}
-                        renderAnnotationLayer={false}
-                        renderTextLayer={false}
-                        loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-                      />
-                    </Document>
+                    <>
+                      <div
+                        className="w-full h-full flex items-center justify-center"
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const x = e.clientX - rect.left;
+                          if (x < rect.width / 3) setPdfPreviewPage((p) => (p > 1 ? p - 1 : p));
+                          else if (x > (rect.width * 2) / 3) setPdfPreviewPage((p) => (pdfPreviewNumPages && p < pdfPreviewNumPages ? p + 1 : p));
+                        }}
+                      >
+                        <Document
+                          file={pdfUrl}
+                          onLoadSuccess={(pdf) => { setPdfPreviewDocument(pdf); setPdfPreviewNumPages(pdf.numPages); setPdfPreviewPage(1); }}
+                          onLoadError={(error) => console.error("[ReadinessWizard] PDF load error:", error)}
+                          loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                          className="flex items-center justify-center"
+                        >
+                          <Page
+                            pageNumber={pdfPreviewPage}
+                            scale={pdfPreviewScale || 1}
+                            renderAnnotationLayer={false}
+                            renderTextLayer={false}
+                            loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                          />
+                        </Document>
+                      </div>
+                      {pdfPreviewNumPages && pdfPreviewNumPages > 1 && (
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full bg-black/70 border border-white/10 text-white text-[9px] font-black uppercase tracking-widest">
+                          <button onClick={() => setPdfPreviewPage((p) => (p > 1 ? p - 1 : p))} disabled={pdfPreviewPage <= 1} className="p-0.5 disabled:opacity-30"><ChevronLeft className="w-3.5 h-3.5" /></button>
+                          <span>{pdfPreviewPage} / {pdfPreviewNumPages}</span>
+                          <button onClick={() => setPdfPreviewPage((p) => (pdfPreviewNumPages && p < pdfPreviewNumPages ? p + 1 : p))} disabled={pdfPreviewPage >= (pdfPreviewNumPages || 1)} className="p-0.5 disabled:opacity-30"><ChevronRight className="w-3.5 h-3.5" /></button>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="flex items-center justify-center h-full text-slate-600 text-xs font-bold uppercase tracking-widest">
                       No {previewPdfType === 'leadsheet' ? 'Lead Sheet' : 'Full Score'} linked yet
