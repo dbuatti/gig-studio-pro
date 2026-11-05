@@ -62,6 +62,7 @@ const Index = () => {
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isBulkDownloading, setIsBulkDownloading] = useState(false);
   const [isShuffleAllMode, setIsShuffleAllMode] = useState(false);
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
   const [isShortcutSheetOpen, setIsShortcutSheetOpen] = useState(false);
@@ -725,6 +726,11 @@ const Index = () => {
     [masterRepertoire]
   );
 
+  const missingAudioCount = useMemo(
+    () => masterRepertoire.filter(s => s.extraction_status !== 'completed').length,
+    [masterRepertoire]
+  );
+
   const handleRetryFailed = useCallback(async () => {
     const failed = masterRepertoire.filter(s => s.extraction_status === 'failed' && s.name && s.artist);
     if (failed.length === 0) {
@@ -748,6 +754,38 @@ const Index = () => {
       showError(`Retry failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, [masterRepertoire, fetchSetlistsAndRepertoire]);
+
+  const handleBulkRefreshAudio = useCallback(async () => {
+    if (!userId) return;
+    // Only queue songs that aren't completed AND have a YouTube link the Render worker can download.
+    const toQueue = masterRepertoire.filter(
+      s => s.extraction_status !== 'completed' && s.youtubeUrl && s.youtubeUrl.trim() !== "" && s.name && s.artist
+    );
+    const missingLinkCount = masterRepertoire.filter(
+      s => s.extraction_status !== 'completed' && (!s.youtubeUrl || s.youtubeUrl.trim() === "")
+    ).length;
+
+    if (toQueue.length === 0) {
+      if (missingLinkCount > 0) {
+        showInfo(`${missingLinkCount} track(s) still need a YouTube link before audio can be queued. Use "YouTube" discovery first.`);
+      } else {
+        showInfo("All tracks already have audio downloaded.");
+      }
+      return;
+    }
+
+    setIsBulkDownloading(true);
+    try {
+      const ids = toQueue.map(s => s.master_id || s.id);
+      await supabase.from('repertoire').update({ extraction_status: 'queued' }).in('id', ids);
+      showSuccess(`Queued ${toQueue.length} track(s) for audio download.`);
+      fetchSetlistsAndRepertoire();
+    } catch (err) {
+      showError(`Failed to queue audio: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsBulkDownloading(false);
+    }
+  }, [userId, masterRepertoire, fetchSetlistsAndRepertoire, supabase]);
 
   const handleClearAutoLinks = useCallback(async () => {
     const autoLinked = masterRepertoire.filter(s => s.metadata_source === 'auto_populated');
@@ -1019,6 +1057,9 @@ const Index = () => {
               onClearAutoLinks={handleClearAutoLinks}
               onRetryFailed={handleRetryFailed}
               retryFailedCount={retryFailedCount}
+              onBulkRefreshAudio={handleBulkRefreshAudio}
+              missingAudioCount={missingAudioCount}
+              isBulkDownloading={isBulkDownloading}
             />
           </TabsContent>
         </Tabs>

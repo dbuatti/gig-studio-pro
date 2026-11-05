@@ -1,0 +1,289 @@
+{
+  "id": "ce4c8c9b-99e4-4eb5-b92d-1c2cd31cef23",
+  "user_id": "6f9fd115-fae0-4d91-8840-471220c1b774",
+  "name": "Burwood 4 Dec",
+  "songs": [
+    {
+      "id": "e3623b90-2fa9-42c4-b9b1-45ab869080c8",
+      "name": "Christmas Time Is Here",
+      "artist": "Vince Guaraldi",
+      "duration_seconds": 240,
+      "set_group": 1
+    },
+    {
+      "id": "a17a499c-7803-497d-8079-bad21ae7b733",
+      "name": "The Christmas Song",
+      "artist": "Nat King Cole",
+      "duration_seconds": 220,
+      "set_group": 1
+    },
+    {
+      "id": "8a9d25bd-e034-415d-baf8-2e95df2dabe5",
+      "name": "Fly Me to the Moon",
+      "artist": "Frank Sinatra",
+      "duration_seconds": 200,
+      "set_group": 1
+    },
+    {
+      "id": "8b975a50-4374-4e32-a440-a9609ec1e451",
+      "name": "Have Yourself a Merry Little Christmas",
+      "artist": "Judy Garland",
+      "duration_seconds": 230,
+      "set_group": 1
+    },
+    {
+      "id": "d6ed84ac-7156-4798-80a5-b6b7abfb2a59",
+      "name": "Moon River",
+      "artist": "Henry Mancini",
+      "duration_seconds": 180,
+      "set_group": 1
+    },
+    {
+      "id": "7edef821-c1b0-4662-95b1-31fcb395023c",
+      "name": "Let It Snow",
+      "artist": "Dean Martin",
+      "duration_seconds": 190,
+      "set_group": 1
+    },
+    {
+      "id": "be48c9fb-42d8-4eca-a7a0-558b2115ffa8",
+      "name": "Improvised interlude",
+      "artist": "Daniele Buatti (improvised)",
+      "duration_seconds": 330,
+      "set_group": 1
+    },
+    {
+      "id": "969289c9-c793-4ccf-9a12-dd100a11abf5",
+      "name": "Winter Wonderland",
+      "artist": "Dean Martin",
+      "duration_seconds": 210,
+      "set_group": 1
+    },
+    {
+      "id": "4edbaaed-4d44-466c-9be1-c65048757a1a",
+      "name": "For Good (Wicked)",
+      "artist": "Stephen Schwartz",
+      "duration_seconds": 220,
+      "set_group": 1
+    },
+    {
+      "id": "388fcd9a-3dd8-4df0-a970-9cb62e96b42c",
+      "name": "Somewhere Over the Rainbow",
+      "artist": "Harold Arlen",
+      "duration_seconds": 230,
+      "set_group": 1
+    },
+    {
+      "id": "1a66594e-87c9-4492-881b-608df2e33478",
+      "name": "White Christmas",
+      "artist": "Bing Crosby",
+      "duration_seconds": 190,
+      "set_group": 1
+    },
+    {
+      "id": "da2da954-a50e-4f75-abff-7779d38a7200",
+      "name": "Your Song",
+      "artist": "Elton John",
+      "duration_seconds": 210,
+      "set_group": 1
+    },
+    {
+      "id": "ce1abfbb-4d18-4dc3-9be1-20725029d9a2",
+      "name": "Linus and Lucy",
+      "artist": "Vince Guaraldi",
+      "duration_seconds": 220,
+      "set_group": 1
+    },
+    {
+      "id": "39dc0324-cf03-4579-897c-9e7a67d76ad4",
+      "name": "It's Beginning to Look a Lot Like Christmas",
+      "artist": "Meredith Willson",
+      "duration_seconds": 200,
+      "set_group": 2
+    },
+    {
+      "id": "cc14b212-e52d-4f16-a193-043fd1973a09",
+      "name": "Jingle Bell Rock",
+      "artist": "Bobby Helms",
+      "duration_seconds": 190,
+      "set_group": 2
+    },
+    {
+      "id": "e98031e4-974c-4af8-ac83-e97826955e06",
+      "name": "Last Christmas",
+      "artist": "Wham!",
+      "duration_seconds": 210,
+      "set_group": 2
+    },
+    {
+      "id": "22cadaed-f1bf-4bb1-a97f-bf58df7b456d",
+      "name": "City of Stars (La La Land)",
+      "artist": "Justin Hurwitz",
+      "duration_seconds": 200,
+      "set_group": 2
+    },
+    {
+      "id": "8d880fb8-0f72-4c0e-b77f-802f5e1aa871",
+      "name": "Sleigh Ride",
+      "artist": "Leroy Anderson",
+      "duration_seconds": 210,
+      "set_group": 2
+    },
+    {
+      "id": "7a0a0041-e7cd-4c90-b5be-acc2677383a9",
+      "name": "All I Want for Christmas Is You",
+      "artist": "Mariah Carey",
+      "duration_seconds": 200,
+      "set_group": 2
+    },
+    {
+      "id": "dcd6a965-dfbc-46fd-8ec4-cb29f3b9da98",
+      "name": "Isn't She Lovely",
+      "artist": "Stevie Wonder",
+      "duration_seconds": 220,
+      "set_group": 2
+    },
+    {
+      "id": "0f0c4648-146a-4fc4-bf1b-a21db29a56d5",
+      "name": "Rockin' Around the Christmas Tree",
+      "artist": "Brenda Lee",
+      "duration_seconds": 190,
+      "set_group": 2
+    },
+    {
+      "id": "bf552539-6292-479e-88a2-caea2d8bbb1d",
+      "name": "Improvised interlude",
+      "artist": "Daniele Buatti (improvised)",
+      "duration_seconds": 330,
+      "set_group": 2
+    },
+    {
+      "id": "7f1d504e-3292-4747-bd45-2c18a468964d",
+      "name": "Santa Claus Is Comin' to Town",
+      "artist": "J. Fred Coots",
+      "duration_seconds": 200,
+      "set_group": 2
+    },
+    {
+      "id": "d518eaa8-7a3c-46d3-9a16-ee81784813df",
+      "name": "Feliz Navidad",
+      "artist": "Jos\u00e9 Feliciano",
+      "duration_seconds": 200,
+      "set_group": 2
+    },
+    {
+      "id": "fba1272b-1df9-46a9-8008-0d2e3b0b073c",
+      "name": "Hallelujah",
+      "artist": "Leonard Cohen",
+      "duration_seconds": 240,
+      "set_group": 2
+    },
+    {
+      "id": "f8028b1b-6e6b-4fca-a959-b63fcb643e03",
+      "name": "Silent Night",
+      "artist": "Traditional",
+      "duration_seconds": 180,
+      "set_group": 2
+    },
+    {
+      "id": "b1ff37ee-a255-449e-87ee-5ba68ff0e006",
+      "name": "O Holy Night",
+      "artist": "Adolphe Adam",
+      "duration_seconds": 0,
+      "set_group": 3
+    },
+    {
+      "id": "bbac5f97-a4c8-4eec-9c66-a6dae8cc4f3d",
+      "name": "The Holly and the Ivy",
+      "artist": "Traditional",
+      "duration_seconds": 0,
+      "set_group": 3
+    },
+    {
+      "id": "1a28ceea-820a-47fd-a00a-77722bc6378f",
+      "name": "Deck the Halls",
+      "artist": "Traditional",
+      "duration_seconds": 0,
+      "set_group": 3
+    },
+    {
+      "id": "f3cf3629-1c29-438e-b382-f8b755c4069e",
+      "name": "Blue Christmas",
+      "artist": "Elvis Presley",
+      "duration_seconds": 0,
+      "set_group": 3
+    },
+    {
+      "id": "48e9bcd4-3285-434a-aea0-4fe3c39fe1e3",
+      "name": "Autumn Leaves",
+      "artist": "Joseph Kosma",
+      "duration_seconds": 0,
+      "set_group": 3
+    },
+    {
+      "id": "45dcc3e6-2752-427e-ab80-3bb8a64f02e4",
+      "name": "The Way You Look Tonight",
+      "artist": "Jerome Kern",
+      "duration_seconds": 0,
+      "set_group": 3
+    },
+    {
+      "id": "2cbdd3db-172a-4788-a65b-1625196d68f9",
+      "name": "What a Wonderful World",
+      "artist": "Louis Armstrong",
+      "duration_seconds": 139,
+      "set_group": 3
+    },
+    {
+      "id": "9e6c3f6a-9dde-43c3-91e0-57af0afe7475",
+      "name": "Gymnop\u00e9die No. 1",
+      "artist": "Erik Satie",
+      "duration_seconds": 0,
+      "set_group": 3
+    },
+    {
+      "id": "4fc6fc76-1815-4a75-a0e3-e962c02afccf",
+      "name": "Clair de Lune",
+      "artist": "Claude Debussy",
+      "duration_seconds": 0,
+      "set_group": 3
+    },
+    {
+      "id": "405135b9-bcff-4a5b-beb7-3ac9fb57f875",
+      "name": "Bach Prelude in C",
+      "artist": "J.S. Bach",
+      "duration_seconds": 0,
+      "set_group": 3
+    },
+    {
+      "id": "57b3daa6-3477-4792-8aaf-5ed2c619b016",
+      "name": "Perfect",
+      "artist": "Ed Sheeran",
+      "duration_seconds": 0,
+      "set_group": 3
+    },
+    {
+      "id": "05f7d8b3-8966-45c1-b12b-92c9348bd082",
+      "name": "A Thousand Years",
+      "artist": "Christina Perri",
+      "duration_seconds": 0,
+      "set_group": 3
+    },
+    {
+      "id": "b3a303a5-12e8-49d7-a2fb-509c5d80dbe4",
+      "name": "Clocks",
+      "artist": "Coldplay",
+      "duration_seconds": 0,
+      "set_group": 3
+    }
+  ],
+  "created_at": "2026-11-05 09:00:00+00",
+  "updated_at": "2026-11-05 09:00:00+00",
+  "time_goal": 6000,
+  "set_names": {
+    "1": "Set 1 \u2014 6:00 to 6:50",
+    "2": "Set 2 \u2014 7:00 to 7:50",
+    "3": "Spares"
+  },
+  "stimulus_text": "Cafe activation at Burwood Village, 1393-1395 Toorak Rd, Camberwell, Fri 4 Dec 2026. Two relaxed 50-minute instrumental sets of festive piano (6:00-6:50, 7:00-7:50). Arrive 5:15pm. Battery gear only (Casio PX-S1000 + amp), play under canopy if rain. Fee $350, invoice invoice@artist-bookings.com subject INVOICE. Festive dress."
+}
