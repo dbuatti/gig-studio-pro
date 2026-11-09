@@ -52,12 +52,6 @@
       "duration_seconds": 0
     },
     {
-      "id": "cdb609c7-77d1-463f-ac97-5864ad142c84",
-      "name": "Corcovado",
-      "artist": "Antônio Carlos Jobim",
-      "duration_seconds": 210
-    },
-    {
       "id": "8552491f-00f2-4292-b20c-a3d1e6bc03d4",
       "name": "Moon River",
       "artist": "Andy Williams",
@@ -68,12 +62,6 @@
       "name": "Dangerous Woman",
       "artist": "Ariana Grande",
       "duration_seconds": 210
-    },
-    {
-      "id": "459a1eeb-3ac7-4472-bc8d-701f537cc529",
-      "name": "L-O-V-E",
-      "artist": "Nat \"King\" Cole",
-      "duration_seconds": 208
     },
     {
       "id": "22908a17-36a5-43ce-9201-38a68c86f30c",
@@ -92,6 +80,12 @@
       "name": "Night and Day",
       "artist": "Frank Sinatra",
       "duration_seconds": 0
+    },
+    {
+      "id": "459a1eeb-3ac7-4472-bc8d-701f537cc529",
+      "name": "L-O-V-E",
+      "artist": "Nat \"King\" Cole",
+      "duration_seconds": 208
     }
   ],
   "created_at": "2026-11-20 06:30:00+00",
