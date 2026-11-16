@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface SystemToolsDropdownProps {
   onOpenAdmin: () => void;
   onOpenMDAudit: () => void;
+  onOpenStorageAudit: () => void;
   onToggleShuffleAll: () => void;
   isShuffleAllMode: boolean;
   onOpenKeyMatrix: () => void;
@@ -31,6 +32,7 @@ interface SystemToolsDropdownProps {
 const SystemToolsDropdown: React.FC<SystemToolsDropdownProps> = ({
   onOpenAdmin,
   onOpenMDAudit,
+  onOpenStorageAudit,
   onToggleShuffleAll,
   isShuffleAllMode,
   onOpenKeyMatrix,
@@ -88,6 +90,9 @@ const SystemToolsDropdown: React.FC<SystemToolsDropdownProps> = ({
         </DropdownMenuLabel>
         <DropdownMenuItem onClick={onOpenAdmin} className="h-11 rounded-xl text-xs font-bold uppercase gap-3 text-indigo-400">
           <ShieldAlert className="w-4 h-4" /> System Administration
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onOpenStorageAudit} className="h-11 rounded-xl text-xs font-bold uppercase gap-3 text-amber-400 focus:text-amber-300 focus:bg-amber-500/10">
+          <Database className="w-4 h-4" /> Storage Audit
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onOpenKeyMatrix} className="h-11 rounded-xl text-xs font-bold uppercase gap-3">
           <Hash className="w-4 h-4 text-indigo-400" /> Key Matrix

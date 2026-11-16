@@ -5,7 +5,7 @@ import { SetlistSong, EnergyZone } from './SetlistManager';
 import { 
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle, 
   ShieldCheck, ArrowRight, Check, ChevronDown, 
-  ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Target
+  ChevronUp, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Target
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
@@ -192,13 +192,6 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
       <td className="px-3 text-right pr-4 w-40">
         <div className="flex items-center justify-end gap-1">
           <SetlistMultiSelector songMasterId={song.master_id || song.id} allSetlists={allSetlists} songToAssign={song} onUpdateSetlistSongs={onUpdateSetlistSongs} />
-          <button
-            className="h-8 w-8 rounded-xl text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all inline-flex items-center justify-center"
-            onClick={(e) => { e.stopPropagation(); onEdit(song); }}
-            aria-label="Edit song"
-          >
-            <Edit3 className="w-4 h-4" />
-          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="h-8 w-8 rounded-xl text-slate-400 hover:bg-white/5 inline-flex items-center justify-center">

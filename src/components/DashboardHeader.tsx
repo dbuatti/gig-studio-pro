@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Command, HardDrive, LayoutDashboard, Library, LogOut, Waves } from 'lucide-react';
+import { Command, LayoutDashboard, Library, LogOut, Waves } from 'lucide-react';
 import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SystemToolsDropdown from './SystemToolsDropdown';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,14 +61,6 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         </div>
         
         <div className="flex flex-wrap items-center gap-4 md:gap-5 w-full md:w-auto">
-          <Button
-            variant="outline"
-            onClick={onOpenStorageAudit}
-            className="flex-1 md:flex-none h-11 md:h-14 px-5 md:px-8 rounded-2xl md:rounded-[1.5rem] text-amber-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px] md:text-[12px] gap-3 md:gap-4 shadow-xl"
-          >
-            <HardDrive className="w-4.5 h-4.5 md:w-5.5 md:h-5.5" /> <span className="hidden sm:inline">Storage Audit</span><span className="sm:hidden">Storage</span>
-          </Button>
-          
           <SystemToolsDropdown
             onOpenAdmin={onOpenAdmin}
             onOpenMDAudit={onOpenMDAudit}
