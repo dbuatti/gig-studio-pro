@@ -502,8 +502,6 @@ const SheetReaderMode: React.FC = () => {
     return baseConfig;
   }, [currentSong, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
 
-  if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
-
   const shouldDisableScroll = disablePortraitPdfScroll && isPortrait && (selectedChartType === 'pdf' || selectedChartType === 'leadsheet');
 
   // Keyboard navigation for PDF pages / songs
@@ -527,6 +525,8 @@ const SheetReaderMode: React.FC = () => {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [selectedChartType, pdfCurrentPage, pdfNumPages, showTwoPages, handleNext, handlePrev]);
+
+  if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
