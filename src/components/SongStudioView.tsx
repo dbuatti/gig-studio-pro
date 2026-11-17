@@ -119,6 +119,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       
       const syncedSongs = await syncToMasterRepertoire(user.id, [identifyingUpdates]);
       const syncedSong = syncedSongs[0];
+      if (!syncedSong) throw new Error("Failed to save song to repertoire");
 
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));

@@ -134,6 +134,7 @@ export const getReadinessBreakdown = (song: Partial<SetlistSong>): string[] => {
 
 export const syncToMasterRepertoire = async (userId: string, songsToSync: Partial<SetlistSong>[]): Promise<SetlistSong[]> => {
   const syncedSongs: SetlistSong[] = [];
+  let lastError: unknown = null;
   // Syncing songs to master repertoire
 
   for (const song of songsToSync) {
@@ -258,6 +259,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
 
     if (error) {
       console.error(`[repertoireSync] Failed to sync song ${song.name}:`, error);
+      lastError = error;
       continue;
     }
 
@@ -310,8 +312,13 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     } as SetlistSong);
     } catch (err) {
       console.error(`[repertoireSync] Unexpected error syncing song ${song.name}:`, err);
+      lastError = err;
     }
   }
 
+  if (songsToSync.length > 0 && syncedSongs.length === 0) {
+    const message = lastError instanceof Error ? lastError.message : (lastError ? String(lastError) : "Failed to sync to repertoire");
+    throw new Error(message);
+  }
   return syncedSongs;
 };
