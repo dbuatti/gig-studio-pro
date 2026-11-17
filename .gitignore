@@ -30,3 +30,6 @@ cookies.txt
 .dyad/
 .aider*
 scripts/
+
+# Vercel
+.vercel/
