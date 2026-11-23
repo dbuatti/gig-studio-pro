@@ -13,7 +13,14 @@ export default defineConfig(() => ({
     dyadComponentTagger(), 
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt" (NOT "autoUpdate"): with "prompt" a newly-detected service
+      // worker installs silently and WAITS. It never calls skipWaiting() /
+      // clientsClaim(), so it can never take over and reload the live page.
+      // Updates are applied only on the next full load / app reopen.
+      // "autoUpdate" was the cause of random mid-gig refreshes: the SW update
+      // check can fire at any moment, and on iPadOS standalone PWAs claiming a
+      // client reloads the PWA to apply the new version.
+      registerType: "prompt",
       includeAssets: ["favicon.svg", "apple-touch-icon.svg"],
       manifest: {
         name: "Gig Studio Pro",
@@ -63,5 +70,21 @@ export default defineConfig(() => ({
       'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
     },
   },
-  optimizeDeps: {},
+  optimizeDeps: {
+    // Pre-bundle the heavy, lazily-loaded route dependencies at server start so
+    // Vite never discovers a new dependency mid-session and triggers a
+    // full-page reload ("new dependencies optimized, reloading") during a gig.
+    include: [
+      "react-pdf",
+      "pdfjs-dist",
+      "@react-spring/web",
+      "@use-gesture/react",
+      "react-beautiful-dnd",
+      "embla-carousel-react",
+      "recharts",
+      "meyda",
+      "web-audio-beat-detector",
+      "tone",
+    ],
+  },
 }));
