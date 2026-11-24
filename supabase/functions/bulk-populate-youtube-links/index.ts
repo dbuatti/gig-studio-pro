@@ -51,7 +51,7 @@ serve(async (req) => {
       try {
         const { data: song, error: fetchErr } = await supabaseAdmin
           .from('repertoire')
-          .select('id, title, artist')
+          .select('id, title, artist, genre, energy_level')
           .eq('id', id)
           .single();
 
@@ -59,83 +59,28 @@ serve(async (req) => {
 
         await supabaseAdmin.from('repertoire').update({ sync_status: 'SYNCING', last_sync_log: 'Discovery engine active...' }).eq('id', id);
 
-        const itunesQuery = encodeURIComponent(`${song.artist} ${song.title}`);
-        let refDurationSec = 0;
-        try {
-          const itunesRes = await fetch(`https://itunes.apple.com/search?term=${itunesQuery}&entity=song&limit=1`);
-          if (itunesRes.ok) {
-            const itunesData = await itunesRes.json();
-            const topItunes = itunesData.results?.[0];
-            refDurationSec = topItunes ? Math.floor(topItunes.trackTimeMillis / 1000) : 0;
-          }
-        } catch (e) {}
+        const isJazz = (song.genre || '').toLowerCase().includes('jazz') ||
+          (song.energy_level || '').toLowerCase() === 'ambient' ||
+          /jazz|sinatra|standards|blue|moon/i.test(song.title + ' ' + song.artist);
 
-        const queries = [
-          `${song.artist} - ${song.title} (Official Audio)`,
-          `${song.artist} - ${song.title} (Official lyric)`,
-          `${song.artist} - ${song.title}`
-        ];
+        // Prioritise male jazz singers (Michael Bublé, Sammy Davis Jr) for jazz standards
+        const primaryQuery = isJazz
+          ? `Michael Bublé ${song.title}`
+          : `${song.artist} ${song.title}`;
 
-        let videos: any[] = [];
-        let searchSuccess = false;
+        // Use yt-dlp's built-in YouTube search (ytsearch1:) so we don't depend on
+        // fragile Invidious instances. The Render worker resolves it at download time.
+        const youtubeUrl = `ytsearch1:${primaryQuery}`;
+        lastSyncLog = `Bound via ytsearch: ${primaryQuery}`;
 
-        for (const query of queries) {
-          if (searchSuccess) break;
-          
-          for (const instance of INVIDIOUS_INSTANCES) {
-            try {
-              const ytRes = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(query)}`);
-              if (ytRes.ok) {
-                const data = await ytRes.json();
-                const filtered = data?.filter?.((v: any) => v.type === "video") || [];
-                if (filtered.length > 0) {
-                  videos = filtered;
-                  searchSuccess = true;
-                  break;
-                }
-              }
-            } catch (e) {}
-          }
-        }
+        await supabaseAdmin.from('repertoire').update({
+          youtube_url: youtubeUrl,
+          metadata_source: 'auto_populated',
+          sync_status: 'COMPLETED',
+          last_sync_log: lastSyncLog
+        }).eq('id', id);
 
-        if (!searchSuccess) {
-          throw new Error('No searchable records found across instances.');
-        }
-
-        const songTitleLower = song.title.toLowerCase();
-        const findMatch = (tolerance: number | null) => {
-          return videos.find(v => {
-            const vTitleLower = v.title.toLowerCase();
-            const containsForbidden = EXCLUDED_KEYWORDS.some(kw => 
-              vTitleLower.includes(kw) && !songTitleLower.includes(kw)
-            );
-            if (containsForbidden) return false;
-
-            if (tolerance !== null && refDurationSec > 0) {
-              const diff = Math.abs(v.durationSeconds - refDurationSec);
-              return diff <= tolerance;
-            }
-            return true;
-          });
-        };
-
-        let matchedVideo = findMatch(20) || findMatch(60) || findMatch(null);
-
-        if (matchedVideo) {
-          const youtubeUrl = `https://www.youtube.com/watch?v=${matchedVideo.videoId}`;
-          lastSyncLog = `Bound: ${matchedVideo.videoId}`;
-          
-          await supabaseAdmin.from('repertoire').update({
-            youtube_url: youtubeUrl,
-            metadata_source: 'auto_populated',
-            sync_status: 'COMPLETED',
-            last_sync_log: lastSyncLog
-          }).eq('id', id);
-
-          results.push({ id, status: 'SUCCESS', title: song.title, videoId: matchedVideo.videoId });
-        } else {
-          throw new Error("No criteria-matched YouTube records found.");
-        }
+        results.push({ id, status: 'SUCCESS', title: song.title, videoId: primaryQuery });
 
       } catch (err: any) {
         console.error("[bulk-populate-youtube-links] Error processing song:", id, err.message);
