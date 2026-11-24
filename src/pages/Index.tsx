@@ -335,6 +335,16 @@ const Index = () => {
     }
   };
 
+  const handlePlaySet = (groupNum: number) => {
+    const setSongs = filteredAndSortedSongs.filter(s => s.set_group === groupNum);
+    if (setSongs.length > 0) {
+      playback.playQueue(setSongs, `${activeSetlist?.name || 'Set'} — ${groupNum === 99 ? 'Surplus' : `Set ${groupNum}`}`);
+      showSuccess(`Playing ${setSongs.length} tracks back-to-back`);
+    } else {
+      showWarning("No songs in this set.");
+    }
+  };
+
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
     if (wizardMode || activeDashboardView === 'gigs') {
       setWizardStandaloneSong(song);
@@ -1026,6 +1036,7 @@ const Index = () => {
                   onSyncProData={async () => {}}
                   onOpenSetReader={handleOpenSetReader}
                   onOpenSetKaraoke={handleOpenSetKaraoke}
+                  onPlaySet={handlePlaySet}
                   onCompileSetSongs={handleCompileSetSongs}
                   onReshuffleSubset={handleReshuffleSubset}
                   onRefresh={fetchSetlistsAndRepertoire}

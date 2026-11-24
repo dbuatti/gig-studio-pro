@@ -7,7 +7,7 @@ import {
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle,
   ShieldCheck, Clock, ArrowRight, Check, ChevronDown,
   ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Library,
-  BookOpen, Tv, Sliders, Loader2, RotateCcw, Plus, Sparkles, Search, Music, GripVertical, FileWarning
+  BookOpen, Tv, Sliders, Loader2, RotateCcw, Plus, Sparkles, Search, Music, GripVertical, FileWarning, PlayCircle
 } from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
@@ -151,6 +151,7 @@ interface SetlistManagerProps {
   setIsFilterOpen: (open: boolean) => void;
   onOpenSetReader?: (groupNum: number) => void;
   onOpenSetKaraoke?: (groupNum: number) => void;
+  onPlaySet?: (groupNum: number) => void;
   onOpenWizard?: (song: SetlistSong) => void;
   onCompileSetSongs?: (groupNum: number) => void;
   onReshuffleSubset?: (groupNum: number) => void;
@@ -184,6 +185,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   setIsFilterOpen,
   onOpenSetReader,
   onOpenSetKaraoke,
+  onPlaySet,
   onCompileSetSongs,
   onReshuffleSubset,
   onRefresh,
@@ -600,6 +602,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => onPlaySet?.(groupNum)}
+                        className="h-8 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-rose-400 border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 gap-1.5 shrink-0"
+                      >
+                        <PlayCircle className="w-3 h-3" />
+                        Play
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => onCompileSetSongs?.(groupNum)}
                         className="h-8 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-amber-400 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 gap-1.5 shrink-0"
                       >
@@ -786,6 +797,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                     >
                                       <Tv className="w-3.5 h-3.5" />
                                       Set Karaoke
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => onPlaySet?.(groupNum)}
+                                      className="h-8 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 gap-1.5 transition-all"
+                                    >
+                                      <PlayCircle className="w-3.5 h-3.5" />
+                                      Play Set
                                     </Button>
                                     <Button
                                       variant="ghost"
