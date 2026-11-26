@@ -20,6 +20,11 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      if (location.hostname === 'lyrics.danielebuatti.com' && location.pathname === '/') {
+        location.replace('/lyrics/');
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
