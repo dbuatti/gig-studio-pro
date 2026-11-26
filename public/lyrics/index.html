@@ -43,7 +43,7 @@
     async function load() {
       const list = document.getElementById('list');
       try {
-        const url = SUPABASE_URL + "/rest/v1/repertoire?select=id,title,artist&ordering=title&id=in.(" + SONG_IDS.join(',') + ")";
+        const url = SUPABASE_URL + "/rest/v1/repertoire?select=id,title,artist&order=title.asc&id=in.(" + SONG_IDS.join(',') + ")";
         const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY } });
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
