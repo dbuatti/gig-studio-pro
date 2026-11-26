@@ -52,7 +52,7 @@
           if (!s) continue;
           const a = document.createElement('a');
           a.className = 'card';
-          a.href = '/lyrics/song.html?id=' + encodeURIComponent(id);
+          a.href = '/lyrics/lyric.html?id=' + encodeURIComponent(id);
           a.innerHTML = '<div class="title">' + escapeHtml(s.title) + '</div><div class="artist">' + escapeHtml(s.artist || '') + '</div>';
           list.appendChild(a);
         }
