@@ -10,7 +10,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!static/|public/|favicon.ico|favicon.svg|robots.txt|manifest.json|manifest.webmanifest|sw.js|workbox-|registerSW.js|_next/static/|api/|assets/|pdf.worker.min.js$).*)",
+      "source": "/((?!static/|public/|lyrics/|favicon.ico|favicon.svg|robots.txt|manifest.json|manifest.webmanifest|sw.js|workbox-|registerSW.js|_next/static/|api/|assets/|pdf.worker.min.js$).*)",
       "destination": "/index.html"
     }
   ]
