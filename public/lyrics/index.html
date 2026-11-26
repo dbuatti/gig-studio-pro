@@ -12,13 +12,10 @@
     header h1 { margin: 0 0 .25rem; font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
     header p { margin: 0; opacity: .6; font-size: .95rem; }
     main { max-width: 600px; margin: 0 auto; padding: 2rem 1.25rem; flex: 1; }
-    .section { margin-bottom: 2rem; }
-    .section h2 { font-size: .9rem; text-transform: uppercase; letter-spacing: .12em; opacity: .5; margin: 0 0 .75rem; }
-    .card { display: block; text-decoration: none; color: inherit; padding: 1rem 1.25rem; border: 1px solid rgba(255,255,255,0.1); border-radius: .75rem; background: rgba(255,255,255,0.03); margin-bottom: .5rem; transition: transform .15s, border-color .15s; }
-    .card:hover { transform: translateY(-1px); border-color: #818cf8; }
-    .card .title { font-weight: 600; font-size: 1rem; }
-    .card .artist { opacity: .5; font-size: .8rem; margin-top: .15rem; }
-    .alllink { display: block; text-align: center; margin: 1.5rem 0; color: #818cf8; text-decoration: none; font-weight: 600; font-size: .9rem; }
+    .card { display: block; text-decoration: none; color: inherit; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; background: rgba(255,255,255,0.03); margin-bottom: 1rem; transition: transform .15s, border-color .15s; }
+    .card:hover { transform: translateY(-2px); border-color: #818cf8; }
+    .card h2 { margin: 0 0 .25rem; font-size: 1.1rem; font-weight: 700; }
+    .card p { margin: 0; opacity: .6; font-size: .85rem; }
     footer { text-align: center; padding: 2rem 1rem; opacity: .4; font-size: .8rem; border-top: 1px solid rgba(255,255,255,0.06); }
   </style>
 </head>
@@ -28,42 +25,12 @@
     <p>Daniele Buatti</p>
   </header>
   <main>
-    <div class="section">
-      <h2>🎄 Christmas — 17 tracks</h2>
-      <div id="list"><div style="opacity:.6;text-align:center;padding:2rem 0">Loading…</div></div>
-      <a class="alllink" href="/lyrics/christmas.html">View all lyrics on one page →</a>
-    </div>
+    <a class="card" href="/lyrics/christmas.html">
+      <h2>🎄 Huggle &amp; Smoosh's Garden Pawty</h2>
+      <p>Christmas set · 17 tracks · 29 Nov 2026</p>
+    </a>
   </main>
   <footer>© Daniele Buatti</footer>
-  <script>
-    const SUPABASE_URL = "https://rqesjpnhrjdjnrzdhzgw.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_kmbnz02rJufnb4sln_srFw_mjpZd9N0";
-    const SONG_IDS = ["a8217075-7bc3-496a-a2d5-a76e84a8558c","9792ff84-64cb-4a3b-932d-79d15b00de1d","2740ace5-66a5-411d-92c2-4c6b0ecda094","44ac550a-415a-4460-bc53-7a89ace3a2ac","9f956d91-a153-4423-bfc0-0639c7de0315","16fdab9f-9197-4edb-ab0f-639aea5b356d","d4b0af40-32af-4efd-8e50-f08962fe42d6","a88f2cf0-1268-454a-a446-acd3469a1d66","16b0a9c5-068c-4191-b15c-11b1f9f8a821","9d8be8af-9b5d-44a7-9d9a-5080c302bce6","617ae8fb-b13c-4bdf-9c0d-08b24bb335fb","27e9fcae-fbfd-4c5d-bcdb-15d56379c332","39a7201c-b825-40f4-8dbc-54dfaa674ebd","9a875b5b-f26f-4ae6-b149-8a8411581cff","295d95db-3f0f-48ab-8652-eecc908fdae1","9318f32f-1310-4b17-92b7-dc5139b020bb","238c30e1-b0c7-431f-90ff-6ac917379a3b"];
-    function escapeHtml(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-    async function load() {
-      const list = document.getElementById('list');
-      try {
-        const url = SUPABASE_URL + "/rest/v1/repertoire?select=id,title,artist&limit=1000";
-        const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY } });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
-        const byId = Object.fromEntries(data.filter(s => SONG_IDS.includes(s.id)).map(s => [s.id, s]));
-        list.innerHTML = "";
-        for (const id of SONG_IDS) {
-          const s = byId[id];
-          if (!s) continue;
-          const a = document.createElement('a');
-          a.className = 'card';
-          a.href = '/lyrics/song.html?id=' + encodeURIComponent(id);
-          a.innerHTML = '<div class="title">' + escapeHtml(s.title) + '</div><div class="artist">' + escapeHtml(s.artist || '') + '</div>';
-          list.appendChild(a);
-        }
-      } catch (e) {
-        list.innerHTML = '<div style="color:#f87171;text-align:center;padding:2rem 0">Failed to load: ' + escapeHtml(e.message) + '</div>';
-      }
-    }
-    load();
-  </script>
 </body>
 </html>
 EOF

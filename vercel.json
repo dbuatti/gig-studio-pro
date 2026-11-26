@@ -1,5 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/lyrics/",
+      "permanent": false,
+      "has": [{ "type": "host", "value": "lyrics.danielebuatti.com" }]
+    }
+  ],
   "rewrites": [
     {
       "source": "/((?!static/|public/|favicon.ico|favicon.svg|robots.txt|manifest.json|manifest.webmanifest|sw.js|workbox-|registerSW.js|_next/static/|api/|assets/|pdf.worker.min.js$).*)",
