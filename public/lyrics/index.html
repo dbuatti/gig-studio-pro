@@ -43,11 +43,11 @@
     async function load() {
       const list = document.getElementById('list');
       try {
-        const url = SUPABASE_URL + "/rest/v1/repertoire?select=id,title,artist&order=title.asc&id=in.(" + SONG_IDS.join(',') + ")";
+        const url = SUPABASE_URL + "/rest/v1/repertoire?select=id,title,artist&limit=1000";
         const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY } });
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
-        const byId = Object.fromEntries(data.map(s => [s.id, s]));
+        const byId = Object.fromEntries(data.filter(s => SONG_IDS.includes(s.id)).map(s => [s.id, s]));
         list.innerHTML = "";
         for (const id of SONG_IDS) {
           const s = byId[id];
