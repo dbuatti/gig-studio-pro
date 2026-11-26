@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title id="ptitle">Lyric — Daniele Buatti</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0b0d14; color: #e8eaf0; line-height: 1.6; }
+    header { padding: 1.5rem 1.25rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.08); background: linear-gradient(180deg, #1a1f3a 0%, #0b0d14 100%); }
+    header a { color: #818cf8; text-decoration: none; font-size: .85rem; font-weight: 600; }
+    header h1 { margin: .5rem 0 .15rem; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+    header .artist { opacity: .55; font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+    main { max-width: 760px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+    .lyrics { white-space: pre-wrap; font-size: 1.05rem; }
+    .loading { text-align: center; opacity: .6; padding: 3rem 0; }
+    .error { color: #f87171; text-align: center; padding: 2rem 0; }
+    footer { text-align: center; padding: 2rem 1rem; opacity: .4; font-size: .8rem; border-top: 1px solid rgba(255,255,255,0.06); }
+    .navrow { display: flex; justify-content: space-between; margin-top: 2rem; gap: 1rem; }
+    .navrow a { color: #818cf8; text-decoration: none; font-size: .85rem; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/lyrics/">← All songs</a>
+    <h1 id="title">Loading…</h1>
+    <div class="artist" id="artist"></div>
+  </header>
+  <main id="main"><div class="loading">Loading lyrics…</div></main>
+  <footer>© Daniele Buatti</footer>
+  <script>
+    const SUPABASE_URL = "https://rqesjpnhrjdjnrzdhzgw.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_kmbnz02rJufnb4sln_srFw_mjpZd9N0";
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    const ids = ["a8217075-7bc3-496a-a2d5-a76e84a8558c","9792ff84-64cb-4a3b-932d-79d15b00de1d","2740ace5-66a5-411d-92c2-4c6b0ecda094","44ac550a-415a-4460-bc53-7a89ace3a2ac","9f956d91-a153-4423-bfc0-0639c7de0315","16fdab9f-9197-4edb-ab0f-639aea5b356d","d4b0af40-32af-4efd-8e50-f08962fe42d6","a88f2cf0-1268-454a-a446-acd3469a1d66","16b0a9c5-068c-4191-b15c-11b1f9f8a821","9d8be8af-9b5d-44a7-9d9a-5080c302bce6","617ae8fb-b13c-4bdf-9c0d-08b24bb335fb","27e9fcae-fbfd-4c5d-bcdb-15d56379c332","39a7201c-b825-40f4-8dbc-54dfaa674ebd","9a875b5b-f26f-4ae6-b149-8a8411581cff","295d95db-3f0f-48ab-8652-eecc908fdae1","9318f32f-1310-4b17-92b7-dc5139b020bb","238c30e1-b0c7-431f-90ff-6ac917379a3b"];
+    function escapeHtml(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    async function load() {
+      const main = document.getElementById('main');
+      const titleEl = document.getElementById('title');
+      const artistEl = document.getElementById('artist');
+      try {
+        if (!id || !ids.includes(id)) throw new Error('Unknown song');
+        const url = SUPABASE_URL + "/rest/v1/repertoire?select=id,title,artist,lyrics&id=eq." + id;
+        const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY } });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (!data.length) throw new Error('Not found');
+        const s = data[0];
+        document.title = s.title + ' — Daniele Buatti';
+        titleEl.textContent = s.title;
+        artistEl.textContent = s.artist || '';
+        main.innerHTML = '<div class="lyrics">' + escapeHtml(s.lyrics || '(lyrics not available)') + '</div>' +
+          '<div class="navrow"><a href="/lyrics/">← All songs</a><a href="/lyrics/christmas.html">View all</a></div>';
+      } catch (e) {
+        main.innerHTML = '<div class="error">Failed to load: ' + escapeHtml(e.message) + '</div>';
+      }
+    }
+    load();
+  </script>
+</body>
+</html>
+EOF
+echo done
