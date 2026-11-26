@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Christmas Lyric Sheet — Daniele Buatti</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0b0d14; color: #e8eaf0; line-height: 1.6; }
+    header { padding: 2.5rem 1.25rem 1.5rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.08); background: linear-gradient(180deg, #1a1f3a 0%, #0b0d14 100%); }
+    header h1 { margin: 0 0 .25rem; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em; }
+    header p { margin: 0; opacity: .6; font-size: .9rem; }
+    nav { text-align: center; padding: .75rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    nav a { color: #818cf8; text-decoration: none; font-size: .85rem; font-weight: 600; }
+    main { max-width: 760px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+    .song { margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .song:last-child { border-bottom: none; }
+    .song h2 { margin: 0 0 .15rem; font-size: 1.25rem; font-weight: 700; }
+    .song .artist { opacity: .55; font-size: .85rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+    .lyrics { white-space: pre-wrap; font-size: 1.05rem; }
+    .loading { text-align: center; opacity: .6; padding: 3rem 0; }
+    .error { color: #f87171; text-align: center; padding: 2rem 0; }
+    footer { text-align: center; padding: 2rem 1rem; opacity: .4; font-size: .8rem; border-top: 1px solid rgba(255,255,255,0.06); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎄 Christmas Lyric Sheet</h1>
+    <p>Daniele Buatti — Garden Pawty, 29 Nov 2026</p>
+  </header>
+  <nav><a href="/lyrics/">← All lyric sheets</a></nav>
+  <main id="main"><div class="loading">Loading lyrics…</div></main>
+  <footer>© Daniele Buatti · Gig Studio Pro</footer>
+  <script>
+    const SUPABASE_URL = "https://rqesjpnhrjdjnrzdhzgw.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_kmbnz02rJufnb4sln_srFw_mjpZd9N0";
+    const SONG_IDS = ["a8217075-7bc3-496a-a2d5-a76e84a8558c","9792ff84-64cb-4a3b-932d-79d15b00de1d","2740ace5-66a5-411d-92c2-4c6b0ecda094","44ac550a-415a-4460-bc53-7a89ace3a2ac","9f956d91-a153-4423-bfc0-0639c7de0315","16fdab9f-9197-4edb-ab0f-639aea5b356d","d4b0af40-32af-4efd-8e50-f08962fe42d6","a88f2cf0-1268-454a-a446-acd3469a1d66","16b0a9c5-068c-4191-b15c-11b1f9f8a821","9d8be8af-9b5d-44a7-9d9a-5080c302bce6","617ae8fb-b13c-4bdf-9c0d-08b24bb335fb","27e9fcae-fbfd-4c5d-bcdb-15d56379c332","39a7201c-b825-40f4-8dbc-54dfaa674ebd","9a875b5b-f26f-4ae6-b149-8a8411581cff","295d95db-3f0f-48ab-8652-eecc908fdae1","9318f32f-1310-4b17-92b7-dc5139b020bb","238c30e1-b0c7-431f-90ff-6ac917379a3b"];
+    async function load() {
+      const main = document.getElementById('main');
+      try {
+        const url = SUPABASE_URL + "/rest/v1/repertoire?select=id,title,artist,lyrics&id=in.(" + SONG_IDS.join(',') + ")";
+        const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY } });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const byId = Object.fromEntries(data.map(s => [s.id, s]));
+        main.innerHTML = "";
+        for (const id of SONG_IDS) {
+          const s = byId[id];
+          if (!s) continue;
+          const div = document.createElement('div');
+          div.className = 'song';
+          div.innerHTML = '<h2>' + escapeHtml(s.title) + '</h2>' +
+            '<div class="artist">' + escapeHtml(s.artist || '') + '</div>' +
+            '<div class="lyrics">' + escapeHtml(s.lyrics || '(lyrics not available)') + '</div>';
+          main.appendChild(div);
+        }
+      } catch (e) {
+        main.innerHTML = '<div class="error">Failed to load lyrics: ' + escapeHtml(e.message) + '</div>';
+      }
+    }
+    function escapeHtml(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    load();
+  </script>
+</body>
+</html>
+EOF
+# index page
+mkdir -p /Users/danielebuatti/dyad-apps/gig-studio-pro/public/lyrics
+cat > /Users/danielebuatti/dyad-apps/gig-studio-pro/public/lyrics/index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lyric Sheets — Daniele Buatti</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0b0d14; color: #e8eaf0; min-height: 100vh; display: flex; flex-direction: column; }
+    header { padding: 3rem 1.25rem 2rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.08); background: linear-gradient(180deg, #1a1f3a 0%, #0b0d14 100%); }
+    header h1 { margin: 0 0 .25rem; font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
+    header p { margin: 0; opacity: .6; font-size: .95rem; }
+    main { max-width: 600px; margin: 0 auto; padding: 2rem 1.25rem; flex: 1; }
+    .card { display: block; text-decoration: none; color: inherit; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; background: rgba(255,255,255,0.03); margin-bottom: 1rem; transition: transform .15s, border-color .15s; }
+    .card:hover { transform: translateY(-2px); border-color: #818cf8; }
+    .card h2 { margin: 0 0 .25rem; font-size: 1.1rem; font-weight: 700; }
+    .card p { margin: 0; opacity: .6; font-size: .85rem; }
+    footer { text-align: center; padding: 2rem 1rem; opacity: .4; font-size: .8rem; border-top: 1px solid rgba(255,255,255,0.06); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Lyric Sheets</h1>
+    <p>Daniele Buatti</p>
+  </header>
+  <main>
+    <a class="card" href="/lyrics/christmas.html">
+      <h2>🎄 Christmas Lyric Sheet</h2>
+      <p>17 tracks — Garden Pawty, 29 Nov 2026</p>
+    </a>
+  </main>
+  <footer>© Daniele Buatti</footer>
+</body>
+</html>
+EOF
+echo "written"

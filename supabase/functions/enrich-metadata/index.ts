@@ -40,7 +40,18 @@ serve(async (req) => {
     )
 
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
-    if (authError || !user) {
+    // Allow service-role tokens (no user) for server-side lyric generation
+    // Detect service-role tokens by decoding the JWT payload
+    let isServiceRole = false;
+    try {
+      const token = authHeader.replace('Bearer ', '');
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      isServiceRole = payload?.role === 'service_role';
+    } catch (e) {}
+    if (authError && !isServiceRole) {
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    }
+    if (!user && !isServiceRole) {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
@@ -66,6 +77,8 @@ serve(async (req) => {
     let prompt = "";
     if (mode === 'lyrics') {
       prompt = `Act as a professional stage manager. Format these lyrics with double newlines between verses and proper punctuation for stage reading. Return ONLY a JSON object: {"lyrics": "formatted_lyrics_here"}. Lyrics: ${queries[0]}`;
+    } else if (mode === 'generate-lyrics') {
+      prompt = `Act as a professional music librarian. Provide the complete, accurate lyrics for the song "${queries[0]}" by ${queries[1] || 'the original artist'}. Format with double newlines between verses and proper punctuation for stage reading. Return ONLY a JSON object: {"lyrics": "full_lyrics_here"}. If you are not confident about the exact lyrics, return {"lyrics": ""}.`;
     } else if (mode === 'chords-cleanup') {
       prompt = `Act as a professional music editor. Correct typos, fix common misspellings, and ensure proper formatting for the following chord/lyric block. Preserve the chord structure and line breaks. Return ONLY a JSON object: {"cleaned_text": "corrected_chord_text_here"}. Text: ${queries[0]}`;
     } else {
