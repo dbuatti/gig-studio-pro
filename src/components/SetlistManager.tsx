@@ -7,12 +7,13 @@ import {
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle,
   ShieldCheck, Clock, ArrowRight, Check, ChevronDown,
   ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Library,
-  BookOpen, Tv, Sliders, Loader2, RotateCcw, Plus, Sparkles, Search, Music, GripVertical, FileWarning, PlayCircle
+  BookOpen, Tv, Sliders, Loader2, RotateCcw, Plus, Sparkles, Search, Music, GripVertical, FileWarning, PlayCircle, ShieldAlert
 } from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
-import { showSuccess, showError, showInfo } from '@/utils/toast';
+import { showSuccess, showError, showInfo, showWarning } from '@/utils/toast';
+import { cleanSetlistDuplicates } from '@/utils/setlistCleanup';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { SubsetSongSuggesterModal } from './SubsetSongSuggesterModal';
@@ -215,9 +216,30 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     }
   };
 
+  const [isCleaningDuplicates, setIsCleaningDuplicates] = useState(false);
+  const handleCleanDuplicates = async () => {
+    if (!activeSetlistId) return;
+    const name = allSetlists.find(s => s.id === activeSetlistId)?.name || 'Current Setlist';
+    setIsCleaningDuplicates(true);
+    try {
+      const removed = await cleanSetlistDuplicates(activeSetlistId, name);
+      if (removed > 0 && onRefresh) await onRefresh();
+    } finally {
+      setIsCleaningDuplicates(false);
+    }
+  };
+
   const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
 
   const handleAddFromRepo = async (song: SetlistSong, targetGroup: number) => {
+    const norm = (str?: string | null) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+    const isDup = rawSongs.some(s =>
+      norm(s.name) === norm(song.name) && norm(s.artist) === norm(song.artist)
+    );
+    if (isDup) {
+      showWarning(`"${song.name}" is already in this setlist.`);
+      return;
+    }
     setRepoAdding(song.id);
     try {
       const songIdToInsert = song.master_id || song.id;
@@ -901,8 +923,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                   {masterRepertoire
                                     .filter(s => {
                                       const q = normalize(repoQuery);
-                                      const inSubset = groupedBySet[groupNum]?.some(gs => normalize(gs.name) === normalize(s.name));
-                                      return !inSubset && (normalize(s.name).includes(q) || normalize(s.artist || '').includes(q));
+                                      const inSetlist = rawSongs.some(gs => normalize(gs.name) === normalize(s.name) && normalize(gs.artist || '') === normalize(s.artist || ''));
+                                      return !inSetlist && (normalize(s.name).includes(q) || normalize(s.artist || '').includes(q));
                                     })
                                     .slice(0, 6)
                                     .map(song => (
@@ -960,6 +982,20 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                 )}
                                 Reshuffle Flow
                               </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isCleaningDuplicates}
+                                onClick={handleCleanDuplicates}
+                                className="h-9 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-amber-400 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 gap-2 transition-all"
+                              >
+                                {isCleaningDuplicates ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <ShieldAlert className="w-4 h-4" />
+                                )}
+                                Fix Duplicates
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -1005,6 +1041,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         onClose={() => setSuggesterGroup(null)}
         subsetName={suggesterGroup !== null ? getSetLabel(suggesterGroup) : ""}
         subsetSongs={suggesterGroup !== null ? groupedBySet[suggesterGroup] || [] : []}
+        allSetlistSongs={rawSongs}
         repertoire={masterRepertoire}
         setlistId={activeSetlistId || ""}
         setGroup={suggesterGroup || 1}

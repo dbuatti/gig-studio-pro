@@ -39,6 +39,7 @@ interface SubsetSongSuggesterModalProps {
   onClose: () => void;
   subsetName: string;
   subsetSongs: SetlistSong[];
+  allSetlistSongs?: SetlistSong[];
   repertoire: SetlistSong[];
   setlistId: string;
   setGroup: number;
@@ -50,6 +51,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
   onClose,
   subsetName,
   subsetSongs,
+  allSetlistSongs,
   repertoire,
   setlistId,
   setGroup,
@@ -158,8 +160,9 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
 
       const rawSuggestions = Array.isArray(data) ? data : (data?.suggestions || []);
       
-      // 2. Check for duplicates across songs already IN THIS SUBSET
-      const existingKeys = new Set(subsetSongs.map(s => normalize(s.name)));
+      // 2. Check for duplicates across songs already IN THIS SETLIST (any subset)
+      const duplicateCheckSongs = allSetlistSongs && allSetlistSongs.length > 0 ? allSetlistSongs : subsetSongs;
+      const existingKeys = new Set(duplicateCheckSongs.map(s => normalize(s.name)));
       
       // Also deduplicate within the AI suggestions themselves
       const seenSuggestionKeys = new Set<string>();
@@ -327,17 +330,22 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
   };
 
   const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
-  const subsetKeys = new Set(subsetSongs.map(s => normalize(s.name)));
+  const allSetlistKeys = new Set((allSetlistSongs && allSetlistSongs.length > 0 ? allSetlistSongs : subsetSongs).map(s => normalize(s.name)));
   const repoResults = repoQuery.trim().length >= 1
     ? repertoire.filter(r => {
         const q = normalize(repoQuery);
         const nameMatch = normalize(r.name).includes(q);
         const artistMatch = normalize(r.artist || '').includes(q);
-        return (nameMatch || artistMatch) && !subsetKeys.has(normalize(r.name));
+        return (nameMatch || artistMatch) && !allSetlistKeys.has(normalize(r.name));
       }).slice(0, 8)
     : [];
 
   const handleAddFromRepo = async (song: SetlistSong) => {
+    const allKeys = new Set((allSetlistSongs && allSetlistSongs.length > 0 ? allSetlistSongs : subsetSongs).map(s => normalize(s.name)));
+    if (allKeys.has(normalize(song.name))) {
+      showInfo(`"${song.name}" is already in this setlist.`);
+      return;
+    }
     setRepoAdding(song.id);
     try {
       const songIdToInsert = song.master_id || song.id;
@@ -373,6 +381,11 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
 
     for (const song of toAdd) {
       try {
+        const allKeys = new Set((allSetlistSongs && allSetlistSongs.length > 0 ? allSetlistSongs : subsetSongs).map(s => normalize(s.name)));
+        if (allKeys.has(normalize(song.name))) {
+          failed++;
+          continue;
+        }
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) continue;
 

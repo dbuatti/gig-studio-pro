@@ -21,15 +21,33 @@ export const cleanSetlistDuplicates = async (setlistId: string, setlistName: str
     if (fetchError) throw fetchError;
     if (!junctions || junctions.length === 0) return 0;
 
-    // 2. Identify duplicates
-    const seenSongIds = new Set<string>();
+    // Fetch master repertoire titles so we can also collapse duplicate titles
+    // (e.g. the same song added under two different repertoire records).
+    const songIds = Array.from(new Set(junctions.map(j => j.song_id)));
+    const { data: masterSongs } = await supabase
+      .from('repertoire')
+      .select('id, title, artist')
+      .in('id', songIds);
+
+    const masterMap = new Map((masterSongs || []).map(s => [s.id, s]));
+    const normalize = (str?: string | null) =>
+      (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+
+    // 2. Identify duplicates by song_id AND by normalized title+artist.
+    // Keeps the first occurrence (lowest sort_order) for each key.
+    const seenKeys = new Set<string>();
     const duplicateIds: string[] = [];
 
     junctions.forEach(j => {
-      if (seenSongIds.has(j.song_id)) {
+      const master = masterMap.get(j.song_id);
+      const key = master?.title
+        ? `${normalize(master.title)}|${normalize(master.artist)}`
+        : `id:${j.song_id}`;
+
+      if (seenKeys.has(key)) {
         duplicateIds.push(j.id);
       } else {
-        seenSongIds.add(j.song_id);
+        seenKeys.add(key);
       }
     });
 

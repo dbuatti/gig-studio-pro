@@ -646,7 +646,12 @@ const Index = () => {
       if (action === 'add') {
         const targetSetlist = allSetlists.find(s => s.id === setlistId);
         const songMasterId = song.master_id || song.id;
-        if (targetSetlist?.songs.some(s => s.master_id === songMasterId)) {
+        const norm = (str?: string | null) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        const isDup = targetSetlist?.songs.some(s =>
+          s.master_id === songMasterId ||
+          (norm(s.name) === norm(song.name) && norm(s.artist) === norm(song.artist))
+        );
+        if (isDup) {
           showWarning(`"${song.name}" is already in this setlist.`);
           return;
         }
@@ -682,9 +687,33 @@ const Index = () => {
     if (createError) throw new Error(createError.message);
     if (!newSetlist) throw new Error("Failed to create setlist");
 
+    const norm = (str?: string | null) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+
+    // Dedupe external songs by normalized title+artist
+    const seenExt = new Set<string>();
+    const uniqueExternalSongs = (externalSongs || []).filter(s => {
+      const key = `${norm(s.name as string)}|${norm(s.artist as string)}`;
+      if (seenExt.has(key)) return false;
+      seenExt.add(key);
+      return true;
+    });
+
+    // Dedupe library songs by id and by normalized title+artist
+    const seenLibIds = new Set<string>();
+    const seenLibTitles = new Set<string>();
+    const uniqueLibrarySongs = (librarySongs || []).filter(s => {
+      if (seenLibIds.has(s.id)) return false;
+      seenLibIds.add(s.id);
+      const master = masterRepertoire.find(r => r.id === s.id || r.master_id === s.id);
+      const key = `${norm(master?.name)}|${norm(master?.artist)}`;
+      if (key !== '|' && seenLibTitles.has(key)) return false;
+      if (key !== '|') seenLibTitles.add(key);
+      return true;
+    });
+
     let sortIndex = 0;
 
-    for (const extSong of externalSongs) {
+    for (const extSong of uniqueExternalSongs) {
       const synced = await syncToMasterRepertoire(userId, [{
         name: extSong.name as string,
         artist: extSong.artist as string,
@@ -699,7 +728,7 @@ const Index = () => {
       }
     }
 
-    for (const libSong of librarySongs) {
+    for (const libSong of uniqueLibrarySongs) {
       await supabase.from('setlist_songs').insert({
         setlist_id: newSetlist.id,
         song_id: libSong.id,
@@ -710,7 +739,7 @@ const Index = () => {
 
     await fetchSetlistsAndRepertoire();
     setActiveSetlistId(newSetlist.id);
-    showSuccess(`"${proposedName}" gig created with ${librarySongs.length + externalSongs.length} songs!`);
+    showSuccess(`"${proposedName}" gig created with ${uniqueLibrarySongs.length + uniqueExternalSongs.length} songs!`);
   }, [userId, fetchSetlistsAndRepertoire]);
 
   const handleAutoLink = useCallback(async () => {
