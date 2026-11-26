@@ -4,7 +4,7 @@
     {
       "source": "/",
       "destination": "/lyrics/index.html",
-      "has": [{ "type": "host", "value": "lyrics.danielebuatti.com" }]
+      "has": [{ "type": "header", "key": "host", "value": "lyrics.danielebuatti.com" }]
     },
     {
       "source": "/((?!static/|public/|lyrics/|favicon.ico|favicon.svg|robots.txt|manifest.json|manifest.webmanifest|sw.js|workbox-|registerSW.js|_next/static/|api/|assets/|pdf.worker.min.js$).*)",
