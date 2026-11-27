@@ -141,7 +141,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
   if (!isGoalTrackerEnabled) return null;
 
   return (
-    <div className="bg-slate-900/60 p-5 rounded-2xl border border-white/5 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
+    <div className="bg-slate-900/60 p-4 sm:p-5 rounded-2xl border border-white/5 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
@@ -158,7 +158,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-7 gap-2">
         {stats.map((goal, i) => {
           const progress = goal.target > 0 ? (goal.current / goal.target) * 100 : 0;
           const isComplete = goal.current >= goal.target;
@@ -167,21 +167,22 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
             <button 
               key={i} 
               onClick={() => onFilterApply(goal.filter)}
-              className="p-3 bg-white/[0.02] rounded-xl border border-white/5 space-y-2 group hover:border-white/10 transition-all text-left"
+              aria-label={`Filter: ${goal.label}, ${goal.current} of ${goal.target} done today`}
+              className="min-h-[72px] p-2.5 sm:p-3 bg-white/[0.02] rounded-xl border border-white/5 space-y-2 group hover:border-white/10 hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 transition-all text-left"
             >
-              <div className="flex items-center justify-between">
-                <div className={cn("p-1.5 rounded-lg", goal.lightBg, goal.textColor)}>
+              <div className="flex items-center justify-between gap-1">
+                <div className={cn("p-1.5 rounded-lg shrink-0", goal.lightBg, goal.textColor)}>
                   {goal.icon}
                 </div>
                 <span className={cn(
-                  "text-[10px] font-black font-mono tabular-nums",
+                  "text-[10px] font-black font-mono tabular-nums whitespace-nowrap",
                   isComplete ? "text-emerald-400" : "text-slate-500"
                 )}>
                   {goal.current}/{goal.target}
                 </span>
               </div>
               <div className="space-y-1.5">
-                <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 truncate">{goal.label}</p>
+                <p className="text-[9px] sm:text-[8px] font-black uppercase tracking-widest text-slate-400 truncate" title={goal.label}>{goal.label}</p>
                 <CustomProgress 
                   value={Math.min(100, progress)} 
                   className="h-1 bg-slate-800"

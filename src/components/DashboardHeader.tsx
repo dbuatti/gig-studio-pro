@@ -64,7 +64,6 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             onOpenStorageAudit={onOpenStorageAudit}
             onOpenAdmin={onOpenAdmin}
             onOpenMDAudit={onOpenMDAudit}
-            onOpenStorageAudit={onOpenStorageAudit}
             onToggleShuffleAll={onToggleShuffleAll}
             isShuffleAllMode={isShuffleAllMode}
             onOpenKeyMatrix={onOpenKeyMatrix}

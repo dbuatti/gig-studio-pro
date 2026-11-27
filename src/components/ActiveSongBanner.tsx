@@ -91,7 +91,7 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({
         
         {/* Main Content */}
         <div className="p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8 md:gap-12">
-          <div className="flex items-center gap-6 md:gap-10 w-full md:min-w-0">
+          <div className="flex items-center gap-4 md:gap-10 w-full min-w-0">
             {/* Controls */}
             <div className="flex items-center gap-2 md:gap-3">
               <Button
@@ -143,7 +143,8 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({
                 {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-400" />}
               </div>
               <h2
-                className="text-2xl md:text-5xl font-bold text-white tracking-tight truncate leading-none cursor-pointer hover:text-indigo-400 transition-colors"
+                className="text-xl sm:text-2xl md:text-5xl font-bold text-white tracking-tight leading-tight md:leading-none line-clamp-2 md:truncate cursor-pointer hover:text-indigo-400 transition-colors"
+                title={song.name}
                 onClick={() => onSongClick?.(song)}
               >
                 {song.name}
