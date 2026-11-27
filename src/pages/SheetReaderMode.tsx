@@ -393,6 +393,28 @@ const SheetReaderMode: React.FC = () => {
     showSuccess(level === 'happy' ? 'Marked as singable' : level === 'mid' ? 'Marked as unsure' : 'Marked as not ready');
   }, [currentSong, handleAutoSave]);
 
+  // Reader shortcuts: M = cycle mode, S = shuffle, 1/2/3 = rate current song.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if (key === 'm') {
+        e.preventDefault();
+        const next = readerMode === 'practice' ? 'preferred' : readerMode === 'preferred' ? 'live' : 'practice';
+        handleReaderModeChange(next);
+      } else if (key === 's') {
+        e.preventDefault();
+        handleShuffleReaderList();
+      } else if (key === '1') handleComfortRate('sad');
+      else if (key === '2') handleComfortRate('mid');
+      else if (key === '3') handleComfortRate('happy');
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [readerMode, handleReaderModeChange, handleShuffleReaderList, handleComfortRate]);
+
   const fetchLinks = useCallback(async () => {
     if (!userId || !currentSong?.master_id || selectedChartType === 'chords') {
       setLinks([]);
@@ -638,6 +660,8 @@ const SheetReaderMode: React.FC = () => {
               onReaderModeChange={handleReaderModeChange}
               onShuffle={handleShuffleReaderList}
               onComfortRate={handleComfortRate}
+              isPlaying={isPlaying}
+              onTogglePlayback={audioEngine.togglePlayback}
             />
           )}
         </AnimatePresence>
@@ -659,7 +683,27 @@ const SheetReaderMode: React.FC = () => {
             style={{ touchAction: 'none', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: isZenMode ? '0' : isMobile ? '10px' : '20px' }} 
             className="relative"
           >
-            {currentSong ? (
+            {currentSong && readerMode === 'practice' && !isReadableChart(currentSong) ? (
+              <div className="max-w-md w-full rounded-3xl bg-slate-900/90 border border-amber-500/30 p-8 text-center space-y-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                  <Sparkles className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black uppercase tracking-tight text-white">This song needs work</h3>
+                  <p className="text-xs text-slate-400 font-medium mt-2 leading-relaxed">
+                    No reader chart is attached yet. Open the readiness wizard to add a preferred reader, chords, or sheet music so this song becomes performance-ready.
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-3">
+                  <Button onClick={() => setIsReadinessWizardOpen(true)} className="h-12 px-6 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-[10px] uppercase tracking-widest">
+                    Open Wizard
+                  </Button>
+                  <Button variant="outline" onClick={handleNext} className="h-12 px-6 rounded-xl border-white/10 bg-slate-800 text-slate-300 font-black text-[10px] uppercase tracking-widest">
+                    Next Song
+                  </Button>
+                </div>
+              </div>
+            ) : currentSong ? (
               selectedChartType === 'chords' ? (
                 <UGChordsReader chordsText={currentSong.ug_chords_text || ""} config={effectiveConfig} isMobile={isMobile} originalKey={currentSong.originalKey} targetKey={effectiveTargetKey} readerKeyPreference={readerKeyPreference} onChartReady={() => setIsChartContentLoading(false)} isFullScreen={isZenMode} />
               ) : (
@@ -686,7 +730,28 @@ const SheetReaderMode: React.FC = () => {
                 </div>
               )
             ) : (
-              <div className="h-full w-full flex items-center justify-center text-slate-500 text-sm italic">No song selected.</div>
+              <div className="max-w-md w-full rounded-3xl bg-slate-900/90 border border-white/10 p-8 text-center space-y-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="mx-auto w-16 h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <SlidersHorizontal className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black uppercase tracking-tight text-white">
+                    {readerMode === 'live' ? 'No live-ready songs' : readerMode === 'preferred' ? 'No preferred-reader songs' : 'No songs in this view'}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium mt-2 leading-relaxed">
+                    {readerMode === 'live'
+                      ? 'Rate songs with the green happy face and reach 70% readiness to see them here.'
+                      : readerMode === 'preferred'
+                      ? 'Set a Preferred Reader on songs in the repertoire to build this queue.'
+                      : 'Try a different search or filter.'}
+                  </p>
+                </div>
+                {readerMode !== 'practice' && (
+                  <Button onClick={() => handleReaderModeChange('practice')} className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest">
+                    Switch to Practice
+                  </Button>
+                )}
+              </div>
             )}
           </animated.div>
           {isChartContentLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}

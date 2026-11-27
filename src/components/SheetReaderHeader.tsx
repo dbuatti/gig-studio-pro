@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
-import { ArrowLeft, Search, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2, MoreVertical, Settings2, Link2, Shuffle, Frown, Meh, Smile, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, Search, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2, MoreVertical, Settings2, Link2, Shuffle, Frown, Meh, Smile, SlidersHorizontal, Play, Pause } from 'lucide-react';
 import { SetlistSong } from '@/components/SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -44,6 +44,8 @@ interface SheetReaderHeaderProps {
   onReaderModeChange?: (mode: 'practice' | 'preferred' | 'live') => void;
   onShuffle?: () => void;
   onComfortRate?: (level: 'sad' | 'mid' | 'happy') => void;
+  isPlaying?: boolean;
+  onTogglePlayback?: () => void;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -77,6 +79,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onReaderModeChange,
   onShuffle,
   onComfortRate,
+  isPlaying,
+  onTogglePlayback,
 }) => {
   const isMobile = useIsMobile();
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
@@ -175,6 +179,21 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               </button>
             ))}
           </div>
+        )}
+        {onTogglePlayback && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onTogglePlayback}
+            className={cn(
+              "h-8 w-8 md:h-10 md:w-10 rounded-xl transition-all",
+              isPlaying ? "bg-red-600 text-white hover:bg-red-700" : "bg-emerald-600 text-white hover:bg-emerald-700"
+            )}
+            title={isPlaying ? 'Pause audio [Space]' : 'Play audio [Space]'}
+            aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
+          >
+            {isPlaying ? <Pause className="w-4 h-4 md:w-5 md:h-5" /> : <Play className="w-4 h-4 md:w-5 md:h-5" />}
+          </Button>
         )}
         {onShuffle && (
           <Button
@@ -322,6 +341,11 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               {onShuffle && (
                 <DropdownMenuItem onClick={onShuffle} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase">
                   <Shuffle className="w-4 h-4 text-emerald-400" /> Shuffle Reader
+                </DropdownMenuItem>
+              )}
+              {onTogglePlayback && (
+                <DropdownMenuItem onClick={onTogglePlayback} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase">
+                  {isPlaying ? <Pause className="w-4 h-4 text-red-400" /> : <Play className="w-4 h-4 text-emerald-400" />} {isPlaying ? 'Pause Audio' : 'Play Audio'}
                 </DropdownMenuItem>
               )}
               {onComfortRate && currentSong && (
