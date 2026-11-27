@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong, UGChordsConfig, EnergyZone } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles, Frown, Meh, Smile, Shuffle, SlidersHorizontal } from 'lucide-react';
+import { Loader2, Sparkles, Frown, Meh, Smile, Shuffle, SlidersHorizontal, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DEFAULT_FILTERS } from '@/components/SetlistFilters';
@@ -87,7 +87,20 @@ const SheetReaderMode: React.FC = () => {
   const hasPreferredReader = (s: SetlistSong) => !!s.preferred_reader && s.preferred_reader !== 'unsure';
   const isReadableChart = (s: SetlistSong) => !!(s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url);
   const allSongs = useMemo(() => {
-    if (readerMode === 'practice') return baseSongs;
+    if (readerMode === 'practice') {
+      // Surface the songs that need the most work first: no preferred reader,
+      // no sheet music / chords, then lowest readiness.
+      const needScore = (s: SetlistSong) => {
+        let score = 0;
+        if (!hasPreferredReader(s)) score += 4;
+        if (!s.pdfUrl && !s.sheet_music_url) score += 3;
+        if (!s.ug_chords_text) score += 2;
+        if (!s.leadsheetUrl) score += 1;
+        score += (100 - calculateReadiness(s)) / 100;
+        return score;
+      };
+      return [...baseSongs].sort((a, b) => needScore(b) - needScore(a));
+    }
     if (readerMode === 'preferred') return baseSongs.filter(s => hasPreferredReader(s) && isReadableChart(s));
     return baseSongs.filter(s => hasPreferredReader(s) && isReadableChart(s) && calculateReadiness(s) >= 70 && (s.comfort_level || 0) > 0);
   }, [baseSongs, readerMode]);
@@ -776,6 +789,21 @@ const SheetReaderMode: React.FC = () => {
           <SheetReaderAudioPlayer currentSong={currentSong} isPlaying={isPlaying} progress={audioEngine.progress} duration={audioEngine.duration} onTogglePlayback={audioEngine.togglePlayback} onNext={handleNext} onPrevious={handlePrev} onSeek={audioEngine.setProgress} volume={audioEngine.volume} setVolume={audioEngine.setVolume} pitch={effectivePitch} setPitch={setPitch} isLoadingAudio={audioEngine.isLoadingAudio} readerKeyPreference={readerKeyPreference} effectiveTargetKey={effectiveTargetKey} isPlayerVisible={isAudioPlayerVisible} />
         )}
       </AnimatePresence>
+
+      {isZenMode && currentSong && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-900/85 backdrop-blur-xl px-2 py-1.5 shadow-2xl">
+          <button type="button" onClick={handlePrev} aria-label="Previous song" className="h-9 w-9 rounded-full flex items-center justify-center text-slate-300 hover:bg-white/10 transition-all">
+            <SkipBack className="w-4 h-4" />
+          </button>
+          <button type="button" onClick={audioEngine.togglePlayback} aria-label={isPlaying ? 'Pause audio' : 'Play audio'} className={cn("h-10 w-10 rounded-full flex items-center justify-center transition-all", isPlaying ? "bg-red-600 text-white" : "bg-emerald-600 text-white")}>
+            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+          </button>
+          <button type="button" onClick={handleNext} aria-label="Next song" className="h-9 w-9 rounded-full flex items-center justify-center text-slate-300 hover:bg-white/10 transition-all">
+            <SkipForward className="w-4 h-4" />
+          </button>
+          <span className="max-w-[160px] truncate text-[9px] font-black uppercase tracking-widest text-slate-400 pl-1 pr-2">{currentSong.name}</span>
+        </div>
+      )}
 
       {currentChartDisplayUrl && pdfDocument && currentSong && (
         <LinkEditorOverlay isOpen={isLinkEditorOpen} onClose={() => setIsLinkEditorOpen(false)} songId={currentSong.master_id || currentSong.id} chartUrl={currentChartDisplayUrl} onLinkCreated={fetchLinks} />
