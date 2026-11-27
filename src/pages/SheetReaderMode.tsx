@@ -55,6 +55,7 @@ const SheetReaderMode: React.FC = () => {
   const { songId: routeSongId } = useParams<{ songId?: string }>();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const userId = user?.id;
   const { 
     keyPreference: globalKeyPreference,
     preventStageKeyOverwrite,
@@ -140,7 +141,8 @@ const SheetReaderMode: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setPdfCurrentPage(1);
+    const savedPage = sessionStorage.getItem(`reader_pdf_page_${currentSong?.id}`);
+    setPdfCurrentPage(savedPage ? Number(savedPage) || 1 : 1);
     setPdfNumPages(null);
     setPdfScale(null);
     setPdfDocument(null);
@@ -151,6 +153,17 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong?.id]);
 
+  // Remember which song the user is viewing so an unprompted reload (iOS PWA)
+  // can restore it instead of resetting to the first song of the set.
+  useEffect(() => {
+    if (currentSong?.id) sessionStorage.setItem('reader_current_song_id', currentSong.id);
+  }, [currentSong?.id]);
+
+  // Remember the PDF page per song.
+  useEffect(() => {
+    if (currentSong?.id) sessionStorage.setItem(`reader_pdf_page_${currentSong.id}`, String(pdfCurrentPage));
+  }, [currentSong?.id, pdfCurrentPage]);
+
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
     setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
     setFullMasterRepertoire(prev => prev.map(s => (s.master_id || s.id) === (updates.master_id || songId) ? { ...s, ...updates } : s));
@@ -158,7 +171,7 @@ const SheetReaderMode: React.FC = () => {
   }, []);
 
   const handleAutoSave = useCallback(async (updates: Partial<SetlistSong>) => {
-    if (!currentSong || !user) return;
+    if (!currentSong || !userId) return;
     try {
       const masterId = currentSong.master_id || currentSong.id;
       const result = await syncToMasterRepertoire(user.id, [{
@@ -203,7 +216,7 @@ const SheetReaderMode: React.FC = () => {
   }, [currentSong?.id, effectiveTargetKey, effectivePitch, selectedChartType]);
 
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
-    if (!currentSong || !user) return;
+    if (!currentSong || !userId) return;
     setTargetKey(newTargetKey); 
     setAudioPitch(calculateSemitones(currentSong.originalKey || 'C', newTargetKey));
     if (isStageKeyLocked) showInfo(`Stage Key temporarily set to ${newTargetKey}`);
@@ -226,18 +239,23 @@ const SheetReaderMode: React.FC = () => {
   }, [currentSong?.id]);
 
   const fetchSongs = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     setInitialLoading(true);
     try {
       const readerViewMode = sessionStorage.getItem('reader_view_mode');
       const readerSetlistId = sessionStorage.getItem('reader_setlist_id');
-      const targetId = routeSongId || searchParams.get('id');
+      // On a normal (fresh) open the URL carries the starting song. After an
+      // unprompted reload (iOS PWA) we restore the song the user was actually
+      // viewing instead of jumping back to the first song of the set.
+      const isFreshOpen = sessionStorage.getItem('reader_fresh_open') === '1';
+      if (isFreshOpen) sessionStorage.removeItem('reader_fresh_open');
+      let targetId = routeSongId || searchParams.get('id');
       const savedFilters = localStorage.getItem('gig_active_filters');
       const activeFilters = { ...DEFAULT_FILTERS, ...safeJsonParse(savedFilters, {}) };
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
       const sortMode = (localStorage.getItem('gig_sort_mode') as string) || 'none';
 
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', userId).order('title');
       if (masterError) throw masterError;
       
       const masterRepertoireList: SetlistSong[] = (masterData || []).map((d: Record<string, unknown>) => ({
@@ -262,6 +280,14 @@ const SheetReaderMode: React.FC = () => {
         sheet_music_url: d.sheet_music_url,
       }));
       setFullMasterRepertoire(masterRepertoireList);
+
+      // Restore the song the user was viewing after an unprompted reload.
+      if (!isFreshOpen) {
+        const persistedCurrent = sessionStorage.getItem('reader_current_song_id');
+        if (persistedCurrent && masterRepertoireList.some(s => s.id === persistedCurrent || s.master_id === persistedCurrent)) {
+          targetId = persistedCurrent;
+        }
+      }
 
       // Handle random shuffle mode
       const shuffleParam = searchParams.get('shuffle');
@@ -324,23 +350,23 @@ const SheetReaderMode: React.FC = () => {
     } finally {
       setInitialLoading(false);
     }
-  }, [user, routeSongId, searchParams]);
+  }, [userId, routeSongId, searchParams]);
 
   useEffect(() => { fetchSongs(); }, [fetchSongs]);
 
   const fetchLinks = useCallback(async () => {
-    if (!user || !currentSong?.master_id || selectedChartType === 'chords') {
+    if (!userId || !currentSong?.master_id || selectedChartType === 'chords') {
       setLinks([]);
       return;
     }
     try {
-      const { data, error } = await supabase.from('sheet_links').select('*').eq('song_id', currentSong.master_id).eq('user_id', user.id);
+      const { data, error } = await supabase.from('sheet_links').select('*').eq('song_id', currentSong.master_id).eq('user_id', userId);
       if (error) throw new Error(error.message || "Unknown error");
       setLinks(data || []);
     } catch (err: unknown) {
       showError(`Failed to load links: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [user, currentSong?.master_id, selectedChartType]);
+  }, [userId, currentSong?.master_id, selectedChartType]);
 
   useEffect(() => { fetchLinks(); }, [fetchLinks]);
 
@@ -442,13 +468,16 @@ const SheetReaderMode: React.FC = () => {
         maxHeight = Math.max(maxHeight, vp2.height);
       }
       const gap = twoPage ? 16 : 0;
-      const scaleX = (container.clientWidth * 0.98 - gap) / totalWidth;
-      const scaleY = (container.clientHeight * 0.98) / maxHeight;
+      // In Zen (full-screen) mode, maximize the PDF to fill the container
+      // instead of leaving the small safety margins used in the normal view.
+      const fitFactor = isZenMode ? 1 : 0.98;
+      const scaleX = (container.clientWidth * fitFactor - gap) / totalWidth;
+      const scaleY = (container.clientHeight * fitFactor) / maxHeight;
       setPdfScale(Math.min(scaleX, scaleY));
     } catch (error) {
       console.error("[SheetReaderMode] Scale error:", error);
     }
-  }, []);
+  }, [isZenMode]);
 
   useEffect(() => {
     const container = chartContainerRef.current;
@@ -576,7 +605,7 @@ const SheetReaderMode: React.FC = () => {
             "flex-1 bg-black relative transition-all duration-500",
             isZenMode ? "mt-0" : "mt-14 md:mt-[72px]", 
             isAudioPlayerVisible && currentSong && !isZenMode ? "pb-20 md:pb-24" : "pb-0", 
-            shouldDisableScroll ? "overflow-hidden" : "overflow-auto"
+            isZenMode || shouldDisableScroll ? "overflow-hidden" : "overflow-auto"
           )}
           onClick={toggleZenMode} 
         >
@@ -621,7 +650,7 @@ const SheetReaderMode: React.FC = () => {
         </div>
       </main>
 
-      <RepertoireSearchModal isOpen={isRepertoireSearchModalOpen} onClose={() => setIsRepertoireSearchModalOpen(false)} masterRepertoire={fullMasterRepertoire} currentSetlistSongs={currentSetlistSongs} onSelectSong={(s) => { const idx = allSongs.findIndex(x => x.id === s.id || x.master_id === s.master_id); stopPlayback(); if (idx !== -1) setCurrentIndex(idx); else navigate(`/sheet-reader/${s.id}`); setIsRepertoireSearchModalOpen(false); }} />
+      <RepertoireSearchModal isOpen={isRepertoireSearchModalOpen} onClose={() => setIsRepertoireSearchModalOpen(false)} masterRepertoire={fullMasterRepertoire} currentSetlistSongs={currentSetlistSongs} onSelectSong={(s) => { const idx = allSongs.findIndex(x => x.id === s.id || x.master_id === s.master_id); stopPlayback(); if (idx !== -1) setCurrentIndex(idx); else { sessionStorage.setItem('reader_fresh_open', '1'); sessionStorage.removeItem('reader_current_song_id'); navigate(`/sheet-reader/${s.id}`); } setIsRepertoireSearchModalOpen(false); }} />
 
       {currentSong && (
         <ReadinessWizardModal

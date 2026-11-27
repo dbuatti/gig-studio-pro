@@ -129,7 +129,7 @@ const Index = () => {
         case 'r':
         case 'R':
           e.preventDefault();
-          navigate((activeSong?.master_id || activeSong?.id) ? `/sheet-reader/${activeSong?.master_id || activeSong?.id}` : '/sheet-reader');
+          sessionStorage.setItem('reader_fresh_open', '1'); sessionStorage.removeItem('reader_current_song_id'); navigate((activeSong?.master_id || activeSong?.id) ? `/sheet-reader/${activeSong?.master_id || activeSong?.id}` : '/sheet-reader');
           break;
         case 'h':
         case 'H':
@@ -223,7 +223,7 @@ const Index = () => {
     sessionStorage.setItem('reader_random_ids', JSON.stringify(shuffled.map(s => s.master_id || s.id)));
     const first = shuffled[0];
     showSuccess(`Shuffling ${shuffled.length} reader-ready tracks`);
-    navigate(`/sheet-reader/${first.master_id || first.id}?shuffle=1`);
+    sessionStorage.setItem('reader_fresh_open', '1'); sessionStorage.removeItem('reader_current_song_id'); navigate(`/sheet-reader/${first.master_id || first.id}?shuffle=1`);
   }, [activeSetlist, filteredAndSortedSongs, navigate]);
 
   const handleShuffleAll = useCallback(() => {
@@ -386,7 +386,7 @@ const Index = () => {
     }
     const shuffled = [...readableSongs].sort(() => Math.random() - 0.5);
     sessionStorage.setItem('reader_random_ids', JSON.stringify(shuffled.map(s => s.id)));
-    navigate(`/sheet-reader/${shuffled[0].id}?shuffle=1`);
+    sessionStorage.setItem('reader_fresh_open', '1'); sessionStorage.removeItem('reader_current_song_id'); navigate(`/sheet-reader/${shuffled[0].id}?shuffle=1`);
   }, [masterRepertoire, navigate]);
 
   const handleOpenSetReader = (groupNum: number) => {
@@ -394,7 +394,7 @@ const Index = () => {
     if (setSongs.length > 0) {
       sessionStorage.setItem('reader_view_mode', 'gigs');
       sessionStorage.setItem('reader_setlist_id', activeSetlistId || '');
-      navigate(`/sheet-reader/${setSongs[0].id}?set=${groupNum}`);
+      sessionStorage.setItem('reader_fresh_open', '1'); sessionStorage.removeItem('reader_current_song_id'); navigate(`/sheet-reader/${setSongs[0].id}?set=${groupNum}`);
     } else {
       showWarning("No songs in this set.");
     }
@@ -1191,7 +1191,7 @@ const Index = () => {
       <FloatingCommandDock 
         onOpenSearch={() => setIsGlobalSearchOpen(true)} 
         onOpenPractice={() => {}} 
-        onOpenReader={(id) => navigate(id ? `/sheet-reader/${id}` : '/sheet-reader')} 
+        onOpenReader={(id) => { sessionStorage.setItem('reader_fresh_open', '1'); sessionStorage.removeItem('reader_current_song_id'); navigate(id ? `/sheet-reader/${id}` : '/sheet-reader'); }} 
         onOpenRandomReader={handleOpenRandomReader}
         onOpenAdmin={() => setIsAdminPanelOpen(true)} 
         onOpenPreferences={() => setIsPreferencesOpen(true)} 
