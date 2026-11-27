@@ -26,6 +26,7 @@ interface DashboardModalsProps {
   userId: string | undefined;
   activeSetlist: Setlist | undefined;
   activeSong: SetlistSong | null;
+  playbackQueue: SetlistSong[];
   filteredAndSortedSongs: SetlistSong[];
   masterRepertoire: SetlistSong[];
   allSetlists: Setlist[];
@@ -77,7 +78,9 @@ interface DashboardModalsProps {
   onWizardGoToTab: (tab: string) => void;
 
   // Handlers
-  onSelectSong: (song: SetlistSong) => void;
+  onNextTrack: () => void;
+  onPreviousTrack: () => void;
+  onShuffleQueue: () => void;
   onUpdateSongInSetlist: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => void;
   onDeleteSetlist: (id: string) => void | Promise<void>;
@@ -97,6 +100,7 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
   userId,
   activeSetlist,
   activeSong,
+  playbackQueue,
   filteredAndSortedSongs,
   masterRepertoire,
   allSetlists,
@@ -142,7 +146,9 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
   onWizardClose,
   onWizardAutoSave,
   onWizardGoToTab,
-  onSelectSong,
+  onNextTrack,
+  onPreviousTrack,
+  onShuffleQueue,
   onUpdateSongInSetlist,
   onUpdateSetlistSongs,
   onDeleteSetlist,
@@ -165,6 +171,15 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
     onSetSongStudioVisibleSongs(null);
   };
 
+  const performanceSongs = playbackQueue.length > 0
+    ? playbackQueue
+    : activeSetGroup
+      ? filteredAndSortedSongs.filter((song) => song.set_group === activeSetGroup)
+      : activeSetlist?.songs || [];
+  const performanceIndex = performanceSongs.findIndex((song) =>
+    song.id === activeSong?.id || (!!song.master_id && song.master_id === activeSong?.master_id)
+  );
+
   return (
     <>
       <SongStudioModal
@@ -181,33 +196,17 @@ const DashboardModals: React.FC<DashboardModalsProps> = ({
         preventStageKeyOverwrite={preventStageKeyOverwrite}
       />
 
-      {isPerformanceOverlayOpen && activeSetlist && activeSong && (
+      {isPerformanceOverlayOpen && activeSetlist && activeSong && performanceIndex >= 0 && (
         <PerformanceOverlay
-          songs={activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs}
-          currentIndex={(activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs).findIndex(s => s.id === activeSong.id)}
+          songs={performanceSongs}
+          currentIndex={performanceIndex}
           isPlaying={audio.isPlaying}
           progress={audio.progress}
           duration={audio.duration}
           onTogglePlayback={audio.togglePlayback}
-          onNext={() => {
-            const songs = activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs;
-            const idx = songs.findIndex(s => s.id === activeSong.id);
-            if (idx !== -1 && idx < songs.length - 1) {
-              onSelectSong(songs[idx + 1]);
-            } else if (songs.length > 0) {
-              onSelectSong(songs[0]);
-            }
-          }}
-          onPrevious={() => {
-            const songs = activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs;
-            const idx = songs.findIndex(s => s.id === activeSong.id);
-            if (idx > 0) {
-              onSelectSong(songs[idx - 1]);
-            } else if (songs.length > 0) {
-              onSelectSong(songs[songs.length - 1]);
-            }
-          }}
-          onShuffle={() => {}}
+          onNext={onNextTrack}
+          onPrevious={onPreviousTrack}
+          onShuffle={onShuffleQueue}
           onClose={() => {
             setIsPerformanceOverlayOpen(false);
             setActiveSetGroup(null);

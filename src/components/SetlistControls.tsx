@@ -44,7 +44,7 @@ const SetlistControls: React.FC<SetlistControlsProps> = ({
             variant="ghost" size="sm" 
             onClick={() => setSortMode('none')}
             className={cn(
-              "h-9 px-4 text-[10px] font-black uppercase tracking-widest gap-2.5 shrink-0 rounded-xl transition-all",
+              "h-11 px-4 text-[10px] font-black uppercase tracking-widest gap-2.5 shrink-0 rounded-xl transition-all",
               sortMode === 'none' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-500 hover:text-white"
             )}
           >
@@ -54,7 +54,7 @@ const SetlistControls: React.FC<SetlistControlsProps> = ({
             variant="ghost" size="sm"
             onClick={() => setSortMode('manual')}
             className={cn(
-              "h-9 px-4 text-[10px] font-black uppercase tracking-widest gap-2.5 shrink-0 rounded-xl transition-all",
+              "h-11 px-4 text-[10px] font-black uppercase tracking-widest gap-2.5 shrink-0 rounded-xl transition-all",
               sortMode === 'manual' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-500 hover:text-white"
             )}
           >
@@ -63,7 +63,7 @@ const SetlistControls: React.FC<SetlistControlsProps> = ({
           <Button
             variant="ghost" size="sm"
             onClick={onOpenSortModal}
-            className="h-9 px-4 text-[10px] font-black uppercase tracking-widest gap-2.5 shrink-0 rounded-xl text-indigo-400 hover:bg-indigo-600/10 transition-all"
+            className="h-11 px-4 text-[10px] font-black uppercase tracking-widest gap-2.5 shrink-0 rounded-xl text-indigo-400 hover:bg-indigo-600/10 transition-all"
           >
             <Sparkles className="w-4 h-4" /> <span className="hidden xs:inline">AI Sort</span>
           </Button>
@@ -72,7 +72,7 @@ const SetlistControls: React.FC<SetlistControlsProps> = ({
             variant="ghost" size="sm" 
             onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}
             className={cn(
-              "h-9 px-4 text-[10px] font-black uppercase tracking-widest gap-2.5 shrink-0 rounded-xl transition-all",
+              "h-11 px-4 text-[10px] font-black uppercase tracking-widest gap-2.5 shrink-0 rounded-xl transition-all",
               (sortMode === 'ready' || sortMode === 'work') ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-white"
             )}
           >
@@ -83,7 +83,7 @@ const SetlistControls: React.FC<SetlistControlsProps> = ({
             variant="ghost" size="sm" 
             onClick={() => setSortMode('energy-asc')}
             className={cn(
-              "h-9 px-4 text-[10px] font-black uppercase tracking-widest gap-2.5 shrink-0 rounded-xl transition-all",
+              "h-11 px-4 text-[10px] font-black uppercase tracking-widest gap-2.5 shrink-0 rounded-xl transition-all",
               sortMode === 'energy-asc' ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20" : "text-slate-500 hover:text-white"
             )}
           >
@@ -141,9 +141,11 @@ const SetlistControls: React.FC<SetlistControlsProps> = ({
             className="h-12 pl-12 pr-10 text-[11px] font-bold bg-slate-900/50 border-white/5 rounded-2xl focus-visible:ring-indigo-500/50 focus-visible:bg-slate-900 transition-all shadow-inner"
           />
           {searchTerm && (
-            <button 
+            <button
+              type="button"
+              aria-label="Clear search"
               onClick={() => setSearchTerm("")}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+              className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-white"
             >
               <X className="w-4 h-4" />
             </button>

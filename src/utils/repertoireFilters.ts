@@ -6,13 +6,14 @@ import { calculateReadiness } from "./repertoireSync";
 import { normalizeSearch } from "./searchUtils";
 
 /**
- * Applies filters and sorting to a list of songs.
+ * Applies search and matrix filters without changing the source order.
+ * Shared by the repertoire and gig views so "Play visible" means the songs
+ * actually shown on screen.
  */
-export const filterAndSortRepertoire = (
+export const filterSongs = (
   songs: SetlistSong[],
   searchTerm: string,
   activeFilters: FilterState,
-  sortMode: string,
   activeSetlistSongs?: SetlistSong[]
 ): SetlistSong[] => {
   let filtered = [...songs];
@@ -77,6 +78,21 @@ export const filterAndSortRepertoire = (
 
     return true;
   });
+
+  return filtered;
+};
+
+/**
+ * Applies filters and sorting to a list of songs.
+ */
+export const filterAndSortRepertoire = (
+  songs: SetlistSong[],
+  searchTerm: string,
+  activeFilters: FilterState,
+  sortMode: string,
+  activeSetlistSongs?: SetlistSong[]
+): SetlistSong[] => {
+  const filtered = filterSongs(songs, searchTerm, activeFilters, activeSetlistSongs);
 
   // Sorting
   if (sortMode === 'ready') {

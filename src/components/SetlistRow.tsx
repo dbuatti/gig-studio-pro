@@ -5,7 +5,7 @@ import { SetlistSong, EnergyZone } from './SetlistManager';
 import { 
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle, 
   ShieldCheck, ArrowRight, Check, ChevronDown, 
-  ChevronUp, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Target
+  ChevronUp, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Target, Play
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
@@ -16,6 +16,9 @@ import MasteryRating from './MasteryRating';
 import ReaderStatusChip from './ReaderStatusChip';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
+import { ReadinessBadge } from '@/components/ui/readiness-badge';
+import { IconButton } from '@/components/ui/icon-button';
+import { songAudioUrl } from '@/utils/playbackQueue';
 
 interface SetlistRowProps {
   song: SetlistSong;
@@ -26,7 +29,7 @@ interface SetlistRowProps {
   idx: number;
   onTogglePlayed: (id: string) => void;
   onEdit: (song: SetlistSong) => void;
-  onSelect: (song: SetlistSong) => void;
+  onSelect: (song: SetlistSong, forceAutoplay?: boolean) => void;
   onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
   onRemove: (id: string) => void;
@@ -63,7 +66,7 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
       <td className="px-3 text-center w-12">
         <button
           onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}
-          className="transition-transform active:scale-90 inline-flex items-center justify-center"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg transition-transform active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
           aria-label={song.isPlayed ? "Mark as unplayed" : "Mark as played"}
         >
           {song.isPlayed ? (
@@ -84,11 +87,15 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <h4 className={cn("text-sm font-black tracking-tight leading-none flex items-center gap-1.5 text-white truncate max-w-[220px]", song.isPlayed && "line-through text-slate-500")}>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onEdit(song); }}
+                  className={cn("flex max-w-[260px] items-center gap-1.5 truncate text-left text-sm font-bold leading-none text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400", song.isPlayed && "line-through text-slate-500")}
+                >
                   {song.name}
-                  {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce shrink-0" />}
-                  {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />}
-                </h4>
+                  {isProcessing && <CloudDownload className="h-3.5 w-3.5 shrink-0 animate-bounce text-indigo-400" />}
+                  {isExtractionFailed && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-400" />}
+                </button>
               </TooltipTrigger>
               <TooltipContent className="bg-slate-900 text-white border-white/10 text-xs font-medium">
                 {song.name} — {song.artist || "Unknown Artist"}
@@ -119,27 +126,28 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
         <MasteryRating value={song.comfort_level || 0} onChange={(val) => onUpdateSong(song.id, { comfort_level: val })} size="sm" />
       </td>
 
-      <td className="px-3 text-center w-16">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className={cn(
-                "text-[10px] font-mono font-black px-2 py-0.5 rounded-lg inline-flex items-center gap-1 border transition-all cursor-help",
-                readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/20" : "bg-indigo-600/20 text-indigo-400 border-indigo-500/20"
-              )}>
-                {readinessScore}%
-              </span>
-            </TooltipTrigger>
-            <TooltipContent className="p-4 bg-slate-950 border-white/10 rounded-2xl shadow-2xl max-w-xs">
-              <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Readiness Breakdown</p>
-                {getReadinessBreakdown(song).map((item, i) => (
-                  <p key={i} className="text-[10px] font-bold text-slate-300 flex items-center gap-2">{item}</p>
-                ))}
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+      <td className="px-3 text-center w-24">
+        <div onClick={(e) => e.stopPropagation()}>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ReadinessBadge
+                  score={readinessScore}
+                  compact
+                  onInspect={() => (onOpenWizard ? onOpenWizard(song) : onEdit(song))}
+                />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs rounded-xl border border-studio-border bg-studio-raised p-4 text-studio-foreground shadow-2xl">
+                <div className="space-y-2">
+                  <p className="studio-eyebrow mb-2">Readiness breakdown</p>
+                  {getReadinessBreakdown(song).map((item, index) => (
+                    <p key={index} className="flex items-center gap-2 text-[10px] font-semibold text-studio-muted">{item}</p>
+                  ))}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </td>
 
       <td className="px-3 text-center w-14">
@@ -189,19 +197,30 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
         </div>
       </td>
 
-      <td className="px-3 text-right pr-4 w-40">
+      <td className="px-3 text-right pr-4 w-44">
         <div className="flex items-center justify-end gap-1">
+          <IconButton
+            aria-label={`Play ${song.name}`}
+            onClick={(e) => { e.stopPropagation(); onSelect(song, true); }}
+            disabled={!songAudioUrl(song)}
+            className="text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300"
+          >
+            <Play className="h-4 w-4 fill-current" />
+          </IconButton>
           <SetlistMultiSelector songMasterId={song.master_id || song.id} allSetlists={allSetlists} songToAssign={song} onUpdateSetlistSongs={onUpdateSetlistSongs} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="h-8 w-8 rounded-xl text-slate-400 hover:bg-white/5 inline-flex items-center justify-center">
-                <MoreVertical className="w-4 h-4" />
-              </button>
+              <IconButton aria-label={`More actions for ${song.name}`} compact onClick={(e) => e.stopPropagation()}>
+                <MoreVertical className="h-4 w-4" />
+              </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl bg-slate-950 border-white/10 shadow-2xl">
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUpdateSong(song.id, { isApproved: !song.isApproved }); showSuccess(`Song marked as ${song.isApproved ? 'unapproved' : 'approved'} for gig.`); }} className="h-10 rounded-xl text-[10px] font-bold uppercase">
                 {song.isApproved ? <Check className="w-4 h-4 mr-3 text-emerald-500" /> : <ListMusic className="w-4 h-4 mr-3" />}
                 {song.isApproved ? "Unapprove" : "Approve for Gig"}
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!songAudioUrl(song)} onClick={(e) => { e.stopPropagation(); onSelect(song, true); }} className="h-10 rounded-xl text-[10px] font-bold uppercase">
+                <Play className="w-4 h-4 mr-3 text-indigo-400" /> Play from here
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-white/5" />
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled} className="h-10 rounded-xl text-[10px] font-bold uppercase">

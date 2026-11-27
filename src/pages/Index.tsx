@@ -9,13 +9,14 @@ import { usePlayback } from '@/components/PlaybackProvider';
 import { showSuccess, showInfo, showWarning, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
-import { normalizeSearch } from '@/utils/searchUtils';
+import { filterSongs } from '@/utils/repertoireFilters';
+import { getPlayableSongs, partitionSongsByAudio } from '@/utils/playbackQueue';
 import { safeJsonParse } from '@/utils/safeJson';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { autoVibeCheck } from '@/utils/vibeUtils';
 
 // UI Components
-import { Plus, Music2, Calendar, Sparkles, Edit3, Trash2 } from 'lucide-react';
+import { Plus, Calendar, Sparkles, Edit3, Trash2 } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -94,19 +95,15 @@ const Index = () => {
 
   const filteredAndSortedSongs = useMemo(() => {
     if (!activeSetlist) return [];
-    let songs = [...activeSetlist.songs];
-    const q = normalizeSearch(searchTerm);
-    if (q) songs = songs.filter(s => normalizeSearch(s.name).includes(q) || normalizeSearch(s.artist || '').includes(q));
-    if (activeFilters.hasReader === 'yes') songs = songs.filter(s => !!s.preferred_reader);
-    else if (activeFilters.hasReader === 'no') songs = songs.filter(s => !s.preferred_reader);
-    
+    let songs = filterSongs(activeSetlist.songs, searchTerm, activeFilters);
+
     if (sortMode === 'ready') songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     else if (sortMode === 'work') songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
     else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
       songs = sortSongsByStrategy(songs, sortMode as FlowStrategy);
     }
     return songs;
-  }, [activeSetlist, searchTerm, sortMode, activeFilters.hasReader]);
+  }, [activeSetlist, searchTerm, activeFilters, sortMode]);
 
   const { activeSong, isAutoplayActive } = playback;
 
@@ -166,29 +163,66 @@ const Index = () => {
   }, [playback, filteredAndSortedSongs, activeSetlist?.name, isAutoplayActive]);
 
   const playNext = playback.next;
-  const toggleAutoplay = playback.toggleAutoplay;
 
-  const handleShuffleSet = useCallback(() => {
-    const withAudio = filteredAndSortedSongs.filter(s => !!s.audio_url || !!s.previewUrl);
-    if (withAudio.length === 0) {
-      showWarning("No songs with audio in this set.");
+  const handlePlayVisible = useCallback(() => {
+    if (isAutoplayActive) {
+      playback.toggleAutoplay();
       return;
     }
-    const shuffled = [...withAudio].sort(() => Math.random() - 0.5);
-    playback.playQueue(shuffled, `${activeSetlist?.name || 'Set'} — Shuffle`);
-    showSuccess(`Shuffling ${shuffled.length} tracks back-to-back`);
+    const { playable, skipped } = partitionSongsByAudio(filteredAndSortedSongs);
+    if (playable.length === 0) {
+      showWarning("No songs with audio in this view.");
+      return;
+    }
+    playback.playQueue(playable, activeSetlist?.name || 'Visible songs');
+    showSuccess(
+      skipped.length > 0
+        ? `Playing ${playable.length} visible tracks · ${skipped.length} without audio skipped`
+        : `Playing ${playable.length} visible tracks`
+    );
+  }, [isAutoplayActive, playback, filteredAndSortedSongs, activeSetlist?.name]);
+
+  const handleShufflePerformanceQueue = useCallback(() => {
+    const source = playback.queue.length > 0 ? playback.queue : activeSetlist?.songs || [];
+    const playable = getPlayableSongs(source);
+    if (playable.length < 2) {
+      showWarning("Add at least two songs with audio to shuffle this queue.");
+      return;
+    }
+    const shuffled = [...playable].sort(() => Math.random() - 0.5);
+    playback.playQueue(shuffled, playback.queueName || activeSetlist?.name || 'Stage Mode');
+    showSuccess(`Stage queue shuffled · ${playable.length} tracks`);
+  }, [playback, activeSetlist]);
+
+  const handleShuffleSet = useCallback(() => {
+    const { playable, skipped } = partitionSongsByAudio(filteredAndSortedSongs);
+    if (playable.length === 0) {
+      showWarning("No songs with audio in this view.");
+      return;
+    }
+    const shuffled = [...playable].sort(() => Math.random() - 0.5);
+    playback.playQueue(shuffled, `${activeSetlist?.name || 'Set'} — Shuffle visible`);
+    showSuccess(
+      skipped.length > 0
+        ? `Shuffling ${playable.length} tracks · ${skipped.length} without audio skipped`
+        : `Shuffling ${playable.length} tracks back-to-back`
+    );
   }, [filteredAndSortedSongs, activeSetlist, playback]);
 
   const handleShuffleAll = useCallback(() => {
-    const withAudio = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
-    if (withAudio.length === 0) {
+    const { playable, skipped } = partitionSongsByAudio(masterRepertoire);
+    if (playable.length === 0) {
       showWarning("No songs with audio in your repertoire.");
       return;
     }
-    const shuffled = [...withAudio].sort(() => Math.random() - 0.5);
+    const shuffled = [...playable].sort(() => Math.random() - 0.5);
     setIsShuffleAllMode(true);
     playback.playQueue(shuffled, 'Shuffle All');
-    showSuccess(`Shuffle All: ${shuffled.length} songs`);
+    showSuccess(
+      skipped.length > 0
+        ? `Shuffle All: ${playable.length} songs · ${skipped.length} without audio skipped`
+        : `Shuffle All: ${playable.length} songs`
+    );
   }, [masterRepertoire, playback]);
 
   const handleToggleShuffleAll = useCallback(() => {
@@ -201,6 +235,11 @@ const Index = () => {
   }, [isShuffleAllMode, isAutoplayActive, playback, handleShuffleAll]);
 
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
+  const gigSortMode: FlowStrategy = sortMode === 'artist' ? 'none' : sortMode;
+  const repertoireSortMode: 'none' | 'ready' | 'work' | 'manual' | 'artist' =
+    sortMode === 'artist' || sortMode === 'none' || sortMode === 'ready' || sortMode === 'work' || sortMode === 'manual'
+      ? sortMode
+      : 'none';
 
   useEffect(() => {
     localStorage.setItem('gig_active_filters', JSON.stringify(activeFilters));
@@ -242,14 +281,15 @@ const Index = () => {
 
       // Batch-fetch all junction rows for these setlists in one query instead of N.
       const setlistIds = (setlistsData || []).map(s => s.id);
-      let allJunction: Record<string, unknown>[] = [];
+      type JunctionRow = { id: string; song_id: string; setlist_id: string; isPlayed?: boolean; set_group?: number; sort_order?: number };
+      let allJunction: JunctionRow[] = [];
       if (setlistIds.length > 0) {
         const { data: junctionData } = await supabase
           .from('setlist_songs')
           .select('*')
           .in('setlist_id', setlistIds)
           .order('sort_order', { ascending: true });
-        allJunction = junctionData || [];
+        allJunction = (junctionData || []) as JunctionRow[];
       }
 
       const setlistsWithSongs: Setlist[] = (setlistsData || []).map(setlist => {
@@ -345,12 +385,16 @@ const Index = () => {
 
   const handleOpenSetKaraoke = (groupNum: number) => {
     const setSongs = filteredAndSortedSongs.filter(s => s.set_group === groupNum);
-    if (setSongs.length > 0) {
-      setActiveSetGroup(groupNum);
-      handleSelectSong(setSongs[0]);
-      setIsPerformanceOverlayOpen(true);
-    } else {
-      showWarning("No songs in this set.");
+    const { playable, skipped } = partitionSongsByAudio(setSongs);
+    if (playable.length === 0) {
+      showWarning("No songs with audio in this set.");
+      return;
+    }
+    setActiveSetGroup(groupNum);
+    playback.playQueue(playable, `${activeSetlist?.name || 'Set'} — ${groupNum === 99 ? 'Surplus' : `Set ${groupNum}`}`);
+    setIsPerformanceOverlayOpen(true);
+    if (skipped.length > 0) {
+      showInfo(`${skipped.length} song${skipped.length === 1 ? '' : 's'} without audio will be skipped.`);
     }
   };
 
@@ -369,12 +413,17 @@ const Index = () => {
 
   const handlePlaySet = (groupNum: number) => {
     const setSongs = filteredAndSortedSongs.filter(s => s.set_group === groupNum);
-    if (setSongs.length > 0) {
-      playback.playQueue(setSongs, `${activeSetlist?.name || 'Set'} — ${groupNum === 99 ? 'Surplus' : `Set ${groupNum}`}`);
-      showSuccess(`Playing ${setSongs.length} tracks back-to-back`);
-    } else {
-      showWarning("No songs in this set.");
+    const { playable, skipped } = partitionSongsByAudio(setSongs);
+    if (playable.length === 0) {
+      showWarning("No songs with audio in this set.");
+      return;
     }
+    playback.playQueue(playable, `${activeSetlist?.name || 'Set'} — ${groupNum === 99 ? 'Surplus' : `Set ${groupNum}`}`);
+    showSuccess(
+      skipped.length > 0
+        ? `Playing ${playable.length} tracks · ${skipped.length} without audio skipped`
+        : `Playing ${playable.length} tracks back-to-back`
+    );
   };
 
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
@@ -934,12 +983,12 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-[600px] bg-gradient-to-b from-indigo-600/10 to-transparent pointer-events-none" />
-      
-      <div className="flex-1 flex flex-col p-4 md:p-10 lg:p-12 overflow-y-auto custom-scrollbar relative z-10">
+    <div className="min-h-screen bg-studio-bg text-studio-foreground flex flex-col relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-[420px] bg-gradient-to-b from-indigo-500/[0.06] to-transparent pointer-events-none" />
+
+      <div className="flex-1 flex flex-col w-full max-w-[1600px] mx-auto p-4 md:p-6 lg:p-8 pb-32 md:pb-28 overflow-y-auto custom-scrollbar relative z-10">
         <Tabs value={activeDashboardView} onValueChange={(v) => setSearchParams({ view: v })} className="w-full">
-          <div className="mb-10 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between">
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-400" />
@@ -983,24 +1032,6 @@ const Index = () => {
                   className="mt-8 h-14 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest gap-3 shadow-xl shadow-indigo-600/20 transition-all hover:scale-105"
                 >
                   <Plus className="w-5 h-5" /> Create Setlist
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {activeDashboardView === 'repertoire' && masterRepertoire.length === 0 && !loading && (
-            <div className="flex flex-col items-center justify-center py-24 text-center space-y-6 animate-in fade-in zoom-in duration-700">
-              <div className="bg-slate-900/50 p-10 rounded-[3rem] border border-white/5 shadow-2xl">
-                <Music2 className="w-16 h-16 text-indigo-500 mx-auto mb-6 opacity-50" />
-                <h2 className="text-2xl font-black uppercase tracking-tight">Library is Empty</h2>
-                <p className="text-slate-400 max-w-xs mx-auto mt-2 font-medium">
-                  Add your first song to build your professional repertoire.
-                </p>
-                <Button
-                  onClick={() => setIsGlobalSearchOpen(true)}
-                  className="mt-8 h-14 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest gap-3 shadow-xl shadow-indigo-600/20 transition-all hover:scale-105"
-                >
-                  <Plus className="w-5 h-5" /> Add First Song
                 </Button>
               </div>
             </div>
@@ -1062,9 +1093,10 @@ const Index = () => {
             )}
             {activeSetlist && (
               <>
-                <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={() => (isAutoplayActive ? toggleAutoplay() : playback.playQueue(filteredAndSortedSongs, activeSetlist.name))} onShuffleAll={handleShuffleSet} isAutoplayActive={isAutoplayActive} />
+                <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={handlePlayVisible} onShuffleAll={handleShuffleSet} isAutoplayActive={isAutoplayActive} />
                 <SetlistManager
                   songs={filteredAndSortedSongs}
+                  totalSongCount={activeSetlist.songs.length}
                   onSelect={handleSelectSong}
                   onEdit={handleEditSong}
                   onUpdateKey={async (id, targetKey) => {
@@ -1084,8 +1116,8 @@ const Index = () => {
                   activeSetlistId={activeSetlistId}
                   isFilterOpen={isFilterOpen}
                   setIsFilterOpen={setIsFilterOpen}
-                  sortMode={sortMode as any}
-                  setSortMode={setSortMode as any}
+                  sortMode={gigSortMode}
+                  setSortMode={setSortMode}
                   activeFilters={activeFilters}
                   setActiveFilters={setActiveFilters}
                   searchTerm={searchTerm}
@@ -1101,6 +1133,7 @@ const Index = () => {
                   onCompileSetSongs={handleCompileSetSongs}
                   onReshuffleSubset={handleReshuffleSubset}
                   onRefresh={fetchSetlistsAndRepertoire}
+                  onAddSongs={() => setIsGlobalSearchOpen(true)}
                   onOpenWizard={(song) => { setWizardStandaloneSong(song); setIsWizardStandaloneOpen(true); }}
                 />
               </>
@@ -1115,8 +1148,8 @@ const Index = () => {
               onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
               searchTerm={searchTerm} 
               setSearchTerm={setSearchTerm} 
-              sortMode={sortMode as any} 
-              setSortMode={setSortMode as any} 
+              sortMode={repertoireSortMode}
+              setSortMode={setSortMode}
               activeFilters={activeFilters} 
               setActiveFilters={setActiveFilters} 
               onUpdateSetlistSongs={handleUpdateSetlistSongs} 
@@ -1224,6 +1257,7 @@ const Index = () => {
         userId={userId}
         activeSetlist={activeSetlist}
         activeSong={activeSong}
+        playbackQueue={playback.queue}
         filteredAndSortedSongs={filteredAndSortedSongs}
         masterRepertoire={masterRepertoire}
         allSetlists={allSetlists}
@@ -1269,7 +1303,9 @@ const Index = () => {
         onWizardClose={() => { setIsWizardStandaloneOpen(false); setWizardStandaloneSong(null); }}
         onWizardAutoSave={handleWizardAutoSave}
         onWizardGoToTab={handleWizardGoToTab}
-        onSelectSong={handleSelectSong}
+        onNextTrack={playback.next}
+        onPreviousTrack={playback.previous}
+        onShuffleQueue={handleShufflePerformanceQueue}
         onUpdateSongInSetlist={handleUpdateSongInSetlist}
         onUpdateSetlistSongs={handleUpdateSetlistSongs}
         onDeleteSetlist={handleDeleteSetlist}
