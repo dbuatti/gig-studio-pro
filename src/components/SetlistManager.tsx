@@ -32,6 +32,7 @@ import { supabase } from '@/integrations/supabase/client';
 import SetlistRow from './SetlistRow';
 import SetlistMobileCard from './SetlistMobileCard';
 import SetlistControls from './SetlistControls';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -125,7 +126,7 @@ export interface Setlist {
 interface SetlistManagerProps {
   songs: SetlistSong[];
   onRemove: (id: string) => void;
-  onSelect: (song: SetlistSong) => void;
+  onSelect: (song: SetlistSong, forceAutoplay?: boolean) => void;
   onEdit: (song: SetlistSong) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
   onTogglePlayed: (id: string) => void;
@@ -157,10 +158,14 @@ interface SetlistManagerProps {
   onCompileSetSongs?: (groupNum: number) => void;
   onReshuffleSubset?: (groupNum: number) => void;
   onRefresh?: () => Promise<void>;
+  onAddSongs?: () => void;
+  /** Unfiltered number of songs in the active setlist. */
+  totalSongCount?: number;
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
   songs: rawSongs,
+  totalSongCount,
   onRemove,
   onSelect,
   onEdit,
@@ -190,6 +195,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onCompileSetSongs,
   onReshuffleSubset,
   onRefresh,
+  onAddSongs,
   onOpenWizard
 }) => {
   const isMobile = useIsMobile();
@@ -282,6 +288,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return songs;
   }, [rawSongs, searchTerm, sortMode]);
 
+  const hasSongsInSetlist = (totalSongCount ?? rawSongs.length) > 0;
+
   const groupedBySet = useMemo(() => {
     if (sortMode !== 'manual' && sortMode !== 'none') return { 1: processedSongs };
     
@@ -302,7 +310,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     });
   }, [groupedBySet]);
 
-  const hasMultipleSets = sortedSetGroups.length > 0;
+  // Sorted views intentionally collapse groups; hiding subset actions prevents
+  // "Play Set" from targeting a synthetic group that does not exist.
+  const hasMultipleSets = (sortMode === 'manual' || sortMode === 'none') && sortedSetGroups.length > 0;
 
   const energyFatigueIndices = useMemo(() => {
     if (sortMode !== 'manual' && sortMode !== 'none') return [];
@@ -587,6 +597,29 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       {isMobile ? (
         <div className="space-y-6 px-1 pb-8">
+          {processedSongs.length === 0 && (
+            <EmptyState
+              icon={<Library className="h-5 w-5" />}
+              title={!hasSongsInSetlist ? 'This setlist is ready for its first song' : 'No songs match this view'}
+              description={!hasSongsInSetlist
+                ? 'Add a song from your repertoire, or discover something new for this gig.'
+                : 'Try a different search or clear the matrix filters to see the full setlist again.'}
+              primaryAction={!hasSongsInSetlist && onAddSongs ? (
+                <Button onClick={onAddSongs} className="h-11 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white hover:bg-indigo-500">
+                  <Plus className="h-4 w-4" /> Add songs
+                </Button>
+              ) : undefined}
+              secondaryAction={hasSongsInSetlist ? (
+                <Button
+                  variant="outline"
+                  onClick={() => { setSearchTerm(''); setActiveFilters(DEFAULT_FILTERS); }}
+                  className="h-11 rounded-xl border-studio-border bg-white/5 px-5 text-xs font-bold text-white hover:bg-white/10"
+                >
+                  Clear search & filters
+                </Button>
+              ) : undefined}
+            />
+          )}
           {sortedSetGroups.map(groupNum => (
             <React.Fragment key={groupNum}>
               {hasMultipleSets && (
@@ -607,7 +640,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => onOpenSetReader?.(groupNum)}
-                        className="h-8 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-indigo-400 border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 gap-1.5 shrink-0"
+                        className="h-11 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-indigo-400 border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 gap-1.5 shrink-0"
                       >
                         <BookOpen className="w-3 h-3" />
                         Reader
@@ -616,7 +649,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => onOpenSetKaraoke?.(groupNum)}
-                        className="h-8 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 shrink-0"
+                        className="h-11 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 shrink-0"
                       >
                         <Tv className="w-3 h-3" />
                         Karaoke
@@ -625,7 +658,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => onPlaySet?.(groupNum)}
-                        className="h-8 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-rose-400 border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 gap-1.5 shrink-0"
+                        className="h-11 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-rose-400 border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 gap-1.5 shrink-0"
                       >
                         <PlayCircle className="w-3 h-3" />
                         Play
@@ -634,7 +667,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => onCompileSetSongs?.(groupNum)}
-                        className="h-8 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-amber-400 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 gap-1.5 shrink-0"
+                        className="h-11 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-amber-400 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 gap-1.5 shrink-0"
                       >
                         <Sliders className="w-3 h-3" />
                         Compile
@@ -692,7 +725,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               key={song.id}
                               onClick={() => handleAddFromRepo(song, groupNum)}
                               disabled={repoAdding !== null}
-                              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 transition-colors text-left disabled:opacity-50"
+                              className="w-full flex min-h-11 items-center gap-3 px-3 py-2 hover:bg-white/5 transition-colors text-left disabled:opacity-50"
                             >
                               <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 shrink-0 flex items-center justify-center overflow-hidden">
                                 {song.artworkUrl ? (
@@ -748,40 +781,61 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         <DragDropContext onDragEnd={handleDragEnd}>
         <Droppable droppableId="setlist-all">
           {(dropProvided) => (
-        <div ref={dropProvided.innerRef} {...dropProvided.droppableProps} className="bg-slate-950/50 rounded-[3rem] border-4 border-white/5 shadow-2xl overflow-hidden backdrop-blur-xl">
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full border-collapse min-w-[1200px]">
-              <thead>
-                <tr className="bg-slate-900/90 border-b border-white/10">
+        <div ref={dropProvided.innerRef} {...dropProvided.droppableProps} className="overflow-hidden rounded-2xl border border-studio-border bg-studio-surface shadow-sm">
+          <div className="max-h-[70vh] overflow-auto custom-scrollbar">
+            <table className="w-full border-collapse min-w-[1160px]" aria-label="Setlist songs">
+              <thead className="sticky top-0 z-20 bg-studio-raised/95 backdrop-blur-md">
+                <tr className="border-b border-studio-border">
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-8 text-center"></th>
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-12 text-center">#</th>
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-left">Song</th>
                   <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-28 text-center">Reader</th>
-                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-16 text-center">Eng</th>
-                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-20 text-center">Mstr</th>
-                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-16 text-center cursor-pointer hover:text-indigo-400 transition-colors" onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Rdy
-                      {sortMode === 'ready' && <ChevronDown className="w-3 h-3" />}
-                      {sortMode === 'work' && <ChevronUp className="w-3 h-3" />}
-                    </div>
+                  <th className="w-20 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-studio-muted">Energy</th>
+                  <th className="w-24 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-studio-muted">Mastery</th>
+                  <th
+                    className="w-24 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-studio-muted"
+                    aria-sort={sortMode === 'ready' ? 'ascending' : sortMode === 'work' ? 'descending' : 'none'}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}
+                      className="inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-lg transition-colors hover:text-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                    >
+                      Readiness
+                      {sortMode === 'ready' && <ChevronDown className="h-3 w-3" />}
+                      {sortMode === 'work' && <ChevronUp className="h-3 w-3" />}
+                    </button>
                   </th>
-                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-14 text-center">Ord</th>
-                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-32 text-center">Key</th>
-                  <th className="py-3 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-40 text-right">Act</th>
+                  <th className="w-16 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-studio-muted">Order</th>
+                  <th className="w-32 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-studio-muted">Key</th>
+                  <th className="w-44 px-3 py-3 text-right text-[10px] font-bold uppercase tracking-[0.16em] text-studio-muted">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {processedSongs.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-40 text-center">
-                      <div className="flex flex-col items-center justify-center space-y-6 opacity-70">
-                        <Library className="w-20 h-20 text-indigo-500" />
-                        <div>
-                          <p className="text-2xl font-black uppercase tracking-tight">Setlist Empty</p>
-                          <p className="text-sm font-bold uppercase tracking-widest mt-2">Add tracks from your library to begin</p>
-                        </div>
-                      </div>
+                    <td colSpan={10} className="p-6 text-center">
+                      <EmptyState
+                        icon={<Library className="h-5 w-5" />}
+                        title={!hasSongsInSetlist ? 'This setlist is ready for its first song' : 'No songs match this view'}
+                        description={!hasSongsInSetlist
+                          ? 'Add a song from your repertoire, or discover something new for this gig.'
+                          : 'Try a different search or clear the matrix filters to see the full setlist again.'}
+                        primaryAction={!hasSongsInSetlist && onAddSongs ? (
+                          <Button onClick={onAddSongs} className="h-11 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white hover:bg-indigo-500">
+                            <Plus className="h-4 w-4" /> Add songs
+                          </Button>
+                        ) : undefined}
+                        secondaryAction={hasSongsInSetlist ? (
+                          <Button
+                            variant="outline"
+                            onClick={() => { setSearchTerm(''); setActiveFilters(DEFAULT_FILTERS); }}
+                            className="h-11 rounded-xl border-studio-border bg-white/5 px-5 text-xs font-bold text-white hover:bg-white/10"
+                          >
+                            Clear search & filters
+                          </Button>
+                        ) : undefined}
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -806,7 +860,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => onOpenSetReader?.(groupNum)}
-                                      className="h-8 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 gap-1.5 transition-all"
+                                      className="h-11 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 gap-1.5 transition-all"
                                     >
                                       <BookOpen className="w-3.5 h-3.5" />
                                       Set Reader
@@ -815,7 +869,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => onOpenSetKaraoke?.(groupNum)}
-                                      className="h-8 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 gap-1.5 transition-all"
+                                      className="h-11 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 gap-1.5 transition-all"
                                     >
                                       <Tv className="w-3.5 h-3.5" />
                                       Set Karaoke
@@ -824,7 +878,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => onPlaySet?.(groupNum)}
-                                      className="h-8 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 gap-1.5 transition-all"
+                                      className="h-11 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 gap-1.5 transition-all"
                                     >
                                       <PlayCircle className="w-3.5 h-3.5" />
                                       Play Set
@@ -833,7 +887,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => onCompileSetSongs?.(groupNum)}
-                                      className="h-8 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1.5 transition-all"
+                                      className="h-11 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1.5 transition-all"
                                     >
                                       <Sliders className="w-3.5 h-3.5" />
                                       Compile Set
@@ -932,7 +986,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                         key={song.id}
                                         onClick={() => handleAddFromRepo(song, groupNum)}
                                         disabled={repoAdding !== null}
-                                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors text-left disabled:opacity-50"
+                                        className="w-full flex min-h-11 items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors text-left disabled:opacity-50"
                                       >
                                         <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 shrink-0 flex items-center justify-center overflow-hidden">
                                           {song.artworkUrl ? (

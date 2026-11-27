@@ -34,6 +34,19 @@
 
     --radius: 0.5rem;
 
+    --studio-background: 210 40% 98%;
+    --studio-surface: 0 0% 100%;
+    --studio-raised: 210 40% 96%;
+    --studio-border: 214 25% 88%;
+    --studio-foreground: 222 47% 11%;
+    --studio-muted: 215 20% 42%;
+    --studio-primary: 226 70% 50%;
+    --studio-primary-foreground: 0 0% 100%;
+    --studio-success: 142 72% 29%;
+    --studio-warning: 32 90% 35%;
+    --studio-danger: 0 72% 45%;
+    --studio-info: 217 85% 45%;
+
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -72,6 +85,20 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+
+    --studio-background: 222 47% 5%;
+    --studio-surface: 222 36% 8%;
+    --studio-raised: 217 28% 12%;
+    --studio-border: 215 20% 21%;
+    --studio-foreground: 210 30% 96%;
+    --studio-muted: 215 16% 65%;
+    --studio-primary: 226 85% 68%;
+    --studio-primary-foreground: 222 47% 7%;
+    --studio-success: 142 69% 58%;
+    --studio-warning: 38 92% 63%;
+    --studio-danger: 0 84% 68%;
+    --studio-info: 213 94% 68%;
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -88,8 +115,36 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: hsl(var(--studio-primary) / 0.25);
+    color: hsl(var(--studio-foreground));
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--studio-primary));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .studio-surface {
+    @apply rounded-xl border border-studio-border bg-studio-surface;
+  }
+
+  .studio-eyebrow {
+    @apply text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-studio-muted;
   }
 }
 

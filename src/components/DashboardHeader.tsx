@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Command, LayoutDashboard, Library, LogOut, Waves } from 'lucide-react';
+import { LayoutDashboard, Library, LogOut, Waves } from 'lucide-react';
 import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SystemToolsDropdown from './SystemToolsDropdown';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,69 +37,68 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   };
 
   return (
-    <div className="space-y-10 md:space-y-16 mb-10 md:mb-20 animate-in fade-in slide-in-from-top-4 duration-700">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 md:gap-12">
-        <div className="flex items-center gap-5 md:gap-10">
+    <header className="sticky top-0 z-40 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 border-b border-studio-border bg-studio-bg/95 backdrop-blur-xl">
+      <div className="flex items-center justify-between gap-3 py-3 md:py-4">
+        <div className="flex min-w-0 items-center gap-3 md:gap-4">
           <button
             type="button"
             aria-label="Gig Studio Pro home"
-            className="bg-indigo-600 p-4 md:p-5 rounded-[1.5rem] md:rounded-[2.5rem] shadow-[0_0_40px_-10px_rgba(79,70,229,0.5)] group hover:scale-105 transition-all cursor-pointer relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background" 
+            className="flex h-11 w-11 md:h-12 md:w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-950/30 transition-colors hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-studio-bg"
             onClick={() => navigate('/')}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <Waves className="w-8 h-8 md:w-12 md:h-12 text-white relative z-10" />
+            <Waves className="h-6 w-6 md:h-7 md:w-7" />
           </button>
-          <div>
-            <h1 className="text-4xl md:text-7xl font-black uppercase tracking-tighter leading-none bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-slate-500">
-              Gig Studio <span className="text-indigo-500">Pro</span>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-black tracking-tight text-white md:text-3xl">
+              Gig Studio <span className="text-indigo-400">Pro</span>
             </h1>
-            <p className="text-slate-500 font-bold uppercase tracking-[0.3em] md:tracking-[0.5em] text-[10px] md:text-[12px] mt-3 md:mt-4 flex items-center gap-3">
-              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
-              Professional Performance Matrix
+            <p className="mt-0.5 hidden text-[9px] font-bold uppercase tracking-[0.22em] text-studio-muted sm:flex sm:items-center sm:gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+              Performance workspace
             </p>
           </div>
         </div>
-        
-        <div className="flex flex-wrap items-center gap-4 md:gap-5 w-full md:w-auto">
+
+        <div className="flex shrink-0 items-center gap-2">
           <SystemToolsDropdown
             onOpenAdmin={onOpenAdmin}
             onOpenMDAudit={onOpenMDAudit}
+            onOpenStorageAudit={onOpenStorageAudit}
             onToggleShuffleAll={onToggleShuffleAll}
             isShuffleAllMode={isShuffleAllMode}
             onOpenKeyMatrix={onOpenKeyMatrix}
             onOpenPreferences={onOpenPreferences}
             onOpenUserGuide={onOpenUserGuide}
           />
-
           <Button
             variant="ghost"
             onClick={handleLogout}
-            className="h-11 md:h-14 w-11 md:w-14 p-0 rounded-2xl md:rounded-[1.5rem] text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-all"
+            className="h-11 w-11 rounded-xl text-studio-muted hover:bg-red-500/10 hover:text-red-400"
             title="Log out"
             aria-label="Log out"
           >
-            <LogOut className="w-5.5 h-5.5" />
+            <LogOut className="h-5 w-5" />
           </Button>
         </div>
       </div>
 
-      <div className="flex justify-center md:justify-start">
-        <TabsList className="grid w-full max-w-lg grid-cols-2 h-16 md:h-20 bg-slate-900/50 p-2 md:p-2.5 rounded-[2rem] md:rounded-[2.5rem] border border-white/5 shadow-2xl backdrop-blur-xl">
-          <TabsTrigger 
-            value="gigs" 
-            className="text-xs md:text-base font-black uppercase tracking-widest gap-3 md:gap-4 h-12 md:h-15 rounded-2xl md:rounded-[2rem] data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-[0_0_30px_-5px_rgba(79,70,229,0.6)] transition-all"
+      <div className="pb-3 md:pb-4">
+        <TabsList className="grid h-11 w-full max-w-md grid-cols-2 gap-1 rounded-xl border border-studio-border bg-studio-surface p-1">
+          <TabsTrigger
+            value="gigs"
+            className="gap-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-studio-muted transition-colors data-[state=active]:bg-indigo-600 data-[state=active]:text-white"
           >
-            <LayoutDashboard className="w-5 h-5 md:w-6 md:h-6" /> Gigs
+            <LayoutDashboard className="h-4 w-4" /> Gigs
           </TabsTrigger>
-          <TabsTrigger 
-            value="repertoire" 
-            className="text-xs md:text-base font-black uppercase tracking-widest gap-3 md:gap-4 h-12 md:h-15 rounded-2xl md:rounded-[2rem] data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-[0_0_30px_-5px_rgba(79,70,229,0.6)] transition-all"
+          <TabsTrigger
+            value="repertoire"
+            className="gap-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-studio-muted transition-colors data-[state=active]:bg-indigo-600 data-[state=active]:text-white"
           >
-            <Library className="w-5 h-5 md:w-6 md:h-6" /> Repertoire
+            <Library className="h-4 w-4" /> Repertoire
           </TabsTrigger>
         </TabsList>
       </div>
-    </div>
+    </header>
   );
 };
 

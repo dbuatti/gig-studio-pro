@@ -51,7 +51,7 @@ const ReaderStatusChip: React.FC<ReaderStatusChipProps> = ({ song, className, co
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-md border font-black uppercase tracking-wider cursor-help whitespace-nowrap",
-              compact ? "p-1 text-[8px]" : "px-1.5 py-0.5 text-[8px]",
+              compact ? "p-1 text-[9px]" : "px-2 py-1 text-[9px]",
               tone,
               className
             )}

@@ -6,6 +6,7 @@ import { SetlistSong } from './SetlistManager';
 import { useToneAudio, AudioEngineControls } from '@/hooks/use-tone-audio';
 import { useAutoplay } from '@/hooks/use-autoplay';
 import { showWarning } from '@/utils/toast';
+import { getPlayableSongs } from '@/utils/playbackQueue';
 
 interface SelectSongOptions {
   /** Replace the play queue with this list (e.g. the current setlist view). */
@@ -69,10 +70,6 @@ export const usePlaybackActions = (): PlaybackActions => {
   return ctx;
 };
 
-/** The playable audio URL for a song (full mix if extracted, else the preview). */
-export const songAudioUrl = (song: SetlistSong | null | undefined): string =>
-  (song?.audio_url || song?.previewUrl || '') as string;
-
 const matchIndex = (songs: SetlistSong[], song: SetlistSong | null): number =>
   songs.findIndex((s) => !!song && (s.id === song.id || (!!s.master_id && s.master_id === song.master_id)));
 
@@ -133,7 +130,7 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // ---- Stable actions (created once) ----
   const actions = useMemo<PlaybackActions>(() => ({
     playQueue: (songs, name, startIndex = 0) => {
-      const playable = songs.filter((s) => songAudioUrl(s));
+      const playable = getPlayableSongs(songs);
       setQueue(playable);
       setQueueName(name || '');
       if (playable.length === 0) {
@@ -145,7 +142,7 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       void autoplayRef.current.handleSelectSong(playable[idx], true);
     },
     selectSong: (song, opts = {}) => {
-      if (opts.songs) setQueue(opts.songs.filter((s) => songAudioUrl(s)));
+      if (opts.songs) setQueue(getPlayableSongs(opts.songs));
       if (opts.name !== undefined) setQueueName(opts.name);
       void autoplayRef.current.handleSelectSong(song, opts.autoplay ?? isAutoplayActiveRef.current);
     },
