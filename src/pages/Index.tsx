@@ -220,7 +220,7 @@ const Index = () => {
       return;
     }
     const shuffled = [...readable].sort(() => Math.random() - 0.5);
-    sessionStorage.setItem('reader_random_ids', JSON.stringify(shuffled.map(s => s.id)));
+    sessionStorage.setItem('reader_random_ids', JSON.stringify(shuffled.map(s => s.master_id || s.id)));
     const first = shuffled[0];
     showSuccess(`Shuffling ${shuffled.length} reader-ready tracks`);
     navigate(`/sheet-reader/${first.master_id || first.id}?shuffle=1`);
