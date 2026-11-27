@@ -15,15 +15,26 @@ export const r2Storage = {
 
     const session = await supabase.auth.getSession();
     const token = session.data.session?.access_token;
+    if (!token) {
+      throw new Error('Not authenticated: missing session token.');
+    }
 
-    const res = await fetch(
-      `https://rqesjpnhrjdjnrzdhzgw.supabase.co/functions/v1/r2-storage`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      }
-    );
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60_000);
+    let res: Response;
+    try {
+      res = await fetch(
+        `https://${new URL(import.meta.env.VITE_SUPABASE_URL || "https://rqesjpnhrjdjnrzdhzgw.supabase.co").hostname}/functions/v1/r2-storage`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+          signal: controller.signal,
+        }
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!res.ok) {
       const errBody = await res.text();

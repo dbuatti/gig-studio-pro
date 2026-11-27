@@ -80,7 +80,8 @@ serve(async (req: Request) => {
         throw new Error(`R2 PUT failed (${uploadRes.status}): ${errText}`)
       }
 
-      const publicUrl = `${publicBaseUrl.replace(/\/$/, '')}/${path}`
+      if (!publicBaseUrl) throw new Error('R2 public URL is not configured.');
+        const publicUrl = `${publicBaseUrl.replace(/\/$/, '')}/${path}`
       return new Response(JSON.stringify({ url: publicUrl }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 

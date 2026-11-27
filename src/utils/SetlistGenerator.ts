@@ -1,6 +1,6 @@
 "use client";
 
-import { SetlistSong, EnergyZone } from "@/components/SetlistManager";
+import type { SetlistSong, EnergyZone } from "@/components/SetlistManager";
 
 export type FlowStrategy = 'none' | 'manual' | 'ready' | 'work' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp';
 

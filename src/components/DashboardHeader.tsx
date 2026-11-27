@@ -62,6 +62,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         
         <div className="flex flex-wrap items-center gap-4 md:gap-5 w-full md:w-auto">
           <SystemToolsDropdown
+            onOpenStorageAudit={onOpenStorageAudit}
             onOpenAdmin={onOpenAdmin}
             onOpenMDAudit={onOpenMDAudit}
             onToggleShuffleAll={onToggleShuffleAll}

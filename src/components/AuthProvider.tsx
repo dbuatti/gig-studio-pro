@@ -30,6 +30,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(initialSession.user);
       }
       setLoading(false);
+    }).catch(() => {
+      // Never leave the app stuck on the loading screen if the session check
+      // fails (offline, transient network error, invalid stored token).
+      lastSessionId.current = null;
+      setSession(null);
+      setUser(null);
+      setLoading(false);
     });
 
     // Listen for changes on auth state

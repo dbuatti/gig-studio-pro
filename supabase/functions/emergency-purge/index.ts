@@ -13,6 +13,24 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  }
+
+  // Verify the caller is a real, signed-in user.
+  const supabaseAuth = createClient(
+    // @ts-ignore: Deno global
+    Deno.env.get('SUPABASE_URL') ?? '',
+    // @ts-ignore: Deno global
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: authHeader } } }
+  )
+  const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  }
+
   try {
     const supabaseAdmin = createClient(
       // @ts-ignore: Deno global

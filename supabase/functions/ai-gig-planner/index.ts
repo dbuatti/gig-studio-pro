@@ -171,7 +171,7 @@ Return ONLY JSON:
           break;
         }
       } catch (err) {
-        console.warn(`[ai-gig-planner] ${provider.name} failed: ${err.message}`);
+        console.warn(`[ai-gig-planner] ${provider.name} failed: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 

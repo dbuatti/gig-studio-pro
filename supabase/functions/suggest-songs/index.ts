@@ -72,14 +72,14 @@ serve(async (req) => {
       acc[energy] = (acc[energy] || 0) + 1;
       return acc;
     }, {});
-    const dominantEnergy = Object.entries(energyProfile).sort((a: [string, number], b: [string, number]) => b[1] - a[1])[0]?.[0] || 'Mixed';
+    const dominantEnergy = Object.entries(energyProfile as Record<string, number>).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Mixed';
 
     const genreProfile = contextRepertoire.reduce((acc: Record<string, number>, s: any) => {
       const genre = s.genre || 'Unknown';
       if (genre !== 'Unknown') acc[genre] = (acc[genre] || 0) + 1;
       return acc;
     }, {});
-    const topGenres = Object.entries(genreProfile).sort((a: [string, number], b: [string, number]) => b[1] - a[1]).slice(0, 3).map(([g]) => g).join(', ') || 'Mixed';
+    const topGenres = Object.entries(genreProfile as Record<string, number>).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([g]) => g).join(', ') || 'Mixed';
 
     const subsetName = (req as any).subsetName || 'General';
 

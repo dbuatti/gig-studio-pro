@@ -1,4 +1,5 @@
 "use client";
+import { safeJsonParse } from '@/utils/safeJson';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -169,7 +170,7 @@ const AuditReaderMode: React.FC = () => {
     try {
       const targetId = routeSongId || searchParams.get('id');
       const savedFilters = localStorage.getItem('gig_active_filters');
-      const activeFilters = savedFilters ? JSON.parse(savedFilters) : DEFAULT_FILTERS;
+      const activeFilters = { ...DEFAULT_FILTERS, ...safeJsonParse(savedFilters, {}) };
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
       const sortMode = (localStorage.getItem('gig_sort_mode') as string) || 'none';
 

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { safeJsonParse } from '@/utils/safeJson';
 
 export type KeyPreference = 'flats' | 'sharps' | 'neutral';
 
@@ -62,7 +63,7 @@ export function useSettings() {
   const [settings, setSettings] = useState<GlobalSettings>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('gig_global_settings');
-      return saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS;
+      return { ...DEFAULT_GLOBAL_SETTINGS, ...safeJsonParse(saved, {}) };
     }
     return DEFAULT_GLOBAL_SETTINGS;
   });
@@ -90,7 +91,7 @@ export function useSettings() {
 
           if (error && error.code !== 'PGRST116') {
             const saved = localStorage.getItem('gig_global_settings');
-            setSettings(saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS);
+            setSettings({ ...DEFAULT_GLOBAL_SETTINGS, ...safeJsonParse(saved, {}) });
           } else if (data) {
             const loadedSettings: Partial<GlobalSettings> = {};
             if (data.key_preference) loadedSettings.keyPreference = data.key_preference as KeyPreference;
@@ -130,13 +131,13 @@ export function useSettings() {
           }
         } catch (err) {
           const saved = localStorage.getItem('gig_global_settings');
-          setSettings(saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS);
+          setSettings({ ...DEFAULT_GLOBAL_SETTINGS, ...safeJsonParse(saved, {}) });
         } finally {
           setIsFetchingSettings(false);
         }
       } else {
         const saved = localStorage.getItem('gig_global_settings');
-        setSettings(saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS);
+        setSettings({ ...DEFAULT_GLOBAL_SETTINGS, ...safeJsonParse(saved, {}) });
         setIsFetchingSettings(false);
       }
     };
