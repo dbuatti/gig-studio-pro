@@ -29,6 +29,9 @@ import RepertoireSuggestions from './RepertoireSuggestions';
 import { filterAndSortRepertoire } from '@/utils/repertoireFilters';
 import { useIsMobile } from '@/hooks/use-mobile';
 import RepertoireMobileCard from './RepertoireMobileCard';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ReadinessBadge } from '@/components/ui/readiness-badge';
+import { IconButton } from '@/components/ui/icon-button';
 
 interface RepertoireViewProps {
   repertoire: SetlistSong[];
@@ -171,7 +174,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   variant="ghost" size="sm"
                   onClick={() => setSortMode('none')}
                   className={cn(
-                    "h-7 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
+                    "h-11 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
                     sortMode === 'none' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-500 hover:text-white"
                   )}
                 >
@@ -181,7 +184,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   variant="ghost" size="sm"
                   onClick={() => setSortMode('artist')}
                   className={cn(
-                    "h-7 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
+                    "h-11 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
                     sortMode === 'artist' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-500 hover:text-white"
                   )}
                 >
@@ -191,7 +194,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   variant="ghost" size="sm"
                   onClick={() => setSortMode('ready')}
                   className={cn(
-                    "h-7 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
+                    "h-11 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
                     sortMode === 'ready' ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" : "text-slate-500 hover:text-white"
                   )}
                 >
@@ -201,7 +204,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   variant="ghost" size="sm"
                   onClick={() => setSortMode('work')}
                   className={cn(
-                    "h-7 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
+                    "h-11 px-3 text-[9px] font-black uppercase tracking-widest gap-1.5 shrink-0 rounded-lg transition-all",
                     sortMode === 'work' ? "bg-orange-600 text-white shadow-lg shadow-orange-600/20" : "text-slate-500 hover:text-white"
                   )}
                 >
@@ -212,7 +215,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                 variant="ghost" size="sm"
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 className={cn(
-                  "h-7 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg gap-1.5 transition-all border",
+                  "h-11 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg gap-1.5 transition-all border",
                   isFilterOpen ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-500/20" : "text-slate-500 border-white/5 hover:text-white hover:bg-white/5"
                 )}
               >
@@ -226,12 +229,14 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-9 pl-9 pr-8 text-[11px] font-bold bg-slate-900/60 border-white/5 rounded-xl focus-visible:ring-indigo-500/50 transition-all"
+                  className="h-11 pl-9 pr-8 text-[11px] font-bold bg-slate-900/60 border-white/5 rounded-xl focus-visible:ring-indigo-500/50 transition-all"
                 />
                 {searchTerm && (
-                  <button 
+                  <button
+                    type="button"
+                    aria-label="Clear search"
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                    className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-slate-500 transition-colors hover:text-white"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -242,7 +247,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
               )}
               <Button
                 onClick={handleAddNewSong}
-                className="h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[9px] tracking-widest gap-1.5 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
+                className="h-11 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[9px] tracking-widest gap-1.5 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
               >
                 <Plus className="w-3.5 h-3.5" /> New
               </Button>
@@ -273,7 +278,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             onBulkRefreshAudio={onBulkRefreshAudio}
             onClearAutoLinks={onClearAutoLinks}
             onBulkVibeCheck={onBulkVibeCheck}
-            isBulkDownloading={false}
+            isBulkDownloading={isBulkDownloading}
             missingAudioCount={missingAudioCount}
             onOpenAdmin={onOpenAdmin}
             onRetryFailed={onRetryFailed}
@@ -285,24 +290,27 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       {isMobile ? (
         <div className="space-y-6">
           {filteredAndSortedRepertoire.length === 0 ? (
-            <div className="py-24 text-center space-y-6 bg-slate-900/50 rounded-[3rem] border border-white/5 shadow-2xl animate-in fade-in zoom-in duration-700">
-              <Library className="w-16 h-16 mx-auto text-indigo-500 opacity-50" />
-              <div>
-                <h3 className="text-2xl font-black uppercase tracking-tight">{repertoire.length === 0 ? 'Library is Empty' : 'No Results'}</h3>
-                <p className="text-slate-400 max-w-xs mx-auto mt-2 font-medium">
-                  {repertoire.length === 0 ? 'Add your first track to get started.' : 'Try adjusting your search or filters.'}
-                </p>
-              </div>
-              {repertoire.length > 0 && (
+            <EmptyState
+              icon={<Library className="h-5 w-5" />}
+              title={repertoire.length === 0 ? 'Build your repertoire' : 'No songs match this view'}
+              description={repertoire.length === 0
+                ? 'Add your first track to start organising keys, charts, lyrics and performance notes.'
+                : 'Try a different search or clear the matrix filters to see your full library again.'}
+              primaryAction={repertoire.length === 0 ? (
+                <Button onClick={handleAddNewSong} className="h-11 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white hover:bg-indigo-500">
+                  <Plus className="h-4 w-4" /> Add your first song
+                </Button>
+              ) : undefined}
+              secondaryAction={repertoire.length > 0 ? (
                 <Button
                   variant="outline"
                   onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
-                  className="h-14 px-8 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[11px]"
+                  className="h-11 rounded-xl border-studio-border bg-white/5 px-5 text-xs font-bold text-white hover:bg-white/10"
                 >
-                  Clear All Filters
+                  Clear search & filters
                 </Button>
-              )}
-            </div>
+              ) : undefined}
+            />
           ) : (
             filteredAndSortedRepertoire.map((song) => (
               <RepertoireMobileCard
@@ -318,40 +326,42 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
           )}
         </div>
       ) : (
-        <div className="bg-slate-950/50 rounded-2xl border border-white/5 shadow-xl overflow-hidden backdrop-blur-xl">
-          <div className="overflow-x-auto custom-scrollbar">
-            <Table>
-              <TableHeader className="sticky top-0 bg-slate-900/90 backdrop-blur-md z-10 border-b border-white/5">
+        <div className="overflow-hidden rounded-2xl border border-studio-border bg-studio-surface shadow-sm [&>div]:max-h-[70vh] [&>div]:overflow-auto [&>div]:custom-scrollbar">
+          <Table aria-label="Repertoire songs">
+              <TableHeader className="sticky top-0 z-20 border-b border-studio-border bg-studio-raised/95 backdrop-blur-md">
                 <TableRow className="hover:bg-transparent border-none">
-                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[38%]">Song</TableHead>
-                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[14%] text-center">Reader</TableHead>
-                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[12%] text-center">Rdy</TableHead>
-                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[18%] text-center">Key</TableHead>
-                  <TableHead className="py-2.5 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 w-[18%] text-right">Act</TableHead>
+                  <TableHead className="px-3 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-studio-muted w-[38%]">Song</TableHead>
+                  <TableHead className="px-3 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-studio-muted w-[14%] text-center">Reader</TableHead>
+                  <TableHead className="px-3 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-studio-muted w-[14%] text-center">Readiness</TableHead>
+                  <TableHead className="px-3 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-studio-muted w-[18%] text-center">Key</TableHead>
+                  <TableHead className="px-3 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-studio-muted w-[18%] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredAndSortedRepertoire.length === 0 ? (
                   <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={5} className="py-40 text-center">
-                      <div className="flex flex-col items-center justify-center space-y-8 animate-in fade-in zoom-in duration-700">
-                        <Library className="w-24 h-24 text-indigo-500 opacity-50" />
-                        <div>
-                          <h3 className="text-3xl font-black uppercase tracking-tight">{repertoire.length === 0 ? 'Library is Empty' : 'No Results'}</h3>
-                          <p className="text-slate-400 max-w-sm mx-auto mt-3 font-medium text-lg">
-                            {repertoire.length === 0 ? 'Add your first track to get started.' : 'Try adjusting your search or filters.'}
-                          </p>
-                        </div>
-                        {repertoire.length > 0 && (
+                    <TableCell colSpan={5} className="p-6 text-center">
+                      <EmptyState
+                        icon={<Library className="h-5 w-5" />}
+                        title={repertoire.length === 0 ? 'Build your repertoire' : 'No songs match this view'}
+                        description={repertoire.length === 0
+                          ? 'Add your first track to start organising keys, charts, lyrics and performance notes.'
+                          : 'Try a different search or clear the matrix filters to see your full library again.'}
+                        primaryAction={repertoire.length === 0 ? (
+                          <Button onClick={handleAddNewSong} className="h-11 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white hover:bg-indigo-500">
+                            <Plus className="h-4 w-4" /> Add your first song
+                          </Button>
+                        ) : undefined}
+                        secondaryAction={repertoire.length > 0 ? (
                           <Button
                             variant="outline"
                             onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
-                            className="h-16 px-10 rounded-[2rem] border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-xs gap-4"
+                            className="h-11 rounded-xl border-studio-border bg-white/5 px-5 text-xs font-bold text-white hover:bg-white/10"
                           >
-                            Clear All Filters
+                            Clear search & filters
                           </Button>
-                        )}
-                      </div>
+                        ) : undefined}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -399,13 +409,8 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             <ReaderStatusChip song={song} />
                           </div>
                         </TableCell>
-                        <TableCell className="py-1.5 px-3 text-center w-16">
-                          <span className={cn(
-                            "text-[9px] font-mono font-black px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 border",
-                            readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/20" : "bg-indigo-600/20 text-indigo-400 border-indigo-500/20"
-                          )}>
-                            {readinessScore}%
-                          </span>
+                        <TableCell className="py-1.5 px-3 text-center w-24">
+                          <ReadinessBadge score={readinessScore} compact />
                         </TableCell>
                         <TableCell className="py-1.5 px-3 text-center w-32">
                           <div className="flex items-center justify-center gap-1">
@@ -428,18 +433,20 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                               songToAssign={song}
                               onUpdateSetlistSongs={onUpdateSetlistSongs}
                             />
-                            <button className="h-7 w-7 rounded-lg text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song); }}>
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              className="h-7 w-7 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-all inline-flex items-center justify-center"
+                            <IconButton aria-label={`Edit ${song.name}`} compact onClick={(e) => { e.stopPropagation(); onEditSong(song); }} className="hover:bg-indigo-500/10 hover:text-indigo-400">
+                              <Edit3 className="h-4 w-4" />
+                            </IconButton>
+                            <IconButton
+                              aria-label={`Delete ${song.name}`}
+                              compact
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDeleteConfirmId(song.id);
                               }}
+                              className="hover:bg-red-500/10 hover:text-red-400"
                             >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                              <Trash2 className="h-4 w-4" />
+                            </IconButton>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -448,7 +455,6 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                 )}
               </TableBody>
             </Table>
-          </div>
         </div>
       )}
 

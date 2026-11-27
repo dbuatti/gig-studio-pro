@@ -2,11 +2,11 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Clock, Music, Zap, Target, Share2, Copy, Check, PlayCircle, Shuffle, BookOpen } from 'lucide-react';
+import { Clock, Music, Zap, Target, Copy, Check, PlayCircle, Shuffle, Square, BookOpen } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
-import { cn } from '@/lib/utils';
 import { showSuccess } from '@/utils/toast';
 import { calculateReadiness } from '@/utils/repertoireSync';
+import { partitionSongsByAudio } from '@/utils/playbackQueue';
 import { Button } from './ui/button';
 
 interface SetlistStatsProps {
@@ -19,9 +19,9 @@ interface SetlistStatsProps {
   isAutoplayActive?: boolean;
 }
 
-const SetlistStats: React.FC<SetlistStatsProps> = ({ 
-  songs, 
-  goalSeconds = 7200, 
+const SetlistStats: React.FC<SetlistStatsProps> = ({
+  songs,
+  goalSeconds = 7200,
   onUpdateGoal,
   onPlayAll,
   onShuffleAll,
@@ -31,7 +31,11 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
   const [isCopied, setIsCopied] = React.useState(false);
   const totalSeconds = songs.reduce((acc, song) => acc + (song.duration_seconds || 0), 0);
   const progress = Math.min(100, (totalSeconds / goalSeconds) * 100);
-  
+  const { playable, skipped } = partitionSongsByAudio(songs);
+  const averageReadiness = songs.length > 0
+    ? Math.round(songs.reduce((acc, song) => acc + calculateReadiness(song), 0) / songs.length)
+    : 0;
+
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -45,143 +49,134 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
   }, {} as Record<string, number>);
 
   const handleCopySetlist = () => {
-    const text = songs.map((s, i) => 
-      `${(i + 1).toString().padStart(2, '0')}. ${s.name} - ${s.artist} [${s.targetKey || s.originalKey || 'TBC'}] (${s.energy_level || '?'})`
+    const text = songs.map((song, index) =>
+      `${(index + 1).toString().padStart(2, '0')}. ${song.name} - ${song.artist} [${song.targetKey || song.originalKey || 'TBC'}] (${song.energy_level || '?'})`
     ).join('\n');
-    
-    navigator.clipboard.writeText(`SETLIST: \n\n${text}\n\nTotal Duration: ${formatTime(totalSeconds)}`);
+
+    void navigator.clipboard.writeText(`SETLIST: \n\n${text}\n\nTotal Duration: ${formatTime(totalSeconds)}`);
     setIsCopied(true);
     showSuccess("Setlist copied to clipboard!");
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const cardClass = "rounded-2xl border border-studio-border bg-studio-surface p-4 md:p-5 shadow-sm";
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-      <div className="bg-slate-900/50 p-5 md:p-6 rounded-2xl md:rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-          <button 
-            onClick={handleCopySetlist}
-            className="p-2 bg-slate-800 rounded-xl text-white shadow-lg hover:scale-110 transition-transform border border-white/10"
-            title="Copy Setlist to Clipboard"
-          >
-            {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-          </button>
-        </div>
-        <div className="flex items-center gap-4 mb-4">
-          <div className="bg-indigo-600/10 p-2.5 md:p-3 rounded-xl md:rounded-2xl text-indigo-400">
-            <Clock className="w-5 h-5" />
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={`${cardClass} relative`}>
+        <button
+          type="button"
+          onClick={handleCopySetlist}
+          className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-xl text-studio-muted transition-colors hover:bg-white/5 hover:text-white"
+          title="Copy setlist to clipboard"
+          aria-label="Copy setlist to clipboard"
+        >
+          {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+            <Clock className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Duration</p>
-            <h3 className="text-xl md:text-2xl font-black text-white">{formatTime(totalSeconds)}</h3>
+            <p className="studio-eyebrow">Total duration</p>
+            <h3 className="mt-1 text-xl font-bold text-white">{formatTime(totalSeconds)}</h3>
           </div>
         </div>
-        <div className="space-y-2">
-          <div className="flex justify-between text-[9px] md:text-[10px] font-black uppercase tracking-widest">
-            <span className="text-slate-500">Goal: {formatTime(goalSeconds)}</span>
+        <div className="mt-4 space-y-2">
+          <div className="flex justify-between text-[10px] font-semibold uppercase tracking-wider">
+            <span className="text-studio-muted">Goal: {formatTime(goalSeconds)}</span>
             <span className="text-indigo-400">{Math.round(progress)}%</span>
           </div>
-          <Progress value={progress} className="h-1.5 bg-slate-800" />
+          <Progress value={progress} className="h-1.5 bg-white/5" />
         </div>
       </div>
 
-      <div className="bg-slate-900/50 p-5 md:p-6 rounded-2xl md:rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl relative group">
-        <div className="absolute top-4 right-4">
-          <Button 
-            size="sm" 
+      <div className={`${cardClass} flex flex-col`}>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+            <Music className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="studio-eyebrow">Track count</p>
+            <h3 className="mt-1 text-xl font-bold text-white">
+              {songs.length} <span className="text-xs font-medium text-studio-muted">songs</span>
+            </h3>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-studio-muted">
+          {playable.length} playable{skipped.length > 0 ? ` · ${skipped.length} without audio` : ''}
+        </p>
+        <div className="mt-auto flex flex-wrap gap-2 pt-4">
+          <Button
             onClick={onPlayAll}
-            className={cn(
-              "h-8 md:h-9 px-3 md:px-4 rounded-lg md:rounded-xl font-black uppercase tracking-widest text-[8px] md:text-[9px] gap-2 transition-all",
-              isAutoplayActive 
-                ? "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20" 
-                : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20"
-            )}
+            disabled={!onPlayAll || playable.length === 0}
+            className="h-11 min-w-[132px] flex-1 rounded-xl bg-indigo-600 px-3 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-indigo-500"
           >
-            {isAutoplayActive ? (
-              <>Stop Autoplay</>
-            ) : (
-              <>
-                <PlayCircle className="w-3.5 h-3.5" />
-                Play Setlist
-              </>
-            )}
+            {isAutoplayActive ? <Square className="h-3.5 w-3.5 fill-current" /> : <PlayCircle className="h-4 w-4" />}
+            {isAutoplayActive ? 'Stop queue' : `Play visible (${playable.length})`}
           </Button>
           {onShuffleAll && !isAutoplayActive && (
             <Button
-              size="sm"
               onClick={onShuffleAll}
-              className="h-8 md:h-9 px-3 md:px-4 rounded-lg md:rounded-xl font-black uppercase tracking-widest text-[8px] md:text-[9px] gap-2 transition-all bg-slate-700 hover:bg-slate-600 text-white shadow-lg"
+              disabled={playable.length < 2}
+              className="h-11 rounded-xl border border-studio-border bg-white/5 px-3 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-white/10"
             >
-              <Shuffle className="w-3.5 h-3.5" />
-              Shuffle All
+              <Shuffle className="h-3.5 w-3.5" /> Shuffle
             </Button>
           )}
           {onShuffleReader && (
             <Button
-              size="sm"
               onClick={onShuffleReader}
-              className="h-8 md:h-9 px-3 md:px-4 rounded-lg md:rounded-xl font-black uppercase tracking-widest text-[8px] md:text-[9px] gap-2 transition-all bg-purple-600 hover:bg-purple-500 text-white shadow-lg"
+              className="h-11 rounded-xl border border-studio-border bg-white/5 px-3 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-white/10"
             >
-              <BookOpen className="w-3.5 h-3.5" />
-              Shuffle Reader
+              <BookOpen className="h-3.5 w-3.5" /> Shuffle Reader
             </Button>
           )}
         </div>
-        <div className="flex items-center gap-4 mb-4">
-          <div className="bg-emerald-600/10 p-2.5 md:p-3 rounded-xl md:rounded-2xl text-emerald-400">
-            <Music className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Track Count</p>
-            <h3 className="text-xl md:text-2xl font-black text-white">{songs.length} <span className="text-xs md:text-sm text-slate-500 font-bold">Songs</span></h3>
-          </div>
-        </div>
-        <div className="flex gap-1.5">
-          {songs.slice(0, 8).map((_, i) => (
-            <div key={i} className="h-1.5 flex-1 bg-emerald-500/20 rounded-full" />
-          ))}
-          {songs.length > 8 && <div className="text-[8px] font-black text-slate-600 self-center ml-1">+{songs.length - 8}</div>}
-        </div>
       </div>
 
-      <div className="bg-slate-900/50 p-5 md:p-6 rounded-2xl md:rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="bg-amber-600/10 p-2.5 md:p-3 rounded-xl md:rounded-2xl text-amber-400">
-            <Zap className="w-5 h-5" />
+      <div className={cardClass}>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+            <Zap className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Energy Mix</p>
-            <h3 className="text-xl md:text-2xl font-black text-white">{energyCounts['Peak'] || 0} <span className="text-xs md:text-sm text-slate-500 font-bold">Peak</span></h3>
+            <p className="studio-eyebrow">Energy mix</p>
+            <h3 className="mt-1 text-xl font-bold text-white">
+              {energyCounts['Peak'] || 0} <span className="text-xs font-medium text-studio-muted">peak</span>
+            </h3>
           </div>
         </div>
-        <div className="flex h-1.5 w-full rounded-full overflow-hidden bg-slate-800">
+        <div className="mt-5 flex h-1.5 w-full overflow-hidden rounded-full bg-white/5">
           <div className="bg-red-500" style={{ width: `${((energyCounts['Peak'] || 0) / Math.max(1, songs.length)) * 100}%` }} />
           <div className="bg-amber-500" style={{ width: `${((energyCounts['Groove'] || 0) / Math.max(1, songs.length)) * 100}%` }} />
           <div className="bg-emerald-500" style={{ width: `${((energyCounts['Pulse'] || 0) / Math.max(1, songs.length)) * 100}%` }} />
           <div className="bg-blue-500" style={{ width: `${((energyCounts['Ambient'] || 0) / Math.max(1, songs.length)) * 100}%` }} />
         </div>
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-semibold uppercase tracking-wider text-studio-muted">
+          <span>Ambient {energyCounts['Ambient'] || 0}</span>
+          <span>Pulse {energyCounts['Pulse'] || 0}</span>
+          <span>Groove {energyCounts['Groove'] || 0}</span>
+          <span>Peak {energyCounts['Peak'] || 0}</span>
+        </div>
       </div>
 
-      <div className="bg-slate-900/50 p-5 md:p-6 rounded-2xl md:rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="bg-purple-600/10 p-2.5 md:p-3 rounded-xl md:rounded-2xl text-purple-400">
-            <Target className="w-5 h-5" />
+      <div className={cardClass}>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
+            <Target className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Avg Readiness</p>
-            <h3 className="text-xl md:text-2xl font-black text-white">
-              {songs.length > 0 ? Math.round(songs.reduce((acc, s) => acc + calculateReadiness(s), 0) / songs.length) : 0}%
-            </h3>
+            <p className="studio-eyebrow">Avg readiness</p>
+            <h3 className="mt-1 text-xl font-bold text-white">{averageReadiness}%</h3>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-purple-600" 
-              style={{ width: `${songs.length > 0 ? songs.reduce((acc, s) => acc + calculateReadiness(s), 0) / songs.length : 0}%` }} 
-            />
-          </div>
+        <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+          <div className="h-full bg-violet-500" style={{ width: `${averageReadiness}%` }} />
         </div>
+        <p className="mt-3 text-xs text-studio-muted">
+          {songs.filter((song) => calculateReadiness(song) >= 90).length} of {songs.length} songs ready
+        </p>
       </div>
     </div>
   );

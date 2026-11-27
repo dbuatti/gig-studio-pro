@@ -54,6 +54,22 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        studio: {
+          background: "hsl(var(--studio-background))",
+          surface: "hsl(var(--studio-surface))",
+          raised: "hsl(var(--studio-raised))",
+          border: "hsl(var(--studio-border))",
+          foreground: "hsl(var(--studio-foreground))",
+          muted: "hsl(var(--studio-muted))",
+          primary: {
+            DEFAULT: "hsl(var(--studio-primary))",
+            foreground: "hsl(var(--studio-primary-foreground))",
+          },
+          success: "hsl(var(--studio-success))",
+          warning: "hsl(var(--studio-warning))",
+          danger: "hsl(var(--studio-danger))",
+          info: "hsl(var(--studio-info))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

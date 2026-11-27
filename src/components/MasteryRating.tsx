@@ -11,15 +11,15 @@ interface MasteryRatingProps {
 }
 
 const sizes = {
-  sm: "text-[10px] w-5 h-5",
-  md: "text-sm w-7 h-7",
-  lg: "text-lg w-10 h-10"
+  sm: "text-[10px] w-11 h-11 md:w-5 md:h-5",
+  md: "text-sm w-11 h-11 md:w-7 md:h-7",
+  lg: "text-lg w-12 h-12 md:w-10 md:h-10"
 };
 
 const btnSizes = {
-  sm: "w-4 h-4 text-[9px]",
-  md: "w-6 h-6 text-xs",
-  lg: "w-8 h-8 text-sm"
+  sm: "w-11 h-11 md:w-4 md:h-4 text-[9px]",
+  md: "w-11 h-11 md:w-6 md:h-6 text-xs",
+  lg: "w-12 h-12 md:w-8 md:h-8 text-sm"
 };
 
 const MasteryRating: React.FC<MasteryRatingProps> = ({
@@ -53,6 +53,8 @@ const MasteryRating: React.FC<MasteryRatingProps> = ({
         <div className="flex items-center gap-0.5">
           <button
             type="button"
+            aria-label="Decrease mastery"
+            disabled={value <= -5}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange?.(Math.max(-5, value - 1)); }}
             className={cn(
               "flex items-center justify-center rounded-full border transition-all hover:scale-110 active:scale-90 font-black",
@@ -69,6 +71,8 @@ const MasteryRating: React.FC<MasteryRatingProps> = ({
           </span>
           <button
             type="button"
+            aria-label="Increase mastery"
+            disabled={value >= 5}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange?.(Math.min(5, value + 1)); }}
             className={cn(
               "flex items-center justify-center rounded-full border transition-all hover:scale-110 active:scale-90 font-black",

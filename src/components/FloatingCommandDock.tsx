@@ -247,7 +247,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         onDragEnd={handleDragEnd}
         style={{ x: position.x, y: position.y }}
         className={cn(
-          "fixed bottom-6 left-6 md:bottom-10 md:left-10 z-[300] flex items-center gap-3 md:gap-5 touch-none cursor-grab active:cursor-grabbing",
+          "fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-4 md:bottom-10 md:left-10 z-[300] flex items-center gap-3 md:gap-5 touch-none cursor-grab active:cursor-grabbing",
           direction === 'up' && "flex-col-reverse",
           direction === 'down' && "flex-col",
           direction === 'left' && "flex-row-reverse",
@@ -342,7 +342,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                             variant="ghost"
                             size="icon"
                             onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') handleToggleMenu(); }}
-                            className={cn("h-9 w-9 md:h-12 md:w-12 rounded-full border transition-all hover:scale-110", btn.className)}
+                            className={cn("h-11 w-11 md:h-12 md:w-12 rounded-full border transition-all hover:scale-110", btn.className)}
                             aria-label={btn.tooltip}
                           >
                             {btn.icon}

@@ -28,12 +28,23 @@ const SeekBar: React.FC<{
     aria-valuemin={0}
     aria-valuemax={100}
     aria-valuenow={Math.round(progress)}
+    tabIndex={0}
     onClick={(e) => {
       const rect = e.currentTarget.getBoundingClientRect();
       onSeek(Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100)));
     }}
+    onKeyDown={(e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        onSeek(Math.max(0, progress - 5));
+      }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        onSeek(Math.min(100, progress + 5));
+      }
+    }}
     className={cn(
-      'group relative w-full cursor-pointer rounded-full bg-white/10',
+      'group relative w-full cursor-pointer rounded-full bg-white/10 before:absolute before:-inset-y-3 before:inset-x-0 before:content-[""] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400',
       big ? 'h-1.5' : 'h-1',
       className,
     )}
@@ -121,7 +132,7 @@ const GlobalPlayer: React.FC = () => {
   };
 
   const renderSteppers = (size: 'md' | 'lg' = 'md') => {
-    const dims = size === 'lg' ? 'h-14 w-14' : 'h-9 w-9';
+    const dims = size === 'lg' ? 'h-14 w-14' : 'h-11 w-11 md:h-9 md:w-9';
     const icon = size === 'lg' ? 'w-7 h-7' : 'w-4 h-4';
     return (
       <>
@@ -156,7 +167,7 @@ const GlobalPlayer: React.FC = () => {
             exit={{ opacity: 0, y: 24 }}
             transition={{ type: 'spring', stiffness: 320, damping: 30 }}
             className={cn(
-              'fixed z-[300] left-4 right-4 bottom-24',
+              'fixed z-[300] left-4 right-4 bottom-[calc(6rem+env(safe-area-inset-bottom))]',
               'md:left-auto md:right-6 md:bottom-6 md:w-[360px]',
             )}
           >
@@ -199,7 +210,7 @@ const GlobalPlayer: React.FC = () => {
                     type="button"
                     onClick={clear}
                     aria-label="Close player"
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition-all hover:bg-white/10 hover:text-white"
+                    className="flex h-11 w-11 items-center justify-center rounded-full text-slate-500 transition-all hover:bg-white/10 hover:text-white md:h-9 md:w-9"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -233,7 +244,7 @@ const GlobalPlayer: React.FC = () => {
                 type="button"
                 onClick={() => setExpanded(false)}
                 aria-label="Minimise player"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-slate-300 transition-all hover:bg-white/10 hover:text-white"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/5 text-slate-300 transition-all hover:bg-white/10 hover:text-white"
               >
                 <ChevronDown className="h-6 w-6" />
               </button>
@@ -249,7 +260,7 @@ const GlobalPlayer: React.FC = () => {
                 type="button"
                 onClick={clear}
                 aria-label="Close player"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-slate-300 transition-all hover:bg-white/10 hover:text-white"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/5 text-slate-300 transition-all hover:bg-white/10 hover:text-white"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -309,7 +320,7 @@ const GlobalPlayer: React.FC = () => {
                           type="button"
                           onClick={() => selectSong(song, { autoplay: true })}
                           className={cn(
-                            'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors',
+                            'flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors',
                             isCurrent ? 'bg-indigo-600/20' : 'hover:bg-white/5',
                           )}
                         >

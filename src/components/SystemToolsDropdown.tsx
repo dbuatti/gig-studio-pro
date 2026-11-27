@@ -51,12 +51,12 @@ const SystemToolsDropdown: React.FC<SystemToolsDropdownProps> = ({
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="h-10 md:h-12 px-4 md:px-6 rounded-xl md:rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[9px] md:text-[11px] gap-2 md:gap-3"
+          aria-label="System tools"
+          className="h-11 w-11 rounded-xl border-white/5 bg-white/5 p-0 text-indigo-400 transition-all hover:bg-white/10 md:h-12 md:w-auto md:rounded-2xl md:px-6 md:text-[11px] md:font-bold md:uppercase md:tracking-widest"
         >
-          <Wrench className="w-4 h-4 md:w-5 md:h-5" />
-          <span className="hidden sm:inline">System Tools</span>
-          <span className="sm:hidden">Tools</span>
-          <ChevronDown className="w-3 h-3 md:w-4 md:h-4 opacity-50" />
+          <Wrench className="h-4 w-4 md:h-5 md:w-5" />
+          <span className="hidden md:inline">System Tools</span>
+          <ChevronDown className="hidden h-4 w-4 opacity-50 md:block" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64 p-2 rounded-[1.5rem] bg-slate-950 border-white/10 shadow-2xl">
