@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -10,6 +10,7 @@ import { showSuccess, showInfo, showWarning, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
 import { normalizeSearch } from '@/utils/searchUtils';
+import { safeJsonParse } from '@/utils/safeJson';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { autoVibeCheck } from '@/utils/vibeUtils';
 
@@ -62,6 +63,7 @@ const Index = () => {
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const fetchInFlightRef = useRef<Promise<void> | null>(null);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
   const [isShuffleAllMode, setIsShuffleAllMode] = useState(false);
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
@@ -81,7 +83,7 @@ const Index = () => {
   );
   const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
     const saved = localStorage.getItem('gig_active_filters');
-    try { return saved ? { ...DEFAULT_FILTERS, ...JSON.parse(saved) } : DEFAULT_FILTERS; } catch { return DEFAULT_FILTERS; }
+    return { ...DEFAULT_FILTERS, ...safeJsonParse(saved, {}) };
   });
   const [showHeatmap, setShowHeatmap] = useState(() => localStorage.getItem('gig_show_heatmap') === 'true');
 
@@ -164,6 +166,17 @@ const Index = () => {
   const playNext = playback.next;
   const toggleAutoplay = playback.toggleAutoplay;
 
+  const handleShuffleSet = useCallback(() => {
+    const withAudio = filteredAndSortedSongs.filter(s => !!s.audio_url || !!s.previewUrl);
+    if (withAudio.length === 0) {
+      showWarning("No songs with audio in this set.");
+      return;
+    }
+    const shuffled = [...withAudio].sort(() => Math.random() - 0.5);
+    playback.playQueue(shuffled, `${activeSetlist?.name || 'Set'} — Shuffle`);
+    showSuccess(`Shuffling ${shuffled.length} tracks back-to-back`);
+  }, [filteredAndSortedSongs, activeSetlist, playback]);
+
   const handleShuffleAll = useCallback(() => {
     const withAudio = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
     if (withAudio.length === 0) {
@@ -196,6 +209,8 @@ const Index = () => {
 
   const fetchSetlistsAndRepertoire = useCallback(async (isInitial = false) => {
     if (!userId) return;
+    if (fetchInFlightRef.current) return fetchInFlightRef.current;
+    const run = (async () => {
     if (isInitial) setLoading(true);
     try {
       const { data: setlistsData } = await supabase.from('setlists').select('*').eq('user_id', userId).order('created_at', { ascending: false });
@@ -223,16 +238,28 @@ const Index = () => {
       }));
       setMasterRepertoire(mappedRepertoire);
 
-      const setlistsWithSongs: Setlist[] = [];
-      for (const setlist of setlistsData || []) {
-        const { data: junctionData } = await supabase.from('setlist_songs').select('*').eq('setlist_id', setlist.id).order('sort_order', { ascending: true });
-        const songs: SetlistSong[] = [];
-        junctionData?.forEach(j => {
-          const master = mappedRepertoire.find(r => r.id === j.song_id);
-          if (master) songs.push({ ...master, id: j.id, master_id: master.id, isPlayed: j.isPlayed || false, set_group: j.set_group || 1, sort_order: j.sort_order });
-        });
-        setlistsWithSongs.push({ id: setlist.id, name: setlist.name, songs, time_goal: setlist.time_goal, set_names: setlist.set_names, stimulus_text: setlist.stimulus_text });
+      // Batch-fetch all junction rows for these setlists in one query instead of N.
+      const setlistIds = (setlistsData || []).map(s => s.id);
+      let allJunction: Record<string, unknown>[] = [];
+      if (setlistIds.length > 0) {
+        const { data: junctionData } = await supabase
+          .from('setlist_songs')
+          .select('*')
+          .in('setlist_id', setlistIds)
+          .order('sort_order', { ascending: true });
+        allJunction = junctionData || [];
       }
+
+      const setlistsWithSongs: Setlist[] = (setlistsData || []).map(setlist => {
+        const songs: SetlistSong[] = [];
+        allJunction
+          .filter(j => j.setlist_id === setlist.id)
+          .forEach(j => {
+            const master = mappedRepertoire.find(r => r.id === j.song_id);
+            if (master) songs.push({ ...master, id: j.id, master_id: master.id, isPlayed: j.isPlayed || false, set_group: j.set_group || 1, sort_order: j.sort_order });
+          });
+        return { id: setlist.id, name: setlist.name, songs, time_goal: setlist.time_goal, set_names: setlist.set_names, stimulus_text: setlist.stimulus_text };
+      });
       setAllSetlists(setlistsWithSongs);
       const exists = (id: string | null) => !!id && setlistsWithSongs.some(s => s.id === id);
       // Keep the setlist the user is viewing across refreshes; only fall back to the default on first load or if it was removed
@@ -249,6 +276,9 @@ const Index = () => {
     } finally {
       if (isInitial) setLoading(false);
     }
+    })();
+    fetchInFlightRef.current = run;
+    try { await run; } finally { fetchInFlightRef.current = null; }
   }, [userId]);
 
   useEffect(() => {
@@ -1030,7 +1060,7 @@ const Index = () => {
             )}
             {activeSetlist && (
               <>
-                <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={() => (isAutoplayActive ? toggleAutoplay() : playback.playQueue(filteredAndSortedSongs, activeSetlist.name))} isAutoplayActive={isAutoplayActive} />
+                <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={() => (isAutoplayActive ? toggleAutoplay() : playback.playQueue(filteredAndSortedSongs, activeSetlist.name))} onShuffleAll={handleShuffleSet} isAutoplayActive={isAutoplayActive} />
                 <SetlistManager
                   songs={filteredAndSortedSongs}
                   onSelect={handleSelectSong}

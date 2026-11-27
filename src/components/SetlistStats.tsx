@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Clock, Music, Zap, Target, Share2, Copy, Check, PlayCircle } from 'lucide-react';
+import { Clock, Music, Zap, Target, Share2, Copy, Check, PlayCircle, Shuffle } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { cn } from '@/lib/utils';
 import { showSuccess } from '@/utils/toast';
@@ -14,6 +14,7 @@ interface SetlistStatsProps {
   goalSeconds?: number;
   onUpdateGoal?: (seconds: number) => void;
   onPlayAll?: () => void;
+  onShuffleAll?: () => void;
   isAutoplayActive?: boolean;
 }
 
@@ -22,6 +23,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
   goalSeconds = 7200, 
   onUpdateGoal,
   onPlayAll,
+  onShuffleAll,
   isAutoplayActive = false
 }) => {
   const [isCopied, setIsCopied] = React.useState(false);
@@ -102,6 +104,16 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
               </>
             )}
           </Button>
+          {onShuffleAll && !isAutoplayActive && (
+            <Button
+              size="sm"
+              onClick={onShuffleAll}
+              className="h-8 md:h-9 px-3 md:px-4 rounded-lg md:rounded-xl font-black uppercase tracking-widest text-[8px] md:text-[9px] gap-2 transition-all bg-slate-700 hover:bg-slate-600 text-white shadow-lg"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              Shuffle All
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-4 mb-4">
           <div className="bg-emerald-600/10 p-2.5 md:p-3 rounded-xl md:rounded-2xl text-emerald-400">
