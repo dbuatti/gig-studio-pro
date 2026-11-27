@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Clock, Music, Zap, Target, Share2, Copy, Check, PlayCircle, Shuffle } from 'lucide-react';
+import { Clock, Music, Zap, Target, Share2, Copy, Check, PlayCircle, Shuffle, BookOpen } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { cn } from '@/lib/utils';
 import { showSuccess } from '@/utils/toast';
@@ -15,6 +15,7 @@ interface SetlistStatsProps {
   onUpdateGoal?: (seconds: number) => void;
   onPlayAll?: () => void;
   onShuffleAll?: () => void;
+  onShuffleReader?: () => void;
   isAutoplayActive?: boolean;
 }
 
@@ -24,6 +25,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
   onUpdateGoal,
   onPlayAll,
   onShuffleAll,
+  onShuffleReader,
   isAutoplayActive = false
 }) => {
   const [isCopied, setIsCopied] = React.useState(false);
@@ -112,6 +114,16 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
             >
               <Shuffle className="w-3.5 h-3.5" />
               Shuffle All
+            </Button>
+          )}
+          {onShuffleReader && (
+            <Button
+              size="sm"
+              onClick={onShuffleReader}
+              className="h-8 md:h-9 px-3 md:px-4 rounded-lg md:rounded-xl font-black uppercase tracking-widest text-[8px] md:text-[9px] gap-2 transition-all bg-purple-600 hover:bg-purple-500 text-white shadow-lg"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              Shuffle Reader
             </Button>
           )}
         </div>

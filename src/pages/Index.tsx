@@ -168,6 +168,18 @@ const Index = () => {
   const playNext = playback.next;
   const toggleAutoplay = playback.toggleAutoplay;
 
+  const handleShuffleReader = useCallback(() => {
+    if (!activeSetlist || !filteredAndSortedSongs.length) {
+      showWarning("No songs in this set.");
+      return;
+    }
+    const shuffled = [...filteredAndSortedSongs].sort(() => Math.random() - 0.5);
+    sessionStorage.setItem('reader_random_ids', JSON.stringify(shuffled.map(s => s.id)));
+    const first = shuffled[0];
+    showSuccess(`Shuffling ${shuffled.length} tracks in reader`);
+    navigate(`/sheet-reader/${first.master_id || first.id}?shuffle=1`);
+  }, [activeSetlist, filteredAndSortedSongs, navigate]);
+
   const handleShuffleSet = useCallback(() => {
     const withAudio = filteredAndSortedSongs.filter(s => !!s.audio_url || !!s.previewUrl);
     if (withAudio.length === 0) {
@@ -1062,7 +1074,7 @@ const Index = () => {
             )}
             {activeSetlist && (
               <>
-                <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={() => (isAutoplayActive ? toggleAutoplay() : playback.playQueue(filteredAndSortedSongs, activeSetlist.name))} onShuffleAll={handleShuffleSet} isAutoplayActive={isAutoplayActive} />
+                <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={() => (isAutoplayActive ? toggleAutoplay() : playback.playQueue(filteredAndSortedSongs, activeSetlist.name))} onShuffleAll={handleShuffleSet} onShuffleReader={handleShuffleReader} isAutoplayActive={isAutoplayActive} />
                 <SetlistManager
                   songs={filteredAndSortedSongs}
                   onSelect={handleSelectSong}
