@@ -214,10 +214,15 @@ const Index = () => {
       showWarning("No songs in this set.");
       return;
     }
-    const shuffled = [...filteredAndSortedSongs].sort(() => Math.random() - 0.5);
+    const readable = filteredAndSortedSongs.filter(s => s.preferred_reader || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url);
+    if (readable.length === 0) {
+      showWarning("No songs with a selected reader. Set a Preferred Reader (Full Score / Lead Sheet) on each song first.");
+      return;
+    }
+    const shuffled = [...readable].sort(() => Math.random() - 0.5);
     sessionStorage.setItem('reader_random_ids', JSON.stringify(shuffled.map(s => s.id)));
     const first = shuffled[0];
-    showSuccess(`Shuffling ${shuffled.length} tracks in reader`);
+    showSuccess(`Shuffling ${shuffled.length} reader-ready tracks`);
     navigate(`/sheet-reader/${first.master_id || first.id}?shuffle=1`);
   }, [activeSetlist, filteredAndSortedSongs, navigate]);
 
