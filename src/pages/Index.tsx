@@ -97,6 +97,8 @@ const Index = () => {
     let songs = [...activeSetlist.songs];
     const q = normalizeSearch(searchTerm);
     if (q) songs = songs.filter(s => normalizeSearch(s.name).includes(q) || normalizeSearch(s.artist || '').includes(q));
+    if (activeFilters.hasReader === 'yes') songs = songs.filter(s => !!s.preferred_reader);
+    else if (activeFilters.hasReader === 'no') songs = songs.filter(s => !s.preferred_reader);
     
     if (sortMode === 'ready') songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     else if (sortMode === 'work') songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
@@ -104,7 +106,7 @@ const Index = () => {
       songs = sortSongsByStrategy(songs, sortMode as FlowStrategy);
     }
     return songs;
-  }, [activeSetlist, searchTerm, sortMode]);
+  }, [activeSetlist, searchTerm, sortMode, activeFilters.hasReader]);
 
   const { activeSong, isAutoplayActive } = playback;
 
