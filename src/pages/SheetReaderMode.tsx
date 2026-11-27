@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong, UGChordsConfig, EnergyZone } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, Frown, Meh, Smile, Shuffle, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DEFAULT_FILTERS } from '@/components/SetlistFilters';
@@ -69,7 +69,8 @@ const SheetReaderMode: React.FC = () => {
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
-  const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
+  const [baseSongs, setBaseSongs] = useState<SetlistSong[]>([]);
+  const [readerMode, setReaderMode] = useState<'practice' | 'preferred' | 'live'>(() => (localStorage.getItem('reader_mode') as 'practice' | 'preferred' | 'live') || 'preferred');
   const [fullMasterRepertoire, setFullMasterRepertoire] = useState<SetlistSong[]>([]);
   const [currentSetlistSongs, setCurrentSetlistSongs] = useState<SetlistSong[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -82,6 +83,14 @@ const SheetReaderMode: React.FC = () => {
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [isZenMode, setIsZenMode] = useState(false); 
   const [showKeyReminder, setShowKeyReminder] = useState(false);
+
+  const hasPreferredReader = (s: SetlistSong) => !!s.preferred_reader && s.preferred_reader !== 'unsure';
+  const isReadableChart = (s: SetlistSong) => !!(s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url);
+  const allSongs = useMemo(() => {
+    if (readerMode === 'practice') return baseSongs;
+    if (readerMode === 'preferred') return baseSongs.filter(s => hasPreferredReader(s) && isReadableChart(s));
+    return baseSongs.filter(s => hasPreferredReader(s) && isReadableChart(s) && calculateReadiness(s) >= 70 && (s.comfort_level || 0) > 0);
+  }, [baseSongs, readerMode]);
 
   const currentSong = useMemo(() => allSongs[currentIndex] || null, [allSongs, currentIndex]);
 
@@ -165,7 +174,7 @@ const SheetReaderMode: React.FC = () => {
   }, [currentSong?.id, pdfCurrentPage]);
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
-    setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
+    setBaseSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
     setFullMasterRepertoire(prev => prev.map(s => (s.master_id || s.id) === (updates.master_id || songId) ? { ...s, ...updates } : s));
     setCurrentSetlistSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
   }, []);
@@ -299,7 +308,7 @@ const SheetReaderMode: React.FC = () => {
             .map(id => masterRepertoireList.find(s => s.id === id))
             .filter(Boolean) as SetlistSong[];
           const readableShuffled = shuffledSongs.filter(s => s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url);
-          setAllSongs(readableShuffled);
+          setBaseSongs(readableShuffled);
           if (targetId) {
             const idx = readableShuffled.findIndex(s => s.id === targetId || s.master_id === targetId);
             if (idx !== -1) setCurrentIndex(idx);
@@ -330,7 +339,7 @@ const SheetReaderMode: React.FC = () => {
       let filteredSongs: SetlistSong[] = currentViewSongs.filter(s => {
         if (searchTerm && !normalizeSearch(s.name).includes(normalizeSearch(searchTerm)) && !normalizeSearch(s.artist || '').includes(normalizeSearch(searchTerm))) return false;
         const readiness = calculateReadiness(s);
-        if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
+        if (readerMode !== 'practice' && activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
         return true;
       });
 
@@ -338,11 +347,11 @@ const SheetReaderMode: React.FC = () => {
       else if (sortMode === 'work') filteredSongs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
       else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') filteredSongs = sortSongsByStrategy(filteredSongs, sortMode as any);
 
-      const readableSongs = filteredSongs.filter(s => s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url);
-      setAllSongs(readableSongs);
+      // Keep the full filtered set; mode-specific filtering happens in allSongs useMemo.
+      setBaseSongs(filteredSongs);
 
       if (targetId) {
-        const idx = readableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
+        const idx = filteredSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
         if (idx !== -1) setCurrentIndex(idx);
       }
     } catch (err: unknown) {
@@ -353,6 +362,36 @@ const SheetReaderMode: React.FC = () => {
   }, [userId, routeSongId, searchParams]);
 
   useEffect(() => { fetchSongs(); }, [fetchSongs]);
+
+  // Keep the current index in range when the reader mode filters the list.
+  useEffect(() => {
+    if (currentIndex >= allSongs.length && allSongs.length > 0) setCurrentIndex(0);
+  }, [allSongs.length, currentIndex]);
+
+  const handleReaderModeChange = useCallback((mode: 'practice' | 'preferred' | 'live') => {
+    setReaderMode(mode);
+    localStorage.setItem('reader_mode', mode);
+    setCurrentIndex(0);
+  }, []);
+
+  const handleShuffleReaderList = useCallback(() => {
+    if (allSongs.length < 2) { showInfo("Not enough songs to shuffle."); return; }
+    const shuffled = [...allSongs].sort(() => Math.random() - 0.5);
+    setBaseSongs(shuffled);
+    setCurrentIndex(0);
+    showSuccess(`Shuffled ${shuffled.length} tracks`);
+  }, [allSongs]);
+
+  const handleComfortRate = useCallback(async (level: 'sad' | 'mid' | 'happy') => {
+    if (!currentSong) return;
+    const updates = level === 'happy'
+      ? { comfort_level: 5, is_ready_to_sing: true }
+      : level === 'mid'
+      ? { comfort_level: 2, is_ready_to_sing: false }
+      : { comfort_level: -3, is_ready_to_sing: false };
+    await handleAutoSave(updates);
+    showSuccess(level === 'happy' ? 'Marked as singable' : level === 'mid' ? 'Marked as unsure' : 'Marked as not ready');
+  }, [currentSong, handleAutoSave]);
 
   const fetchLinks = useCallback(async () => {
     if (!userId || !currentSong?.master_id || selectedChartType === 'chords') {
@@ -595,6 +634,10 @@ const SheetReaderMode: React.FC = () => {
               totalSets={totalSets}
               onOpenReadinessWizard={() => setIsReadinessWizardOpen(true)}
               readiness={currentSong ? calculateReadiness(currentSong) : undefined}
+              readerMode={readerMode}
+              onReaderModeChange={handleReaderModeChange}
+              onShuffle={handleShuffleReaderList}
+              onComfortRate={handleComfortRate}
             />
           )}
         </AnimatePresence>

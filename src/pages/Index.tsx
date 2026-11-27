@@ -16,7 +16,7 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { autoVibeCheck } from '@/utils/vibeUtils';
 
 // UI Components
-import { Plus, Calendar, Sparkles, Edit3, Trash2 } from 'lucide-react';
+import { Plus, Calendar, Sparkles, Edit3, Trash2, FileText } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -387,6 +387,22 @@ const Index = () => {
     const shuffled = [...readableSongs].sort(() => Math.random() - 0.5);
     sessionStorage.setItem('reader_random_ids', JSON.stringify(shuffled.map(s => s.id)));
     sessionStorage.setItem('reader_fresh_open', '1'); sessionStorage.removeItem('reader_current_song_id'); navigate(`/sheet-reader/${shuffled[0].id}?shuffle=1`);
+  }, [masterRepertoire, navigate]);
+
+  const handleOpenPreferredReader = useCallback(() => {
+    const preferredSongs = masterRepertoire.filter(
+      s => !!s.preferred_reader && s.preferred_reader !== 'unsure' &&
+        (s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url)
+    );
+    if (preferredSongs.length === 0) {
+      showWarning("No songs with a preferred reader yet. Set a Preferred Reader on songs first.");
+      return;
+    }
+    localStorage.setItem('reader_mode', 'preferred');
+    const shuffled = [...preferredSongs].sort(() => Math.random() - 0.5);
+    sessionStorage.setItem('reader_random_ids', JSON.stringify(shuffled.map(s => s.id)));
+    sessionStorage.setItem('reader_fresh_open', '1'); sessionStorage.removeItem('reader_current_song_id'); navigate(`/sheet-reader/${shuffled[0].id}?shuffle=1`);
+    showSuccess(`Opening reader with ${preferredSongs.length} preferred-reader songs`);
   }, [masterRepertoire, navigate]);
 
   const handleOpenSetReader = (groupNum: number) => {
@@ -1158,6 +1174,15 @@ const Index = () => {
           </TabsContent>
           
           <TabsContent value="repertoire" className="mt-0 space-y-10 animate-in fade-in duration-700 delay-400">
+            <div className="flex items-center justify-between gap-4 mb-2">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest text-indigo-400">Reader</h3>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Open the reader with all songs that have a preferred reader set.</p>
+              </div>
+              <Button onClick={handleOpenPreferredReader} className="h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest gap-2">
+                <FileText className="w-4 h-4" /> Open Reader
+              </Button>
+            </div>
             <RepertoireView 
               repertoire={masterRepertoire} 
               onEditSong={handleEditSong} 

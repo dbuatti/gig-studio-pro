@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
-import { ArrowLeft, Search, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2, MoreVertical, Settings2, Link2 } from 'lucide-react';
+import { ArrowLeft, Search, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2, MoreVertical, Settings2, Link2, Shuffle, Frown, Meh, Smile, SlidersHorizontal } from 'lucide-react';
 import { SetlistSong } from '@/components/SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -40,6 +40,10 @@ interface SheetReaderHeaderProps {
   onOpenReadinessWizard?: () => void;
   /** Readiness score (0-100) shown as a pill; also opens the wizard on tap. */
   readiness?: number;
+  readerMode?: 'practice' | 'preferred' | 'live';
+  onReaderModeChange?: (mode: 'practice' | 'preferred' | 'live') => void;
+  onShuffle?: () => void;
+  onComfortRate?: (level: 'sad' | 'mid' | 'happy') => void;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -69,6 +73,10 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   totalSets,
   onOpenReadinessWizard,
   readiness,
+  readerMode = 'preferred',
+  onReaderModeChange,
+  onShuffle,
+  onComfortRate,
 }) => {
   const isMobile = useIsMobile();
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
@@ -150,6 +158,49 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-1.5 md:gap-3">
+        {onReaderModeChange && (
+          <div className="hidden sm:flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-xl p-0.5">
+            {(['practice', 'preferred', 'live'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => onReaderModeChange(m)}
+                className={cn(
+                  "px-2 py-1 rounded-lg text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all",
+                  readerMode === m ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
+                )}
+                title={m === 'practice' ? 'Practice: all songs' : m === 'preferred' ? 'Preferred reader songs' : 'Live-ready songs'}
+              >
+                {m === 'practice' ? 'All' : m === 'preferred' ? 'Pref' : 'Live'}
+              </button>
+            ))}
+          </div>
+        )}
+        {onShuffle && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onShuffle}
+            className="h-8 w-8 md:h-10 md:w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+            title="Shuffle reader"
+            aria-label="Shuffle reader songs"
+          >
+            <Shuffle className="w-4 h-4 md:w-5 md:h-5" />
+          </Button>
+        )}
+        {onComfortRate && currentSong && (
+          <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-xl p-1">
+            <button type="button" onClick={() => onComfortRate('sad')} title="Not ready to sing" className="h-7 w-7 md:h-8 md:w-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all" aria-label="Mark not ready">
+              <Frown className="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+            <button type="button" onClick={() => onComfortRate('mid')} title="Unsure" className="h-7 w-7 md:h-8 md:w-8 rounded-lg flex items-center justify-center text-amber-400 hover:bg-amber-500/20 transition-all" aria-label="Mark unsure">
+              <Meh className="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+            <button type="button" onClick={() => onComfortRate('happy')} title="Can sing this" className="h-7 w-7 md:h-8 md:w-8 rounded-lg flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-all" aria-label="Mark ready to sing">
+              <Smile className="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+          </div>
+        )}
         {currentSong && typeof readiness === 'number' && (
           <button
             onClick={onOpenReadinessWizard}
@@ -261,6 +312,33 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
                 <Search className="w-4 h-4 text-indigo-400" /> Search Library
               </DropdownMenuItem>
               
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">Reader Mode</DropdownMenuLabel>
+              {(['practice', 'preferred', 'live'] as const).map((m) => (
+                <DropdownMenuItem key={m} onClick={() => onReaderModeChange?.(m)} className={cn("h-11 rounded-lg gap-3 text-xs font-bold uppercase", readerMode === m && "bg-indigo-600/20 text-indigo-400")}>
+                  <SlidersHorizontal className="w-4 h-4 text-indigo-400" /> {m === 'practice' ? 'Practice (All)' : m === 'preferred' ? 'Preferred Reader' : 'Live Ready'}
+                </DropdownMenuItem>
+              ))}
+              {onShuffle && (
+                <DropdownMenuItem onClick={onShuffle} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase">
+                  <Shuffle className="w-4 h-4 text-emerald-400" /> Shuffle Reader
+                </DropdownMenuItem>
+              )}
+              {onComfortRate && currentSong && (
+                <>
+                  <DropdownMenuSeparator className="bg-white/5" />
+                  <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">Rate This Song</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => onComfortRate('sad')} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase text-red-400">
+                    <Frown className="w-4 h-4" /> Not ready
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onComfortRate('mid')} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase text-amber-400">
+                    <Meh className="w-4 h-4" /> Unsure
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onComfortRate('happy')} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase text-emerald-400">
+                    <Smile className="w-4 h-4" /> Can sing
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuSeparator className="bg-white/5" />
               <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">View Options</DropdownMenuLabel>
               <DropdownMenuItem onClick={onToggleAudioPlayer} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase">
