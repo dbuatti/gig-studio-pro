@@ -1,3 +1,4 @@
+import { safeJsonParse } from '@/utils/safeJson';
 "use client";
 // Setlist Filters Component
 import React, { useState } from 'react';
@@ -13,7 +14,7 @@ import {
   X, Star, Save, Trash2, Headphones, Sparkles, Hash,
   CircleDashed, ChevronDown, ListFilter, Music2,
   VideoOff, FileX2, VolumeX, BarChart3, TrendingUp, TrendingDown,
-  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck, Check, Guitar, Type, ListMusic
+  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck, Check, Guitar, Type, ListMusic, BookOpen
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -34,6 +35,7 @@ export interface FilterState {
   hasChart: 'all' | 'yes' | 'no';
   hasPdf: 'all' | 'yes' | 'no';
   hasUg: 'all' | 'yes' | 'no';
+  hasReader: 'all' | 'yes' | 'no';
   isConfirmed: 'all' | 'yes' | 'no';
   isApproved: 'all' | 'yes' | 'no';
   readiness: number; 
@@ -50,6 +52,7 @@ export const DEFAULT_FILTERS: FilterState = {
   hasChart: 'all',
   hasPdf: 'all',
   hasUg: 'all',
+  hasReader: 'all',
   isConfirmed: 'all',
   isApproved: 'all',
   readiness: 0,
@@ -70,10 +73,10 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<SavedPreset[]>(() => {
     const saved = localStorage.getItem('gig_filter_presets');
-    return saved ? JSON.parse(saved) : [
+    return safeJsonParse(saved, [
       { id: 'broken', name: 'Needs Attention', filters: { ...DEFAULT_FILTERS, readiness: 40 } },
-      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes', isApproved: 'yes', hasUgChords: 'yes', hasLyrics: 'yes' } }
-    ];
+      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes', isApproved: 'yes', hasUgChords: 'yes', hasLyrics: 'yes', hasReader: 'yes' } }
+    ]);
   });
 
   const savePreset = () => {
@@ -157,6 +160,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               { id: 'hasVideo', icon: Youtube, label: 'Video Link', color: 'bg-red-600' },
               { id: 'hasPdf', icon: FileText, label: 'Sheet Music', color: 'bg-emerald-600' },
               { id: 'hasUg', icon: FileSearch, label: 'Ultimate Guitar', color: 'bg-orange-600' },
+              { id: 'hasReader', icon: BookOpen, label: 'Preferred Reader', color: 'bg-purple-600' },
             ].map((filter) => (
               <DropdownMenu key={filter.id}>
                 <Tooltip>

@@ -4,6 +4,7 @@ import React, { useEffect, Suspense } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { PlaybackProvider } from "@/components/PlaybackProvider";
 import GlobalPlayer from "@/components/GlobalPlayer";
 
@@ -62,6 +63,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const MainLayout = () => {
   return (
     <PlaybackProvider>
+      <ErrorBoundary>
       <Suspense fallback={<LoadingSpinner />}>
         <KeepAliveWorker />
         <Routes>
@@ -83,6 +85,7 @@ const MainLayout = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
       <GlobalPlayer />
     </PlaybackProvider>
   );

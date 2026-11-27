@@ -61,6 +61,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
         <div className="flex shrink-0 items-center gap-2">
           <SystemToolsDropdown
+            onOpenStorageAudit={onOpenStorageAudit}
             onOpenAdmin={onOpenAdmin}
             onOpenMDAudit={onOpenMDAudit}
             onOpenStorageAudit={onOpenStorageAudit}

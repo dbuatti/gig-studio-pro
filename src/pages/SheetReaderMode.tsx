@@ -1,4 +1,5 @@
 "use client";
+import { safeJsonParse } from '@/utils/safeJson';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -232,7 +233,7 @@ const SheetReaderMode: React.FC = () => {
       const readerSetlistId = sessionStorage.getItem('reader_setlist_id');
       const targetId = routeSongId || searchParams.get('id');
       const savedFilters = localStorage.getItem('gig_active_filters');
-      const activeFilters = savedFilters ? JSON.parse(savedFilters) : DEFAULT_FILTERS;
+      const activeFilters = { ...DEFAULT_FILTERS, ...safeJsonParse(savedFilters, {}) };
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
       const sortMode = (localStorage.getItem('gig_sort_mode') as string) || 'none';
 
@@ -267,7 +268,7 @@ const SheetReaderMode: React.FC = () => {
       if (shuffleParam === '1') {
         const shuffledIdsJson = sessionStorage.getItem('reader_random_ids');
         if (shuffledIdsJson) {
-          const shuffledIds: string[] = JSON.parse(shuffledIdsJson);
+          const shuffledIds = safeJsonParse<string[]>(shuffledIdsJson, []);
           const shuffledSongs = shuffledIds
             .map(id => masterRepertoireList.find(s => s.id === id))
             .filter(Boolean) as SetlistSong[];

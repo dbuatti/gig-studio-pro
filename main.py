@@ -87,6 +87,34 @@ def process_queued_song(song):
         log(f"ABORT: S3 client not initialized. Cannot process {title}")
         return
 
+    # Validate inputs before touching the network / filesystem.
+    if not song_id or not video_url or not user_id:
+        log(f"ABORT: Missing required fields (id/youtube_url/user_id) for '{title}'")
+        try:
+            if song_id:
+                supabase.table("repertoire").update({
+                    "extraction_status": "failed",
+                    "extraction_error": "Missing required fields (youtube_url or user_id).",
+                    "last_sync_log": "Worker aborted: incomplete record."
+                }).eq("id", song_id).execute()
+        except Exception as db_e:
+            log(f"Status update failed: {db_e}")
+        return
+
+    # Only allow YouTube sources (including ytsearch) to avoid SSRF via yt-dlp.
+    allowed_prefixes = ("https://www.youtube.com/", "https://youtube.com/", "https://youtu.be/", "ytsearch", "ytsearch1:")
+    if not (isinstance(video_url, str) and video_url.startswith(allowed_prefixes)):
+        log(f"ABORT: Disallowed video URL for '{title}': {video_url}")
+        try:
+            supabase.table("repertoire").update({
+                "extraction_status": "failed",
+                "extraction_error": "Disallowed or invalid video URL.",
+                "last_sync_log": "Worker aborted: invalid source URL."
+            }).eq("id", song_id).execute()
+        except Exception as db_e:
+            log(f"Status update failed: {db_e}")
+        return
+
     po_token = os.environ.get("YOUTUBE_PO_TOKEN")
     visitor_data = os.environ.get("YOUTUBE_VISITOR_DATA")
     data_sync_id = os.environ.get("YOUTUBE_DATA_SYNC_ID")
@@ -120,7 +148,6 @@ def process_queued_song(song):
                     'X-Goog-Visitor-Id': visitor_data,
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                 } if visitor_data else {},
-                'nocheckcertificate': True,
                 'quiet': True,
                 'no_warnings': False,
             }
@@ -179,6 +206,12 @@ def process_queued_song(song):
             except Exception as db_e:
                 log(f"Status update failed: {db_e}")
         finally:
+            # Always remove any partial download artefacts.
+            try:
+                if 'mp3_path' in locals() and os.path.exists(mp3_path):
+                    os.remove(mp3_path)
+            except Exception as cleanup_e:
+                log(f"Cleanup failed: {cleanup_e}")
             gc.collect()
 
 def job_poller():
@@ -210,7 +243,9 @@ def job_poller():
                     .eq("id", song_id)\
                     .execute()
                 
-                after_val = after_status.data[0].get('extraction_status') if after_status.data else None
+                after_val = None
+                if after_status.data and len(after_status.data) > 0:
+                    after_val = (after_status.data[0] or {}).get('extraction_status')
                 
                 if after_val == 'queued':
                     consecutive_failures[song_id] = consecutive_failures.get(song_id, 0) + 1
@@ -240,6 +275,20 @@ threading.Thread(target=job_poller, daemon=True).start()
 @app.route('/')
 def health():
     return "R2 Worker is alive and polling Supabase...", 200
+
+@app.route('/health')
+def health_check():
+    # Report config presence only, never secret values.
+    return jsonify({
+        'status': 'ok',
+        'service': 'audio-worker',
+        'configured': {
+            'supabase': bool(SUPABASE_URL and SUPABASE_KEY),
+            'r2': bool(s3),
+            'youtube_token': bool(os.environ.get('YOUTUBE_PO_TOKEN')),
+            'cookies': os.path.exists(COOKIE_PATH),
+        }
+    }), 200
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))

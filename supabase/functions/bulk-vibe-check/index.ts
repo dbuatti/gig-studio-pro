@@ -74,7 +74,7 @@ serve(async (req) => {
           results.push({ id, status: 'SUCCESS' });
         }
       } catch (err) {
-        results.push({ id, status: 'ERROR', msg: err.message });
+        results.push({ id, status: 'ERROR', msg: err instanceof Error ? err.message : String(err) });
       }
       // Small delay to avoid rate limits
       await new Promise(r => setTimeout(r, 1000));

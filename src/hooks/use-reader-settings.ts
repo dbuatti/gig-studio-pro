@@ -1,4 +1,5 @@
 "use client";
+import { safeJsonParse } from '@/utils/safeJson';
 
 import { useState, useEffect } from 'react';
 
@@ -22,7 +23,7 @@ export function useReaderSettings() {
   const [settings, setSettings] = useState<ReaderSettings>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('gig_reader_settings');
-      return saved ? { ...DEFAULT_READER_SETTINGS, ...JSON.parse(saved) } : DEFAULT_READER_SETTINGS;
+      return { ...DEFAULT_READER_SETTINGS, ...safeJsonParse(saved, {}) };
     }
     return DEFAULT_READER_SETTINGS;
   });
