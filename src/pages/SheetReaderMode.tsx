@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong, UGChordsConfig, EnergyZone } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles, Frown, Meh, Smile, Shuffle, SlidersHorizontal, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
+import { Loader2, Sparkles, Frown, Meh, Smile, Shuffle, SlidersHorizontal, Play, Pause, SkipBack, SkipForward, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DEFAULT_FILTERS } from '@/components/SetlistFilters';
@@ -137,6 +137,7 @@ const SheetReaderMode: React.FC = () => {
   const [pdfNumPages, setPdfNumPages] = useState<number | null>(null);
   const [pdfScale, setPdfScale] = useState<number | null>(null);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
+  const [chartError, setChartError] = useState(false);
 
   const [links, setLinks] = useState<SheetLink[]>([]);
   const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
@@ -485,6 +486,9 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong?.id, getBestChartType]);
 
+  // Clear a stale load error whenever the current song or its resource changes.
+  useEffect(() => { setChartError(false); }, [currentSong?.id, currentChartDisplayUrl]);
+
   const handleNext = useCallback(() => {
     if (allSongs.length > 0) {
       const nextIndex = (currentIndex + 1) % allSongs.length;
@@ -726,7 +730,7 @@ const SheetReaderMode: React.FC = () => {
             className="relative"
           >
             {currentSong && readerMode === 'practice' && !isReadableChart(currentSong) ? (
-              <div className="max-w-md w-full rounded-3xl bg-slate-900/90 border border-amber-500/30 p-8 text-center space-y-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="max-w-md w-full rounded-3xl bg-slate-900/90 border border-amber-500/30 p-8 text-center space-y-5 shadow-2xl">
                 <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
                   <Sparkles className="w-8 h-8" />
                 </div>
@@ -750,11 +754,11 @@ const SheetReaderMode: React.FC = () => {
                 <UGChordsReader chordsText={currentSong.ug_chords_text || ""} config={effectiveConfig} isMobile={isMobile} originalKey={currentSong.originalKey} targetKey={effectiveTargetKey} readerKeyPreference={readerKeyPreference} onChartReady={() => setIsChartContentLoading(false)} isFullScreen={isZenMode} />
               ) : (
                 <div className="w-full h-full flex justify-center items-center relative"> 
-                  {currentChartDisplayUrl ? (
+                  {currentChartDisplayUrl && !chartError ? (
                     <Document
                       file={currentChartDisplayUrl}
-                      onLoadSuccess={(pdf) => { setPdfNumPages(pdf.numPages); setPdfDocument(pdf); setIsChartContentLoading(false); }}
-                      onLoadError={() => setIsChartContentLoading(false)}
+                      onLoadSuccess={(pdf) => { setPdfNumPages(pdf.numPages); setPdfDocument(pdf); setChartError(false); setIsChartContentLoading(false); }}
+                      onLoadError={() => { setChartError(true); setIsChartContentLoading(false); }}
                       loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
                       className="flex items-center justify-center gap-4" 
                     >
@@ -764,7 +768,29 @@ const SheetReaderMode: React.FC = () => {
                       )}
                     </Document>
                   ) : (
-                    <div className="text-slate-500 text-sm italic">No chart asset linked.</div>
+                    <div className="max-w-md w-full rounded-3xl border border-white/10 bg-slate-900/90 p-8 text-center shadow-2xl">
+                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-700/40 text-slate-300">
+                        <FileText className="h-7 w-7" />
+                      </div>
+                      <h3 className="text-base font-black uppercase tracking-tight text-white">
+                        {chartError ? 'Couldn’t load this chart' : 'No chart asset linked'}
+                      </h3>
+                      <p className="mt-2 text-xs leading-relaxed text-slate-400">
+                        {chartError
+                          ? 'The PDF may be unavailable or the link may be broken. Try reloading it, or attach a different sheet in the studio.'
+                          : 'Attach a full score or lead sheet in the studio to see it here.'}
+                      </p>
+                      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                        {chartError && (
+                          <Button onClick={() => { setChartError(false); setIsChartContentLoading(true); }} className="h-11 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white hover:bg-indigo-500">
+                            Retry
+                          </Button>
+                        )}
+                        <Button variant="outline" onClick={() => setIsStudioPanel(true)} className="h-11 rounded-xl border-white/10 bg-slate-800 px-5 text-xs font-bold text-slate-200">
+                          Open Studio
+                        </Button>
+                      </div>
+                    </div>
                   )}
                   <div className="absolute inset-0 z-30 pointer-events-none" ref={overlayWrapperRef}> 
                     <LinkDisplayOverlay links={links} currentPage={pdfCurrentPage} onNavigateToPage={setPdfCurrentPage} onLinkDeleted={fetchLinks} isEditingMode={isEditingLinksMode} onEditLink={() => {}} pageContainerRef={pageRef} pdfScale={pdfScale || 1} overlayWrapperRef={overlayWrapperRef} />
@@ -772,7 +798,7 @@ const SheetReaderMode: React.FC = () => {
                 </div>
               )
             ) : (
-              <div className="max-w-md w-full rounded-3xl bg-slate-900/90 border border-white/10 p-8 text-center space-y-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="max-w-md w-full rounded-3xl bg-slate-900/90 border border-white/10 p-8 text-center space-y-5 shadow-2xl">
                 <div className="mx-auto w-16 h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
                   <SlidersHorizontal className="w-8 h-8" />
                 </div>
