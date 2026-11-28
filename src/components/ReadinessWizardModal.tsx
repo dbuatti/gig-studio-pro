@@ -95,6 +95,17 @@ const STEPS: StepConfig[] = [
       { id: 'structure.1', label: 'Add chords or upload chart', isDone: f => !!(f.ug_chords_text && f.ug_chords_text.length > 10) },
     ],
   },
+  {
+    id: 'final_checks', tab: 'details',
+    icon: <Check className="w-5 h-5" />,
+    title: 'Final Checks',
+    instructions: 'Add performance notes, set how confident you feel, and mark the song ready. This is the last step to reach 100%.',
+    subtasks: [
+      { id: 'final.notes', label: 'Add performance notes', isDone: f => !!(f.notes && f.notes.length > 5) },
+      { id: 'final.confidence', label: 'Rate confidence +5 (full credit)', isDone: f => (f.comfort_level || 0) >= 5 },
+      { id: 'final.ready', label: 'Mark ready to sing live', isDone: f => f.is_ready_to_sing === true },
+    ],
+  },
 ];
 
 const TAB_LABELS: Record<StudioTab, string> = {
@@ -652,6 +663,11 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
       structure_marked: [
         { label: 'Chords', value: formData.ug_chords_text ? formData.ug_chords_text.length + ' chars' : 'Not added' },
       ],
+      final_checks: [
+        { label: 'Notes', value: formData.notes && formData.notes.length > 5 ? formData.notes.length + ' chars' : 'Not added' },
+        { label: 'Confidence', value: (formData.comfort_level || 0) > 0 ? 'Set' : 'Not set' },
+        { label: 'Live ready', value: formData.is_ready_to_sing === true ? 'Yes' : 'No' },
+      ],
     };
     const items = summaries[currentStep.id];
     if (!items) return null;
@@ -734,7 +750,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
 
   // ── Inline inputs ──
   const renderInlineInput = (subId: string, done: boolean) => {
-    if (done && subId !== 'reader_ready.1' && subId !== 'lyrics.1') return null;
+    const editableWhenDone = new Set(['reader_ready.1', 'lyrics.1', 'final.notes', 'final.confidence', 'final.ready']);
+    if (done && !editableWhenDone.has(subId)) return null;
 
     switch (subId) {
       // 1.1 PDF upload
@@ -997,6 +1014,55 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
           </div>
         );
 
+      // 5.1 Final checks — performance notes
+      case 'final.notes':
+        return (
+          <div className="mt-2">
+            <textarea
+              placeholder="e.g. The bridge has a 7-beat rest — don't come in early..."
+              value={formData.notes || ''}
+              onChange={e => handleAutoSave({ notes: e.target.value })}
+              rows={3}
+              className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white font-medium focus:outline-none focus:border-indigo-500 resize-none"
+            />
+          </div>
+        );
+
+      // 5.2 Final checks — confidence
+      case 'final.confidence':
+        return (
+          <div className="mt-2 space-y-2 rounded-xl bg-black/30 border border-white/10 px-3 py-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">How well do you know it?</span>
+              <MasteryRating value={formData.comfort_level || 0} onChange={(val) => handleAutoSave({ comfort_level: val })} size="sm" />
+            </div>
+            {(formData.comfort_level || 0) < 5 && (
+              <p className="text-[8px] text-amber-400/80 font-medium">
+                Set to +5 for full readiness credit. Lower ratings still count, but reduce the score.
+              </p>
+            )}
+          </div>
+        );
+
+      // 5.3 Final checks — ready to sing live
+      case 'final.ready':
+        return (
+          <div className="mt-2">
+            <button
+              onClick={() => handleAutoSave({ is_ready_to_sing: formData.is_ready_to_sing === true ? false : true })}
+              className={cn(
+                "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all w-full",
+                formData.is_ready_to_sing === true
+                  ? "bg-emerald-600/20 border-emerald-500/40 text-emerald-300"
+                  : "bg-white/5 border-white/10 text-slate-400 hover:border-emerald-500/30 hover:text-emerald-300"
+              )}
+            >
+              <Check className="w-4 h-4" />
+              {formData.is_ready_to_sing === true ? 'Marked ready to sing live' : 'Mark as ready to sing live'}
+            </button>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -1011,6 +1077,38 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
         onEscapeKeyDown={(e) => { if (isReaderPreview) { e.preventDefault(); setIsReaderPreview(false); } }}
       >
         <DialogTitle className="sr-only">Readiness Wizard</DialogTitle>
+
+        <AnimatePresence>
+          {showCelebration && !isReaderPreview && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-6 text-center"
+            >
+              <motion.div
+                initial={{ scale: 0.8, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                className="max-w-sm space-y-4"
+              >
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-500/20 text-emerald-400 shadow-[0_0_60px_-15px_rgba(16,185,129,0.6)]">
+                  <Check className="h-10 w-10" />
+                </div>
+                <h3 className="text-2xl font-black uppercase tracking-tight text-white">100% stage ready</h3>
+                <p className="text-sm leading-relaxed text-slate-400">
+                  {formData.name || 'This song'} is fully prepared. Sheets, key, lyrics, structure and performance checks are all done.
+                </p>
+                <button
+                  onClick={() => setShowCelebration(false)}
+                  className="h-12 rounded-xl bg-emerald-600 px-6 text-xs font-black uppercase tracking-widest text-white hover:bg-emerald-500 transition-all"
+                >
+                  Done
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {isReaderPreview ? (
           <ReaderPreview song={formData} onExit={() => setIsReaderPreview(false)} />
@@ -1593,34 +1691,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   <div>
                     <span className="text-[11px] font-bold text-slate-300">Ready to sing live</span>
                     <p className="text-[8px] text-slate-600 font-medium mt-0.5">Mark as performance-ready for public gigs</p>
-            </div>
-            {(formData.pdfUrl || formData.leadsheetUrl) && (
-              <div className="flex items-center gap-1.5">
-                {formData.pdfUrl && (
-                  <a
-                    href={formData.pdfUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all bg-emerald-600/20 border-emerald-500/30 text-emerald-400"
-                    title="Open full score in new tab"
-                  >
-                    <FileType className="w-3 h-3" /> Score
-                  </a>
-                )}
-                {formData.leadsheetUrl && (
-                  <a
-                    href={formData.leadsheetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all bg-sky-600/20 border-sky-500/30 text-sky-400"
-                    title="Open lead sheet in new tab"
-                  >
-                    <FileType className="w-3 h-3" /> Lead
-                  </a>
-                )}
-              </div>
-            )}
-            <button
+                  </div>
+                  <button
                     onClick={() => handleAutoSave({ is_ready_to_sing: formData.is_ready_to_sing === true ? false : true })}
                     className={cn(
                       "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all shrink-0",
@@ -1632,6 +1704,34 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                     {formData.is_ready_to_sing === true ? 'Ready ✓' : 'Mark Ready'}
                   </button>
                 </div>
+
+                {(formData.pdfUrl || formData.leadsheetUrl) && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-600 mr-1">Charts</span>
+                    {formData.pdfUrl && (
+                      <a
+                        href={formData.pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all bg-emerald-600/20 border-emerald-500/30 text-emerald-400"
+                        title="Open full score in new tab"
+                      >
+                        <FileType className="w-3 h-3" /> Score
+                      </a>
+                    )}
+                    {formData.leadsheetUrl && (
+                      <a
+                        href={formData.leadsheetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all bg-sky-600/20 border-sky-500/30 text-sky-400"
+                        title="Open lead sheet in new tab"
+                      >
+                        <FileType className="w-3 h-3" /> Lead
+                      </a>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <span className="text-[11px] font-bold text-slate-300">Performance notes</span>
@@ -1845,11 +1945,17 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
 
                 {/* Actions */}
                 <div className="flex items-center gap-3 pt-4 border-t border-white/5">
+                  {currentStep.id === 'final_checks' ? (
+                    <span className="flex-1 text-[9px] text-slate-500 font-bold uppercase tracking-widest">
+                      Complete all three checks to finish at 100%
+                    </span>
+                  ) : (
                   <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                     onClick={handleGoToTab}
                     className="flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all shadow-lg shadow-indigo-600/20">
                     Go to {TAB_LABELS[currentStep.tab]} <ArrowRight className="w-3.5 h-3.5" />
                   </motion.button>
+                  )}
                   <motion.button
                     whileHover={allSubtasksDone ? { scale: 1.02 } : {}}
                     whileTap={allSubtasksDone ? { scale: 0.97 } : {}}
