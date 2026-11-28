@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +89,16 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onTogglePlayback,
 }) => {
   const isMobile = useIsMobile();
+  // Tablet portrait (~1024px) can't fit the full control row. Collapse the
+  // secondary controls into the More menu until there's enough width.
+  const [isCompact, setIsCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1280);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 1279px)');
+    const onChange = () => setIsCompact(mql.matches);
+    mql.addEventListener('change', onChange);
+    setIsCompact(mql.matches);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
   const activeKeyItemRef = useRef<HTMLDivElement>(null);
@@ -107,7 +117,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   return (
     <div
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-xl border-b border-white/10 px-4 md:px-6 py-2 md:py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300 h-14 md:h-[72px]",
+        "fixed top-0 right-0 z-50 bg-slate-900/90 backdrop-blur-xl border-b border-white/10 px-4 md:px-6 py-2 md:py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300 h-14 md:h-[72px] transition-[left] duration-300",
+        isSidebarOpen && !isMobile ? "left-[300px]" : "left-0",
         isFullScreen && "hidden"
       )}
     >
@@ -131,7 +142,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+            className="h-11 w-11 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
             title="Back to Dashboard"
             aria-label="Back to dashboard"
           >
@@ -168,8 +179,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-1.5 md:gap-3">
-        {onReaderModeChange && (
-          <div className="hidden sm:flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-xl p-0.5">
+        {onReaderModeChange && !isCompact && (
+          <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-xl p-0.5">
             {(['practice', 'preferred', 'live'] as const).map((m) => (
               <button
                 key={m}
@@ -187,8 +198,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             ))}
           </div>
         )}
-        {onReaderResourceChange && (
-          <div className="hidden lg:flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/5 p-0.5" role="group" aria-label="Reader source override">
+        {onReaderResourceChange && !isCompact && (
+          <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/5 p-0.5" role="group" aria-label="Reader source override">
             <span className={cn("px-1.5 text-[8px] font-black uppercase tracking-widest", readerResource === 'default' ? "text-slate-500" : "text-indigo-400")}>Source</span>
             {([
               { value: 'default', label: 'Preferred', icon: SlidersHorizontal },
@@ -226,7 +237,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             {isPlaying ? <Pause className="w-4 h-4 md:w-5 md:h-5" /> : <Play className="w-4 h-4 md:w-5 md:h-5" />}
           </Button>
         )}
-        {onShuffle && (
+        {onShuffle && !isCompact && (
           <Button
             variant="ghost"
             size="icon"
@@ -238,7 +249,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             <Shuffle className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
         )}
-        {onComfortRate && currentSong && (
+        {onComfortRate && currentSong && !isCompact && (
           <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-xl p-1">
             <button type="button" onClick={() => onComfortRate('sad')} title="Not ready to sing" className="h-11 w-11 md:h-8 md:w-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all" aria-label="Mark not ready">
               <Frown className="w-4 h-4 md:w-5 md:h-5" />
@@ -294,7 +305,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             {(currentSong.comfort_level || 0) > 0 ? `+${currentSong.comfort_level}` : currentSong.comfort_level || 0}
           </span>
         )}
-        {currentSong && !isMobile && (
+        {currentSong && !isCompact && (
           <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
             <Button
               variant="ghost"
@@ -346,10 +357,10 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           </div>
         )}
 
-        {isMobile ? (
+        {isCompact ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-white/5 text-slate-400" aria-label="Open song tools menu">
+              <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl bg-white/5 text-slate-400" aria-label="Open song tools menu">
                 <MoreVertical className="w-5 h-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -405,6 +416,34 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
                   </DropdownMenuItem>
                 </>
               )}
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">Stage Key · {displayKey || '--'}</DropdownMenuLabel>
+              <div className="flex items-center gap-1 px-1 pb-1">
+                <Button variant="ghost" size="icon" onClick={() => setPitch(pitch - 1)} className="h-10 w-10 rounded-lg text-slate-300 hover:bg-white/10" aria-label="Decrease pitch by 1 semitone">
+                  <Minus className="w-4 h-4" />
+                </Button>
+                <span className="flex-1 text-center font-mono text-sm font-black text-indigo-400">{displayKey || '--'}</span>
+                <Button variant="ghost" size="icon" onClick={() => setPitch(pitch + 1)} className="h-10 w-10 rounded-lg text-slate-300 hover:bg-white/10" aria-label="Increase pitch by 1 semitone">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="flex max-h-24 flex-wrap gap-1 overflow-y-auto px-1 pb-1 custom-scrollbar">
+                {keysToUse.map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => onUpdateKey(k)}
+                    className={cn(
+                      "min-h-8 rounded-md border px-2 font-mono text-[11px] font-bold transition-colors",
+                      k === displayKey
+                        ? "border-indigo-500 bg-indigo-600 text-white"
+                        : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
+                    )}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
               <DropdownMenuSeparator className="bg-white/5" />
               <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">View Options</DropdownMenuLabel>
               <DropdownMenuItem onClick={onToggleAudioPlayer} className="h-11 rounded-lg gap-3 text-xs font-bold uppercase">
