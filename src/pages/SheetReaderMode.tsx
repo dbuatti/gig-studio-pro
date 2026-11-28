@@ -592,12 +592,19 @@ const SheetReaderMode: React.FC = () => {
     return () => ro.unobserve(container);
   }, [pdfDocument, pdfCurrentPage, showTwoPages, calculatePdfScale]);
 
+  // Clamp the restored page to the actual page count once a new chart loads.
+  useEffect(() => {
+    if (pdfNumPages && pdfCurrentPage > pdfNumPages) {
+      setPdfCurrentPage(pdfNumPages);
+    }
+  }, [pdfNumPages, pdfCurrentPage]);
+
   // Keep the first page of a spread on an odd page when switching to two-page view.
   useEffect(() => {
     if (showTwoPages && pdfCurrentPage % 2 === 0) {
       setPdfCurrentPage((p) => Math.max(1, p - 1));
     }
-  }, [showTwoPages]); 
+  }, [showTwoPages]);
 
   const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
     if (first) navigatedRef.current = false;
@@ -927,6 +934,20 @@ const SheetReaderMode: React.FC = () => {
       )}
 
       <LinkSizeModal isOpen={isLinkSizeModalOpen} onClose={() => setIsLinkSizeModalOpen(false)} onLinkSizeUpdated={fetchLinks} />
+
+      {currentSong && (
+        <SongStudioModal
+          isOpen={isStudioPanelOpen}
+          onClose={() => setIsStudioPanel(false)}
+          gigId="library"
+          songId={currentSong.master_id || currentSong.id}
+          visibleSongs={allSongs}
+          masterRepertoire={fullMasterRepertoire}
+          handleAutoSave={handleAutoSave}
+          preventStageKeyOverwrite={preventStageKeyOverwrite}
+          audioEngine={audioEngine}
+        />
+      )}
 
       <AlertDialog open={isSetTransitionOpen} onOpenChange={(setIsSetTransitionOpen)}>
         <AlertDialogContent className="bg-slate-950 border-white/10 text-white rounded-[2rem] p-8 shadow-2xl max-w-lg">
