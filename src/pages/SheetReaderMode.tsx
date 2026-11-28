@@ -169,6 +169,7 @@ const SheetReaderMode: React.FC = () => {
   const overlayWrapperRef = useRef<HTMLDivElement>(null);
   const swipeThreshold = 40; 
   const navigatedRef = useRef(false);
+  const lastSwipeAtRef = useRef(0);
   const reminderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -187,6 +188,9 @@ const SheetReaderMode: React.FC = () => {
     if (chartContainerRef.current) {
       chartContainerRef.current.scrollTop = 0;
       chartContainerRef.current.scrollLeft = 0;
+    }
+    if (pageRef.current?.parentElement) {
+      pageRef.current.parentElement.scrollTop = 0;
     }
   }, [currentSong?.id]);
 
@@ -604,23 +608,25 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [showTwoPages]);
 
-  const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
+  const bind = useDrag(({ first, last, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
     if (first) navigatedRef.current = false;
+    if (last) navigatedRef.current = false;
     if (!down || navigatedRef.current) return;
-    const isFastSwipe = Math.abs(vx) > 0.15; 
+    const isFastSwipe = Math.abs(vx) > 0.15;
     const isLongSwipe = Math.abs(mx) > swipeThreshold;
     if (isLongSwipe || isFastSwipe) {
-      navigatedRef.current = true; 
-      if (typeof cancel === 'function') cancel(); 
+      navigatedRef.current = true;
+      lastSwipeAtRef.current = Date.now();
+      if (typeof cancel === 'function') cancel();
       const step = showTwoPages ? 2 : 1;
-      if (dx < 0) { 
+      if (dx < 0) {
         if (selectedChartType === 'chords') handleNext();
         else if (pdfCurrentPage < (pdfNumPages || 1)) setPdfCurrentPage(prev => Math.min(prev + step, pdfNumPages || 1));
-        else handleNext(); 
-      } else { 
+        else handleNext();
+      } else {
         if (selectedChartType === 'chords') handlePrev();
         else if (pdfCurrentPage > 1) setPdfCurrentPage(prev => Math.max(1, prev - step));
-        else handlePrev(); 
+        else handlePrev();
       }
     }
   }, { threshold: 5, filterTaps: true, axis: 'x' });
@@ -752,12 +758,17 @@ const SheetReaderMode: React.FC = () => {
             "flex-1 bg-black relative transition-all duration-500",
             isZenMode ? "mt-0" : "mt-14 md:mt-[72px]", 
             isAudioPlayerVisible && currentSong && !isZenMode ? "pb-20 md:pb-24" : "pb-0", 
-            isZenMode || shouldDisableScroll ? "overflow-hidden" : "overflow-auto"
+            isZenMode || shouldDisableScroll ? "overflow-hidden" : "overflow-auto",
+            "cursor-pointer"
           )}
           onClick={(e) => {
-            // Only toggle Zen mode when tapping the empty background, not the chart
-            // content or any control rendered inside it.
-            if (e.target === e.currentTarget) toggleZenMode();
+            // Fallback for browsers where the gesture library doesn't report
+            // `tap` (e.g. some desktop/Safari pointer setups). Ignore clicks
+            // that follow a swipe and clicks on real controls.
+            if (Date.now() - lastSwipeAtRef.current < 400) return;
+            const target = e.target as HTMLElement | null;
+            if (target?.closest('button, a, input, textarea, select, [role="button"]')) return;
+            toggleZenMode();
           }}
         >
           <KeyReminderPill isVisible={showKeyReminder} targetKey={effectiveTargetKey} pitch={effectivePitch} />
@@ -795,7 +806,7 @@ const SheetReaderMode: React.FC = () => {
               </div>
             ) : currentSong ? (
               selectedChartType === 'chords' ? (
-                <UGChordsReader chordsText={currentSong.ug_chords_text || ""} config={effectiveConfig} isMobile={isMobile} originalKey={currentSong.originalKey} targetKey={effectiveTargetKey} readerKeyPreference={readerKeyPreference} onChartReady={() => setIsChartContentLoading(false)} isFullScreen={isZenMode} />
+                <UGChordsReader key={currentSong.master_id || currentSong.id} chordsText={currentSong.ug_chords_text || ""} config={effectiveConfig} isMobile={isMobile} originalKey={currentSong.originalKey} targetKey={effectiveTargetKey} readerKeyPreference={readerKeyPreference} onChartReady={() => setIsChartContentLoading(false)} isFullScreen={isZenMode} />
               ) : (
                 <div className="w-full h-full flex justify-center items-center relative"> 
                   {currentChartDisplayUrl && !chartError ? (
