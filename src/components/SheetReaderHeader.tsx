@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
-import { ArrowLeft, Search, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2, MoreVertical, Settings2, Link2, Shuffle, Frown, Meh, Smile, SlidersHorizontal, Play, Pause } from 'lucide-react';
+import { ArrowLeft, Search, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2, MoreVertical, Settings2, Link2, Shuffle, Frown, Meh, Smile, SlidersHorizontal, Play, Pause, ListMusic } from 'lucide-react';
 import { SetlistSong } from '@/components/SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -42,6 +42,10 @@ interface SheetReaderHeaderProps {
   readiness?: number;
   readerMode?: 'practice' | 'preferred' | 'live';
   onReaderModeChange?: (mode: 'practice' | 'preferred' | 'live') => void;
+  /** Mutually-exclusive override of which resource the reader shows.
+   *  'default' follows the song's preferred reader. */
+  readerResource?: 'default' | 'force-pdf' | 'force-chords';
+  onReaderResourceChange?: (resource: 'default' | 'force-pdf' | 'force-chords') => void;
   onShuffle?: () => void;
   onComfortRate?: (level: 'sad' | 'mid' | 'happy') => void;
   isPlaying?: boolean;
@@ -77,6 +81,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   readiness,
   readerMode = 'preferred',
   onReaderModeChange,
+  readerResource = 'default',
+  onReaderResourceChange,
   onShuffle,
   onComfortRate,
   isPlaying,
@@ -169,13 +175,38 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
                 key={m}
                 type="button"
                 onClick={() => onReaderModeChange(m)}
+                aria-pressed={readerMode === m}
                 className={cn(
-                  "px-2 py-1 rounded-lg text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all",
-                  readerMode === m ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
+                  "min-h-8 rounded-lg px-2 text-[9px] font-black uppercase tracking-widest transition-all",
+                  readerMode === m ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"
                 )}
                 title={m === 'practice' ? 'Practice: all songs' : m === 'preferred' ? 'Preferred reader songs' : 'Live-ready songs'}
               >
                 {m === 'practice' ? 'All' : m === 'preferred' ? 'Pref' : 'Live'}
+              </button>
+            ))}
+          </div>
+        )}
+        {onReaderResourceChange && (
+          <div className="hidden lg:flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/5 p-0.5" role="group" aria-label="Reader source override">
+            <span className={cn("px-1.5 text-[8px] font-black uppercase tracking-widest", readerResource === 'default' ? "text-slate-500" : "text-indigo-400")}>Source</span>
+            {([
+              { value: 'default', label: 'Preferred', icon: SlidersHorizontal },
+              { value: 'force-pdf', label: 'PDFs', icon: FileText },
+              { value: 'force-chords', label: 'Chords', icon: ListMusic },
+            ] as const).map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => onReaderResourceChange(value)}
+                aria-pressed={readerResource === value}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[9px] font-black uppercase tracking-widest transition-all",
+                  readerResource === value ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
+                )}
+                title={`Reader source: ${label}${value === 'default' ? ' (follows each song)' : ' (overrides each song)'}`}
+              >
+                <Icon className="h-3.5 w-3.5" /> {label}
               </button>
             ))}
           </div>
@@ -336,6 +367,17 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               {(['practice', 'preferred', 'live'] as const).map((m) => (
                 <DropdownMenuItem key={m} onClick={() => onReaderModeChange?.(m)} className={cn("h-11 rounded-lg gap-3 text-xs font-bold uppercase", readerMode === m && "bg-indigo-600/20 text-indigo-400")}>
                   <SlidersHorizontal className="w-4 h-4 text-indigo-400" /> {m === 'practice' ? 'Practice (All)' : m === 'preferred' ? 'Preferred Reader' : 'Live Ready'}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">Reader Source</DropdownMenuLabel>
+              {([
+                { value: 'default', label: 'Preferred (default)', icon: SlidersHorizontal },
+                { value: 'force-pdf', label: 'Force PDFs', icon: FileText },
+                { value: 'force-chords', label: 'Force Chords', icon: ListMusic },
+              ] as const).map(({ value, label, icon: Icon }) => (
+                <DropdownMenuItem key={value} onClick={() => onReaderResourceChange?.(value)} className={cn("h-11 rounded-lg gap-3 text-xs font-bold uppercase", readerResource === value && "bg-indigo-600/20 text-indigo-400")}>
+                  <Icon className="w-4 h-4 text-indigo-400" /> {label}
                 </DropdownMenuItem>
               ))}
               {onShuffle && (

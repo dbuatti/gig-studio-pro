@@ -67,7 +67,7 @@ const SheetReaderMode: React.FC = () => {
     ugChordsLineSpacing,
     ugChordsTextAlign,
   } = useSettings();
-  const { forceReaderResource } = useReaderSettings();
+  const { forceReaderResource, updateSetting: updateReaderSetting } = useReaderSettings();
 
   const [baseSongs, setBaseSongs] = useState<SetlistSong[]>([]);
   const [readerMode, setReaderMode] = useState<'practice' | 'preferred' | 'live'>(() => (localStorage.getItem('reader_mode') as 'practice' | 'preferred' | 'live') || 'preferred');
@@ -86,7 +86,16 @@ const SheetReaderMode: React.FC = () => {
 
   const hasPreferredReader = (s: SetlistSong) => !!s.preferred_reader && s.preferred_reader !== 'unsure';
   const isReadableChart = (s: SetlistSong) => !!(s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url);
+  const hasPdf = (s: SetlistSong) => !!(s.pdfUrl || s.sheet_music_url || s.leadsheetUrl);
+  const hasChords = (s: SetlistSong) => !!(s.ug_chords_text || s.ugUrl);
+  // When a source override is active, hide songs that lack that resource.
+  const matchesResource = (s: SetlistSong) => {
+    if (forceReaderResource === 'force-pdf') return hasPdf(s);
+    if (forceReaderResource === 'force-chords' || forceReaderResource === 'force-ug') return hasChords(s);
+    return true;
+  };
   const allSongs = useMemo(() => {
+    const pool = baseSongs.filter(matchesResource);
     if (readerMode === 'practice') {
       // Surface the songs that need the most work first: no preferred reader,
       // no sheet music / chords, then lowest readiness.
@@ -99,11 +108,11 @@ const SheetReaderMode: React.FC = () => {
         score += (100 - calculateReadiness(s)) / 100;
         return score;
       };
-      return [...baseSongs].sort((a, b) => needScore(b) - needScore(a));
+      return [...pool].sort((a, b) => needScore(b) - needScore(a));
     }
-    if (readerMode === 'preferred') return baseSongs.filter(s => hasPreferredReader(s) && isReadableChart(s));
-    return baseSongs.filter(s => hasPreferredReader(s) && isReadableChart(s) && calculateReadiness(s) >= 70 && (s.comfort_level || 0) > 0);
-  }, [baseSongs, readerMode]);
+    if (readerMode === 'preferred') return pool.filter(s => hasPreferredReader(s) && isReadableChart(s));
+    return pool.filter(s => hasPreferredReader(s) && isReadableChart(s) && calculateReadiness(s) >= 70 && (s.comfort_level || 0) > 0);
+  }, [baseSongs, readerMode, forceReaderResource]);
 
   const currentSong = useMemo(() => allSongs[currentIndex] || null, [allSongs, currentIndex]);
 
@@ -460,11 +469,11 @@ const SheetReaderMode: React.FC = () => {
   const currentChartDisplayUrl = useMemo(() => {
     if (!currentSong) return null;
     switch (selectedChartType) {
-      case 'pdf': return currentSong.pdfUrl || currentSong.sheet_music_url;
+      case 'pdf': return currentSong.pdfUrl || currentSong.sheet_music_url || (forceReaderResource === 'force-pdf' ? currentSong.leadsheetUrl : undefined);
       case 'leadsheet': return currentSong.leadsheetUrl;
       default: return null;
     }
-  }, [currentSong, selectedChartType]);
+  }, [currentSong, selectedChartType, forceReaderResource]);
 
   useEffect(() => {
     if (currentSong) {
@@ -671,6 +680,8 @@ const SheetReaderMode: React.FC = () => {
               readiness={currentSong ? calculateReadiness(currentSong) : undefined}
               readerMode={readerMode}
               onReaderModeChange={handleReaderModeChange}
+              readerResource={forceReaderResource === 'force-ug' ? 'force-chords' : forceReaderResource === 'simulation' ? 'default' : forceReaderResource}
+              onReaderResourceChange={(resource) => updateReaderSetting('forceReaderResource', resource)}
               onShuffle={handleShuffleReaderList}
               onComfortRate={handleComfortRate}
               isPlaying={isPlaying}
@@ -753,10 +764,14 @@ const SheetReaderMode: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-black uppercase tracking-tight text-white">
-                    {readerMode === 'live' ? 'No live-ready songs' : readerMode === 'preferred' ? 'No preferred-reader songs' : 'No songs in this view'}
+                    {forceReaderResource !== 'default'
+                      ? `No songs with ${forceReaderResource === 'force-pdf' ? 'PDFs' : 'chords'}`
+                      : readerMode === 'live' ? 'No live-ready songs' : readerMode === 'preferred' ? 'No preferred-reader songs' : 'No songs in this view'}
                   </h3>
                   <p className="text-xs text-slate-400 font-medium mt-2 leading-relaxed">
-                    {readerMode === 'live'
+                    {forceReaderResource !== 'default'
+                      ? `The reader is set to show only ${forceReaderResource === 'force-pdf' ? 'PDFs / lead sheets' : 'chord charts'}. Songs without that resource are hidden. Switch the Source control back to Preferred to see everything.`
+                      : readerMode === 'live'
                       ? 'Rate songs with the green happy face and reach 70% readiness to see them here.'
                       : readerMode === 'preferred'
                       ? 'Set a Preferred Reader on songs in the repertoire to build this queue.'
@@ -764,12 +779,17 @@ const SheetReaderMode: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-3">
-                  {readerMode !== 'practice' && (
+                  {forceReaderResource !== 'default' && (
+                    <Button onClick={() => updateReaderSetting('forceReaderResource', 'default')} className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest">
+                      Reset to Preferred
+                    </Button>
+                  )}
+                  {readerMode !== 'practice' && forceReaderResource === 'default' && (
                     <Button onClick={() => handleReaderModeChange('practice')} className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest">
                       Switch to Practice
                     </Button>
                   )}
-                  {readerMode === 'preferred' && (
+                  {readerMode === 'preferred' && forceReaderResource === 'default' && (
                     <Button onClick={() => setIsReadinessWizardOpen(true)} className="h-12 px-6 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-[10px] uppercase tracking-widest">
                       Set Preferred Reader
                     </Button>
