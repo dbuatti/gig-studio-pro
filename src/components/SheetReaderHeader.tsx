@@ -209,13 +209,13 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         )}
         {onComfortRate && currentSong && (
           <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-xl p-1">
-            <button type="button" onClick={() => onComfortRate('sad')} title="Not ready to sing" className="h-7 w-7 md:h-8 md:w-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all" aria-label="Mark not ready">
+            <button type="button" onClick={() => onComfortRate('sad')} title="Not ready to sing" className="h-11 w-11 md:h-8 md:w-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all" aria-label="Mark not ready">
               <Frown className="w-4 h-4 md:w-5 md:h-5" />
             </button>
-            <button type="button" onClick={() => onComfortRate('mid')} title="Unsure" className="h-7 w-7 md:h-8 md:w-8 rounded-lg flex items-center justify-center text-amber-400 hover:bg-amber-500/20 transition-all" aria-label="Mark unsure">
+            <button type="button" onClick={() => onComfortRate('mid')} title="Unsure" className="h-11 w-11 md:h-8 md:w-8 rounded-lg flex items-center justify-center text-amber-400 hover:bg-amber-500/20 transition-all" aria-label="Mark unsure">
               <Meh className="w-4 h-4 md:w-5 md:h-5" />
             </button>
-            <button type="button" onClick={() => onComfortRate('happy')} title="Can sing this" className="h-7 w-7 md:h-8 md:w-8 rounded-lg flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-all" aria-label="Mark ready to sing">
+            <button type="button" onClick={() => onComfortRate('happy')} title="Can sing this" className="h-11 w-11 md:h-8 md:w-8 rounded-lg flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-all" aria-label="Mark ready to sing">
               <Smile className="w-4 h-4 md:w-5 md:h-5" />
             </button>
           </div>

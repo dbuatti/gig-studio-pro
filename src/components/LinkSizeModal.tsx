@@ -85,7 +85,7 @@ const LinkSizeModal: React.FC<LinkSizeModalProps> = ({ isOpen, onClose, onLinkSi
         </div>
 
         <DialogFooter className="border-t border-border bg-secondary">
-          <Button onClick={handleSave} className="w-full bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl">
+          <Button onClick={handleSave} className="w-full bg-indigo-600 text-white hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl">
             <Check className="w-4 h-4 mr-2" /> Apply Settings
           </Button>
         </DialogFooter>

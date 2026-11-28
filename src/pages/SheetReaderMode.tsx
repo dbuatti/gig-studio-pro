@@ -687,13 +687,17 @@ const SheetReaderMode: React.FC = () => {
             isAudioPlayerVisible && currentSong && !isZenMode ? "pb-20 md:pb-24" : "pb-0", 
             isZenMode || shouldDisableScroll ? "overflow-hidden" : "overflow-auto"
           )}
-          onClick={toggleZenMode} 
+          onClick={(e) => {
+            // Only toggle Zen mode when tapping the empty background, not the chart
+            // content or any control rendered inside it.
+            if (e.target === e.currentTarget) toggleZenMode();
+          }}
         >
           <KeyReminderPill isVisible={showKeyReminder} targetKey={effectiveTargetKey} pitch={effectivePitch} />
 
           <animated.div 
             {...bind()}  
-            style={{ touchAction: 'none', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: isZenMode ? '0' : isMobile ? '10px' : '20px' }} 
+            style={{ touchAction: 'pan-y', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: isZenMode ? '0' : isMobile ? '10px' : '20px' }} 
             className="relative"
           >
             {currentSong && readerMode === 'practice' && !isReadableChart(currentSong) ? (
@@ -759,11 +763,18 @@ const SheetReaderMode: React.FC = () => {
                       : 'Try a different search or filter.'}
                   </p>
                 </div>
-                {readerMode !== 'practice' && (
-                  <Button onClick={() => handleReaderModeChange('practice')} className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest">
-                    Switch to Practice
-                  </Button>
-                )}
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  {readerMode !== 'practice' && (
+                    <Button onClick={() => handleReaderModeChange('practice')} className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest">
+                      Switch to Practice
+                    </Button>
+                  )}
+                  {readerMode === 'preferred' && (
+                    <Button onClick={() => setIsReadinessWizardOpen(true)} className="h-12 px-6 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-[10px] uppercase tracking-widest">
+                      Set Preferred Reader
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </animated.div>
@@ -792,13 +803,13 @@ const SheetReaderMode: React.FC = () => {
 
       {isZenMode && currentSong && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-900/85 backdrop-blur-xl px-2 py-1.5 shadow-2xl">
-          <button type="button" onClick={handlePrev} aria-label="Previous song" className="h-9 w-9 rounded-full flex items-center justify-center text-slate-300 hover:bg-white/10 transition-all">
+          <button type="button" onClick={handlePrev} aria-label="Previous song" className="h-11 w-11 rounded-full flex items-center justify-center text-slate-300 hover:bg-white/10 transition-all">
             <SkipBack className="w-4 h-4" />
           </button>
-          <button type="button" onClick={audioEngine.togglePlayback} aria-label={isPlaying ? 'Pause audio' : 'Play audio'} className={cn("h-10 w-10 rounded-full flex items-center justify-center transition-all", isPlaying ? "bg-red-600 text-white" : "bg-emerald-600 text-white")}>
+          <button type="button" onClick={audioEngine.togglePlayback} aria-label={isPlaying ? 'Pause audio' : 'Play audio'} className={cn("h-11 w-11 rounded-full flex items-center justify-center transition-all", isPlaying ? "bg-red-600 text-white" : "bg-emerald-600 text-white")}>
             {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
           </button>
-          <button type="button" onClick={handleNext} aria-label="Next song" className="h-9 w-9 rounded-full flex items-center justify-center text-slate-300 hover:bg-white/10 transition-all">
+          <button type="button" onClick={handleNext} aria-label="Next song" className="h-11 w-11 rounded-full flex items-center justify-center text-slate-300 hover:bg-white/10 transition-all">
             <SkipForward className="w-4 h-4" />
           </button>
           <span className="max-w-[160px] truncate text-[9px] font-black uppercase tracking-widest text-slate-400 pl-1 pr-2">{currentSong.name}</span>

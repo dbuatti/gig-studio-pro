@@ -227,6 +227,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
                 <Input
                   placeholder="Search..."
+                  aria-label="Search repertoire"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="h-11 pl-9 pr-8 text-[11px] font-bold bg-slate-900/60 border-white/5 rounded-xl focus-visible:ring-indigo-500/50 transition-all"
@@ -377,10 +378,18 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                     return (
                       <TableRow
                         key={song.id}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => onEditSong(song, 'details')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onEditSong(song, 'details');
+                          }
+                        }}
                         className={cn(
                           "transition-all group relative cursor-pointer h-[48px] border-b border-white/[0.03]",
-                          "hover:bg-white/[0.02]"
+                          "hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-studio-primary"
                         )}
                       >
                         <TableCell className="py-1.5 px-3 text-left min-w-0">

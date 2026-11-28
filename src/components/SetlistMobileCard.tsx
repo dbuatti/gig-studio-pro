@@ -49,9 +49,17 @@ const SetlistMobileCard: React.FC<SetlistMobileCardProps> = ({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onEdit(song)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onEdit(song);
+        }
+      }}
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-studio-surface p-3 shadow-sm transition-colors",
+        "relative overflow-hidden rounded-2xl border bg-studio-surface p-3 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-primary",
         isSelected ? "border-indigo-500/60 bg-indigo-500/[0.06]" : "border-studio-border",
         song.isPlayed && "opacity-60",
         getHeatmapClass(song)

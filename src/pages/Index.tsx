@@ -64,6 +64,7 @@ const Index = () => {
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const fetchInFlightRef = useRef<Promise<void> | null>(null);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
   const [isShuffleAllMode, setIsShuffleAllMode] = useState(false);
@@ -111,7 +112,15 @@ const Index = () => {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable)) {
+      if (
+        target &&
+        (target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target instanceof HTMLSelectElement ||
+          target instanceof HTMLButtonElement ||
+          target instanceof HTMLAnchorElement ||
+          target.isContentEditable)
+      ) {
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -270,6 +279,7 @@ const Index = () => {
     if (fetchInFlightRef.current) return fetchInFlightRef.current;
     const run = (async () => {
     if (isInitial) setLoading(true);
+    setLoadError(null);
     try {
       const { data: setlistsData } = await supabase.from('setlists').select('*').eq('user_id', userId).order('created_at', { ascending: false });
       const { data: repertoireData } = await supabase.from('repertoire').select('*').eq('user_id', userId).order('title');
@@ -331,7 +341,9 @@ const Index = () => {
         return setlistsWithSongs[0]?.id || null;
       });
     } catch (err: unknown) {
-      showError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
+      const message = err instanceof Error ? err.message : String(err);
+      setLoadError(message);
+      showError(`Failed to load data: ${message}`);
     } finally {
       if (isInitial) setLoading(false);
     }
@@ -1013,6 +1025,24 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return <DashboardSkeleton />;
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-studio-bg p-6">
+        <div className="max-w-md space-y-4 text-center">
+          <h2 className="text-xl font-black tracking-tight text-studio-foreground">Couldn't load your workspace</h2>
+          <p className="text-sm text-studio-muted">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => fetchSetlistsAndRepertoire(true)}
+            className="h-11 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white hover:bg-indigo-500"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

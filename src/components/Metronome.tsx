@@ -167,8 +167,8 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
             className={cn(
               "h-16 w-16 rounded-full transition-all hover:scale-105 active:scale-95 shadow-xl",
               isPlaying 
-                ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" 
-                : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
+                ? "bg-red-600 text-white hover:bg-red-700 shadow-red-600/20" 
+                : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/20"
             )}
           >
             {isPlaying ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current ml-1" />}

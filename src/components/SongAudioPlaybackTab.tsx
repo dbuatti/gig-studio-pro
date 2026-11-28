@@ -146,7 +146,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
                 aria-label={isPlaying ? "Pause playback" : "Play audio"}
                 className={cn(
                   "h-16 w-16 md:h-32 md:w-32 rounded-full shadow-2xl flex items-center justify-center transition-all",
-                  isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
+                  isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : "bg-indigo-600 text-white hover:bg-indigo-700"
                 )}
               >
                 {isLoadingAudio ? (

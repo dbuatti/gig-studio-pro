@@ -12,7 +12,7 @@ const NotFound = () => {
         <p className="text-muted-foreground mb-2">
           We couldn't find anything at <code className="font-mono text-sm break-all text-foreground">{location.pathname}</code>.
         </p>
-        <Button asChild className="mt-6 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-11 px-6 rounded-xl">
+        <Button asChild className="mt-6 bg-indigo-600 text-white hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-11 px-6 rounded-xl">
           <Link to="/">Return to home</Link>
         </Button>
       </div>

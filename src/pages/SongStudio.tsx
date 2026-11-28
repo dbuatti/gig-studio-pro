@@ -2,6 +2,9 @@
 
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { AlertTriangle } from 'lucide-react';
 import SongStudioView from '@/components/SongStudioView';
 
 const SongStudio = () => {
@@ -9,8 +12,20 @@ const SongStudio = () => {
   const navigate = useNavigate();
 
   if (!gigId || !songId) {
-    // Handle case where parameters are missing (shouldn't happen if route is correct)
-    return <div>Error: Missing gig or song ID.</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-studio-background p-6">
+        <EmptyState
+          icon={<AlertTriangle className="h-5 w-5" />}
+          title="Song not found"
+          description="This studio link is missing a gig or song id. Head back to your dashboard to open a song."
+          primaryAction={
+            <Button onClick={() => navigate('/')} className="h-11 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white hover:bg-indigo-500">
+              Back to dashboard
+            </Button>
+          }
+        />
+      </div>
+    );
   }
 
   const handleClose = () => {

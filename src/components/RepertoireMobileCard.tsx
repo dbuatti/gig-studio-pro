@@ -36,8 +36,16 @@ const RepertoireMobileCard: React.FC<RepertoireMobileCardProps> = ({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onEdit(song)}
-      className="flex flex-col gap-4 rounded-2xl border border-studio-border bg-studio-surface p-4 shadow-sm transition-colors active:bg-studio-raised"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onEdit(song);
+        }
+      }}
+      className="flex flex-col gap-4 rounded-2xl border border-studio-border bg-studio-surface p-4 shadow-sm transition-colors active:bg-studio-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-primary"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">

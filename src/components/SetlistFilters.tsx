@@ -1,6 +1,6 @@
-import { safeJsonParse } from '@/utils/safeJson';
 "use client";
 // Setlist Filters Component
+import { safeJsonParse } from '@/utils/safeJson';
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
