@@ -7,6 +7,7 @@ import { useToneAudio, AudioEngineControls } from '@/hooks/use-tone-audio';
 import { useAutoplay } from '@/hooks/use-autoplay';
 import { showWarning } from '@/utils/toast';
 import { getPlayableSongs } from '@/utils/playbackQueue';
+import { calculateReadiness } from '@/utils/repertoireSync';
 
 interface SelectSongOptions {
   /** Replace the play queue with this list (e.g. the current setlist view). */
@@ -36,6 +37,10 @@ export interface PlaybackActions {
   clear: () => void;
   /** Toggle continuous playback of the queue. */
   toggleAutoplay: () => void;
+  /** Register the full repertoire so the player can build readiness-band queues. */
+  setLibrary: (songs: SetlistSong[]) => void;
+  /** Play all library songs whose readiness score falls in [min, max). */
+  playReadinessBand: (min: number, max: number) => void;
 }
 
 export interface PlaybackContextValue extends PlaybackActions {
@@ -86,6 +91,7 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const isAutoplayActiveRef = useRef(false);
   const queueRef = useRef<SetlistSong[]>([]);
   const activeSongRef = useRef<SetlistSong | null>(null);
+  const libraryRef = useRef<SetlistSong[]>([]);
 
   const audio = useToneAudio(true, () => {
     // Auto-advance when a track finishes (handled in-engine, works in background).
@@ -167,6 +173,22 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       autoplayRef.current.setActiveSong(null);
     },
     toggleAutoplay: () => { void autoplayRef.current.toggleAutoplay(); },
+    setLibrary: (songs) => { libraryRef.current = songs; },
+    playReadinessBand: (min, max) => {
+      const band = libraryRef.current.filter((s) => {
+        const score = calculateReadiness(s);
+        return score >= min && score < max;
+      });
+      const playable = getPlayableSongs(band);
+      if (playable.length === 0) {
+        showWarning(`No songs with audio in that ${min}–${max}% band.`);
+        return;
+      }
+      setQueue(playable);
+      setQueueName(`${min}–${max}% readiness`);
+      void Tone.start().catch(() => { /* resumed on next gesture */ });
+      void autoplayRef.current.handleSelectSong(playable[0], true);
+    },
   }), []);
 
   const currentIndex = useMemo(() => matchIndex(queue, activeSong), [queue, activeSong]);

@@ -70,7 +70,7 @@ const SeekBar: React.FC<{
 const GlobalPlayer: React.FC = () => {
   const {
     audio, activeSong, queue, queueName, currentIndex,
-    next, previous, toggle, clear, selectSong,
+    next, previous, toggle, clear, selectSong, playReadinessBand,
   } = usePlayback();
   const [expanded, setExpanded] = useState(false);
 
@@ -303,6 +303,37 @@ const GlobalPlayer: React.FC = () => {
                 >
                   <ChevronDown className="h-7 w-7" />
                 </button>
+              </div>
+
+              {/* Readiness practice bands — big, traffic-light targets for
+                  one-tap launching while on the move. */}
+              <div className="mt-7">
+                <div className="mb-3 text-center text-[10px] font-black uppercase tracking-[0.28em] text-slate-500">
+                  Practice by readiness
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[
+                    { label: '0–25%', min: 0, max: 25, bg: 'bg-red-600', ring: 'ring-red-500/40' },
+                    { label: '25–50%', min: 25, max: 50, bg: 'bg-orange-600', ring: 'ring-orange-500/40' },
+                    { label: '50–75%', min: 50, max: 75, bg: 'bg-yellow-500', ring: 'ring-yellow-400/40', dark: true },
+                    { label: '75–100%', min: 75, max: 101, bg: 'bg-emerald-600', ring: 'ring-emerald-500/40' },
+                  ].map((band) => (
+                    <button
+                      key={band.label}
+                      type="button"
+                      onClick={() => playReadinessBand(band.min, band.max)}
+                      aria-label={`Play songs with ${band.label} readiness`}
+                      className={cn(
+                        'flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl ring-2 ring-offset-2 ring-offset-slate-950 shadow-lg transition-all active:scale-95',
+                        band.bg, band.ring,
+                        band.dark ? 'text-slate-900' : 'text-white',
+                      )}
+                    >
+                      <Play className="h-6 w-6 fill-current" />
+                      <span className="text-xs font-black uppercase tracking-wider">{band.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Up next */}

@@ -16,7 +16,7 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { autoVibeCheck } from '@/utils/vibeUtils';
 
 // UI Components
-import { Plus, Calendar, Sparkles, Edit3, Trash2, FileText } from 'lucide-react';
+import { Plus, Calendar, Sparkles, Edit3, Trash2, FileText, Play, Shuffle } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -45,9 +45,11 @@ import RepertoireSummary from '@/components/RepertoireSummary';
 import DashboardModals from '@/components/dashboard/DashboardModals';
 import { sortSongsByStrategy, type SortMode, type FlowStrategy } from '@/utils/SetlistGenerator';
 import { calculateSemitones } from '@/utils/keyUtils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Index = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id;
@@ -235,6 +237,53 @@ const Index = () => {
     sessionStorage.setItem('reader_fresh_open', '1'); sessionStorage.removeItem('reader_current_song_id'); navigate(`/sheet-reader/${first.master_id || first.id}?shuffle=1`);
   }, [activeSetlist, filteredAndSortedSongs, navigate]);
 
+  const handlePlayWholeSet = useCallback(() => {
+    if (!activeSetlist) {
+      showWarning("No set selected.");
+      return;
+    }
+    const { playable, skipped } = partitionSongsByAudio(activeSetlist.songs);
+    if (playable.length === 0) {
+      showWarning("No songs with audio in this set.");
+      return;
+    }
+    playback.playQueue(playable, activeSetlist.name || 'Set');
+    showSuccess(
+      skipped.length > 0
+        ? `Playing ${playable.length} songs · ${skipped.length} without audio skipped`
+        : `Playing all ${playable.length} songs in ${activeSetlist.name}`
+    );
+  }, [activeSetlist, playback]);
+
+  const handlePlayAll = useCallback(() => {
+    const { playable } = partitionSongsByAudio(masterRepertoire);
+    if (playable.length === 0) {
+      showWarning("No songs with audio in your repertoire.");
+      return;
+    }
+    playback.playQueue(playable, 'All songs');
+    showSuccess(`Playing all ${playable.length} songs`);
+  }, [masterRepertoire, playback]);
+
+  const handleShuffleSetAll = useCallback(() => {
+    if (!activeSetlist) {
+      showWarning("No set selected.");
+      return;
+    }
+    const { playable, skipped } = partitionSongsByAudio(activeSetlist.songs);
+    if (playable.length === 0) {
+      showWarning("No songs with audio in this set.");
+      return;
+    }
+    const shuffled = [...playable].sort(() => Math.random() - 0.5);
+    playback.playQueue(shuffled, `${activeSetlist.name || 'Set'} — Shuffle`);
+    showSuccess(
+      skipped.length > 0
+        ? `Shuffling ${playable.length} songs · ${skipped.length} without audio skipped`
+        : `Shuffling all ${playable.length} songs in ${activeSetlist.name}`
+    );
+  }, [activeSetlist, playback]);
+
   const handleShuffleAll = useCallback(() => {
     const { playable, skipped } = partitionSongsByAudio(masterRepertoire);
     if (playable.length === 0) {
@@ -266,6 +315,12 @@ const Index = () => {
     sortMode === 'artist' || sortMode === 'none' || sortMode === 'ready' || sortMode === 'work' || sortMode === 'manual'
       ? sortMode
       : 'none';
+
+  // Make the full repertoire available to the global player so its readiness
+  // band buttons can build queues from anywhere in the app.
+  useEffect(() => {
+    playback.setLibrary(masterRepertoire);
+  }, [masterRepertoire, playback.setLibrary]);
 
   useEffect(() => {
     localStorage.setItem('gig_active_filters', JSON.stringify(activeFilters));
@@ -1057,9 +1112,11 @@ const Index = () => {
                 <Sparkles className="w-4 h-4 text-indigo-400" />
                 <h2 className="text-sm font-black uppercase tracking-[0.3em] text-indigo-400">Welcome Back</h2>
               </div>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              </p>
+              {!isMobile && (
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
+                  {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1074,12 +1131,42 @@ const Index = () => {
             onOpenUserGuide={() => setIsUserGuideOpen(true)}
           />
 
-          <RepertoireSummary repertoire={masterRepertoire} />
-
-          {isGoalTrackerEnabled && (
-            <div className="mb-12 animate-in fade-in slide-in-from-top-6 duration-700 delay-100">
-              <GoalTracker repertoire={masterRepertoire} onFilterApply={(f) => setActiveFilters(prev => ({...prev, ...f}))} />
+          {isMobile ? (
+            /* Phone: no metrics, no charts — just two huge, one-tap targets. */
+            <div className="mb-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={activeDashboardView === 'gigs' ? handlePlayWholeSet : handlePlayAll}
+                aria-label={activeDashboardView === 'gigs' ? 'Play all songs in this set' : 'Play all songs'}
+                className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 transition-all active:scale-95"
+              >
+                <Play className="h-8 w-8 fill-current" />
+                <span className="text-xs font-black uppercase tracking-widest">
+                  {activeDashboardView === 'gigs' ? 'Play Set' : 'Play All'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={activeDashboardView === 'gigs' ? handleShuffleSetAll : handleShuffleAll}
+                aria-label={activeDashboardView === 'gigs' ? 'Shuffle all songs in this set' : 'Shuffle all songs'}
+                className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 transition-all active:scale-95"
+              >
+                <Shuffle className="h-8 w-8" />
+                <span className="text-xs font-black uppercase tracking-widest">
+                  {activeDashboardView === 'gigs' ? 'Shuffle Set' : 'Shuffle All'}
+                </span>
+              </button>
             </div>
+          ) : (
+            <>
+              <RepertoireSummary repertoire={masterRepertoire} />
+
+              {isGoalTrackerEnabled && (
+                <div className="mb-12 animate-in fade-in slide-in-from-top-6 duration-700 delay-100">
+                  <GoalTracker repertoire={masterRepertoire} onFilterApply={(f) => setActiveFilters(prev => ({...prev, ...f}))} />
+                </div>
+              )}
+            </>
           )}
 
           {activeDashboardView === 'gigs' && !activeSetlistId && !loading && (
@@ -1156,7 +1243,9 @@ const Index = () => {
             )}
             {activeSetlist && (
               <>
-                <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={handlePlayVisible} onShuffleAll={handleShuffleSet} onShuffleReader={handleShuffleReader} isAutoplayActive={isAutoplayActive} />
+                {!isMobile && (
+                  <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={handlePlayVisible} onShuffleAll={handleShuffleSet} onShuffleReader={handleShuffleReader} isAutoplayActive={isAutoplayActive} />
+                )}
                 <SetlistManager
                   songs={filteredAndSortedSongs}
                   totalSongCount={activeSetlist.songs.length}

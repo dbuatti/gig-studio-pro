@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Clock, Music, Zap, Target, Copy, Check, PlayCircle, Shuffle, Square, BookOpen } from 'lucide-react';
+import { Clock, Music, Zap, Target, Copy, Check, Play, Shuffle, Square, BookOpen } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { showSuccess } from '@/utils/toast';
 import { calculateReadiness } from '@/utils/repertoireSync';
@@ -112,7 +112,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
             disabled={!onPlayAll || playable.length === 0}
             className="h-11 min-w-[132px] flex-1 rounded-xl bg-indigo-600 px-3 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-indigo-500"
           >
-            {isAutoplayActive ? <Square className="h-3.5 w-3.5 fill-current" /> : <PlayCircle className="h-4 w-4" />}
+            {isAutoplayActive ? <Square className="h-3.5 w-3.5 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
             {isAutoplayActive ? 'Stop queue' : `Play visible (${playable.length})`}
           </Button>
           {onShuffleAll && !isAutoplayActive && (
