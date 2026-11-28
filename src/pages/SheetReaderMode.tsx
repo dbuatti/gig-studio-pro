@@ -21,7 +21,6 @@ import { usePlaybackActions } from '@/components/PlaybackProvider';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
-import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderSidebar from '@/components/SheetReaderSidebar';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
@@ -80,7 +79,6 @@ const SheetReaderMode: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [isStudioPanelOpen, setIsStudioPanel] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
   const [isReadinessWizardOpen, setIsReadinessWizardOpen] = useState(false);
@@ -713,7 +711,7 @@ const SheetReaderMode: React.FC = () => {
               currentSong={currentSong}
               onClose={() => navigate(`/?view=${sessionStorage.getItem('reader_view_mode') || 'gigs'}`)} 
               onOpenRepertoireSearch={() => setIsRepertoireSearchModalOpen(true)}
-              onOpenCurrentSongStudio={() => setIsStudioPanel(true)}
+              onOpenCurrentSongStudio={() => setIsReadinessWizardOpen(true)}
               isLoading={!currentSong}
               keyPreference={globalKeyPreference} 
               onUpdateKey={handleUpdateKey}
@@ -832,7 +830,7 @@ const SheetReaderMode: React.FC = () => {
                             Retry
                           </Button>
                         )}
-                        <Button variant="outline" onClick={() => setIsStudioPanel(true)} className="h-11 rounded-xl border-white/10 bg-slate-800 px-5 text-xs font-bold text-slate-200">
+                        <Button variant="outline" onClick={() => setIsReadinessWizardOpen(true)} className="h-11 rounded-xl border-white/10 bg-slate-800 px-5 text-xs font-bold text-slate-200">
                           Open Studio
                         </Button>
                       </div>
@@ -934,20 +932,6 @@ const SheetReaderMode: React.FC = () => {
       )}
 
       <LinkSizeModal isOpen={isLinkSizeModalOpen} onClose={() => setIsLinkSizeModalOpen(false)} onLinkSizeUpdated={fetchLinks} />
-
-      {currentSong && (
-        <SongStudioModal
-          isOpen={isStudioPanelOpen}
-          onClose={() => setIsStudioPanel(false)}
-          gigId="library"
-          songId={currentSong.master_id || currentSong.id}
-          visibleSongs={allSongs}
-          masterRepertoire={fullMasterRepertoire}
-          handleAutoSave={handleAutoSave}
-          preventStageKeyOverwrite={preventStageKeyOverwrite}
-          audioEngine={audioEngine}
-        />
-      )}
 
       <AlertDialog open={isSetTransitionOpen} onOpenChange={(setIsSetTransitionOpen)}>
         <AlertDialogContent className="bg-slate-950 border-white/10 text-white rounded-[2rem] p-8 shadow-2xl max-w-lg">

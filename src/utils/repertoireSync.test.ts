@@ -42,5 +42,6 @@ describe("calculateReadiness with a checklist", () => {
     expect(calculateReadiness({ ...fullyReadySong, notes: "" })).toBeLessThan(100);
     expect(calculateReadiness({ ...fullyReadySong, is_ready_to_sing: false })).toBeLessThan(100);
     expect(calculateReadiness({ ...fullyReadySong, highest_note_original: "" })).toBeLessThan(100);
+    expect(calculateReadiness({ ...fullyReadySong, targetKey: "" })).toBeLessThan(100);
   });
 });

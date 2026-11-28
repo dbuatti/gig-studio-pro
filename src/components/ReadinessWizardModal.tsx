@@ -73,6 +73,7 @@ const STEPS: StepConfig[] = [
     instructions: 'Set the original key, enter your highest note, then pick and confirm your stage key.',
     subtasks: [
       { id: 'key.1', label: 'Set original key', isDone: f => !!f.originalKey && f.originalKey !== 'TBC' },
+      { id: 'key.2', label: 'Set stage key', isDone: f => !!f.targetKey },
       { id: 'key.3', label: 'Enter highest note', isDone: f => !!f.highest_note_original && /^[A-G][#b]?[0-8]$/.test(f.highest_note_original) },
       { id: 'key.4', label: 'Confirm stage key', isDone: f => !!f.isKeyConfirmed },
     ],
@@ -127,7 +128,7 @@ interface ReadinessWizardModalProps {
 const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   isOpen,
   onClose,
-  formData,
+  formData: formDataProp,
   handleAutoSave,
   onSwitchTab,
   defaultToSummary,
@@ -135,6 +136,14 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   gigId,
 }) => {
   const { user } = useAuth();
+  // Keep an optimistic local copy so edits (ratings, toggles, text) respond
+  // instantly even while the background save is still in flight.
+  const [formData, setFormData] = useState<Partial<SetlistSong>>(formDataProp);
+  useEffect(() => { setFormData(formDataProp); }, [formDataProp]);
+  const updateForm = useCallback((updates: Partial<SetlistSong>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+    handleAutoSave(updates);
+  }, [handleAutoSave]);
   const checked = formData.readiness_checklist || [];
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -161,7 +170,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   const handleChordsChange = useCallback((value: string) => {
     setChordsText(value);
     clearTimeout(chordsSaveTimerRef.current);
-    chordsSaveTimerRef.current = setTimeout(() => handleAutoSave({ ug_chords_text: value }), 400);
+    chordsSaveTimerRef.current = setTimeout(() => updateForm({ ug_chords_text: value }), 400);
   }, [handleAutoSave]);
 
   // Clear manual undo flags when user makes real data changes (so auto-complete can re-fire)
@@ -401,7 +410,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
       showError('Link a YouTube URL first.');
       return;
     }
-    if (!overrideUrl) handleAutoSave({ youtubeUrl: targetUrl });
+    if (!overrideUrl) updateForm({ youtubeUrl: targetUrl });
     setIsQueuingExtraction(true);
     try {
       const { error } = await supabase
@@ -483,7 +492,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isSetDropdownOpen]);
 
-  const currentStepIndex = uncheckedStep ? STEPS.indexOf(uncheckedStep) : STEPS.length;
+  const currentStepIndex = uncheckedStep ? STEPS.indexOf(uncheckedStep) : Math.max(0, STEPS.length - 1);
   const currentStep = uncheckedStep || null;
   const completedCount = checked.filter(id => STEPS.some(s => s.id === id)).length;
   const totalCount = STEPS.length;
@@ -540,7 +549,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
   useEffect(() => {
     if (allSubtasksDone && currentStep && !checked.includes(currentStep.id)) {
       const updated = [...checked, currentStep.id];
-      handleAutoSave({ readiness_checklist: updated });
+      updateForm({ readiness_checklist: updated });
     }
   }, [allSubtasksDone, currentStep?.id]);
 
@@ -601,7 +610,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
       const fileName = `${artist}_${title}_${type}.pdf`;
       const folder = `${user.id}/${songId}_${artist}_${title}`;
       const url = await r2Storage.upload(`${folder}/${fileName}`, file);
-      handleAutoSave(type === 'score' ? { pdfUrl: url } : { leadsheetUrl: url });
+      updateForm(type === 'score' ? { pdfUrl: url } : { leadsheetUrl: url });
       showSuccess(type === 'score' ? 'Full score uploaded.' : 'Lead sheet uploaded.');
     } catch (err) {
       showError('PDF upload failed.');
@@ -632,8 +641,8 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
 
   const handleComplete = () => {
     if (!currentStep) return;
-    const updated = [...checked, currentStep.id];
-    handleAutoSave({ readiness_checklist: updated });
+    const updated = checked.includes(currentStep.id) ? [...checked] : [...checked, currentStep.id];
+    updateForm({ readiness_checklist: updated });
     setJustCompletedId(currentStep.id);
     setNavigateToStepId(null);
     setTimeout(() => setJustCompletedId(null), 700);
@@ -750,7 +759,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
 
   // ── Inline inputs ──
   const renderInlineInput = (subId: string, done: boolean) => {
-    const editableWhenDone = new Set(['reader_ready.1', 'lyrics.1', 'final.notes', 'final.confidence', 'final.ready']);
+    const editableWhenDone = new Set(['reader_ready.1', 'key.2', 'lyrics.1', 'final.notes', 'final.confidence', 'final.ready']);
     if (done && !editableWhenDone.has(subId)) return null;
 
     switch (subId) {
@@ -782,7 +791,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               {READER_OPTIONS.map(opt => (
                 <button
                   key={opt.value}
-                onClick={() => handleAutoSave({ preferred_reader: opt.value as 'ug' | 'ls' | 'fn' | 'fs' | 'unsure' })}
+                onClick={() => updateForm({ preferred_reader: opt.value as 'ug' | 'ls' | 'fn' | 'fs' | 'unsure' })}
                 className={cn(
                     "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all",
                     formData.preferred_reader === opt.value
@@ -813,7 +822,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               onChange={e => {
                 const newKey = e.target.value;
                 const isConfirmed = newKey && newKey !== 'TBC';
-                handleAutoSave({ originalKey: newKey, targetKey: newKey, pitch: 0, isKeyConfirmed: isConfirmed });
+                updateForm({ originalKey: newKey, targetKey: newKey, pitch: 0, isKeyConfirmed: isConfirmed });
               }}
               className="w-28 h-9 bg-black/70 border border-white/10 rounded-xl px-3 text-xs font-black font-mono text-white focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer"
             >
@@ -840,7 +849,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               onChange={e => {
                 const n = e.target.value;
                 setPendingNote(n);
-                if (n && pendingOctave) handleAutoSave({ highest_note_original: `${n}${pendingOctave}` });
+                if (n && pendingOctave) updateForm({ highest_note_original: `${n}${pendingOctave}` });
               }}
               className="w-20 h-9 bg-black/70 border border-white/10 rounded-xl px-3 text-xs font-black font-mono text-white focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer"
             >
@@ -854,7 +863,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               onChange={e => {
                 const o = e.target.value;
                 setPendingOctave(o);
-                if (pendingNote && o) handleAutoSave({ highest_note_original: `${pendingNote}${o}` });
+                if (pendingNote && o) updateForm({ highest_note_original: `${pendingNote}${o}` });
               }}
               className="w-16 h-9 bg-black/70 border border-white/10 rounded-xl px-3 text-xs font-black font-mono text-white focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer"
             >
@@ -865,6 +874,28 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
             </select>
           </div>
         );
+
+      // 2.2 Stage key selection
+      case 'key.2': {
+        const stageKey = formData.targetKey || formData.originalKey || '';
+        return (
+          <div className="mt-2 flex items-center gap-2">
+            <select
+              value={stageKey}
+              onChange={e => updateForm({ targetKey: e.target.value, isKeyConfirmed: false })}
+              className="h-9 min-w-28 rounded-xl border border-white/10 bg-black/70 px-3 font-mono text-xs font-black text-white focus:outline-none focus:border-indigo-500"
+            >
+              <option value="" disabled className="text-slate-500">Choose stage key</option>
+              {ALL_KEYS_SHARP.map(k => (
+                <option key={k} value={k} className="bg-slate-900">{formatKey(k, formData.key_preference || 'sharps')}</option>
+              ))}
+            </select>
+            {!formData.targetKey && (
+              <span className="text-[8px] font-bold text-amber-400">Pick the key you'll sing in</span>
+            )}
+          </div>
+        );
+      }
 
       // 2.4 Confirm stage key — defaults to original key
       case 'key.4': {
@@ -878,7 +909,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
           const newBaseIndex = (baseIndex + direction + 12) % 12;
           const newKey = isMinor ? ALL_KEYS_SHARP[newBaseIndex + 12] : ALL_KEYS_SHARP[newBaseIndex];
           const semitones = calculateSemitones(formData.originalKey, newKey);
-          handleAutoSave({ targetKey: newKey, pitch: semitones, isKeyConfirmed: false });
+          updateForm({ targetKey: newKey, pitch: semitones, isKeyConfirmed: false });
           setAudioPitch(semitones);
         };
         return (
@@ -896,7 +927,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               </button>
               <select
                 value={stageKey}
-                onChange={e => handleAutoSave({ targetKey: e.target.value })}
+                onChange={e => updateForm({ targetKey: e.target.value })}
                 className="flex-1 h-8 bg-black/70 border border-white/10 rounded-lg px-2 text-[10px] font-black font-mono text-white focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer text-center"
               >
                 <option value="" disabled className="text-slate-500">Key</option>
@@ -932,7 +963,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               </div>
             )}
             <button
-              onClick={() => handleAutoSave({ isKeyConfirmed: !formData.isKeyConfirmed })}
+              onClick={() => updateForm({ isKeyConfirmed: !formData.isKeyConfirmed })}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all justify-center",
                 formData.isKeyConfirmed
@@ -953,7 +984,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
             <textarea
               placeholder="Paste full lyrics here..."
               value={formData.lyrics || ''}
-              onChange={e => handleAutoSave({ lyrics: e.target.value })}
+              onChange={e => updateForm({ lyrics: e.target.value })}
               rows={3}
               className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white font-medium focus:outline-none focus:border-indigo-500 resize-none"
             />
@@ -961,7 +992,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               <button
                 onClick={() => {
                   const cleaned = cleanLyrics(formData.lyrics || '');
-                  handleAutoSave({ lyrics: cleaned });
+                  updateForm({ lyrics: cleaned });
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-[8px] font-black uppercase tracking-widest transition-all flex-1 justify-center"
               >
@@ -1021,7 +1052,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
             <textarea
               placeholder="e.g. The bridge has a 7-beat rest — don't come in early..."
               value={formData.notes || ''}
-              onChange={e => handleAutoSave({ notes: e.target.value })}
+              onChange={e => updateForm({ notes: e.target.value })}
               rows={3}
               className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white font-medium focus:outline-none focus:border-indigo-500 resize-none"
             />
@@ -1034,7 +1065,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
           <div className="mt-2 space-y-2 rounded-xl bg-black/30 border border-white/10 px-3 py-2">
             <div className="flex items-center justify-between">
               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">How well do you know it?</span>
-              <MasteryRating value={formData.comfort_level || 0} onChange={(val) => handleAutoSave({ comfort_level: val })} size="sm" />
+              <MasteryRating value={formData.comfort_level || 0} onChange={(val) => updateForm({ comfort_level: val })} size="sm" />
             </div>
             {(formData.comfort_level || 0) < 5 && (
               <p className="text-[8px] text-amber-400/80 font-medium">
@@ -1049,7 +1080,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
         return (
           <div className="mt-2">
             <button
-              onClick={() => handleAutoSave({ is_ready_to_sing: formData.is_ready_to_sing === true ? false : true })}
+              onClick={() => updateForm({ is_ready_to_sing: formData.is_ready_to_sing === true ? false : true })}
               className={cn(
                 "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all w-full",
                 formData.is_ready_to_sing === true
@@ -1180,7 +1211,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                       key={i}
                       onClick={() => {
                         const videoId = r.videoId as string;
-                        handleAutoSave({ youtubeUrl: `https://youtube.com/watch?v=${videoId}` });
+                        updateForm({ youtubeUrl: `https://youtube.com/watch?v=${videoId}` });
                         handleQueueExtraction(`https://youtube.com/watch?v=${videoId}`);
                         setShowYtResults(false);
                         setYtResults([]);
@@ -1279,15 +1310,6 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
             >
               {showSummary ? '✕' : 'ℹ'} Summary
             </button>
-            {showSummary && (
-              <button
-                onClick={() => { onClose(); setTimeout(() => onSwitchTab('config'), 100); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 border-indigo-500/30 text-indigo-400 text-[8px] font-black uppercase tracking-widest border transition-all"
-                title="Open Song Studio"
-              >
-                Song Studio
-              </button>
-            )}
           </div>
         </div>
 
@@ -1597,7 +1619,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                       const newBaseIdx = (baseIdx - 1 + 12) % 12;
                       const newKey = isMinor ? ALL_KEYS_SHARP[newBaseIdx + 12] : ALL_KEYS_SHARP[newBaseIdx];
                       const semitones = calculateSemitones(formData.originalKey, newKey);
-                      handleAutoSave({ targetKey: newKey, pitch: semitones, isKeyConfirmed: false });
+                      updateForm({ targetKey: newKey, pitch: semitones, isKeyConfirmed: false });
                       setAudioPitch(semitones);
                     }
                   }} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center text-sm font-black shrink-0" title="Semitone down">−</button>
@@ -1625,7 +1647,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                       const newBaseIdx = (baseIdx + 1 + 12) % 12;
                       const newKey = isMinor ? ALL_KEYS_SHARP[newBaseIdx + 12] : ALL_KEYS_SHARP[newBaseIdx];
                       const semitones = calculateSemitones(formData.originalKey, newKey);
-                      handleAutoSave({ targetKey: newKey, pitch: semitones, isKeyConfirmed: false });
+                      updateForm({ targetKey: newKey, pitch: semitones, isKeyConfirmed: false });
                       setAudioPitch(semitones);
                     }
                   }} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center text-sm font-black shrink-0" title="Semitone up">+</button>
@@ -1639,15 +1661,15 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                       const newKey = newPref === 'sharps'
                         ? (flatIdx >= 0 ? ALL_KEYS_SHARP[flatIdx] : (sharpIdx >= 0 ? ALL_KEYS_SHARP[sharpIdx] : current))
                         : (sharpIdx >= 0 ? ALL_KEYS_FLAT[sharpIdx] : (flatIdx >= 0 ? ALL_KEYS_FLAT[flatIdx] : current));
-                      handleAutoSave({ key_preference: newPref, targetKey: newKey });
+                      updateForm({ key_preference: newPref, targetKey: newKey });
                     }} className="text-[8px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-white/10 transition-all font-black font-mono">{formData.key_preference === 'flats' ? '♯' : '♭'}</button>
                     <span className={cn("text-[8px] font-mono font-black", (formData.pitch || 0) !== 0 ? "text-emerald-400" : "text-slate-500")}>
                       {(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST
                     </span>
                     <div className="flex gap-0.5">
-                      <button onClick={() => { const p = (formData.pitch || 0) - 12; handleAutoSave({ pitch: p }); setAudioPitch(p); }}
+                      <button onClick={() => { const p = (formData.pitch || 0) - 12; updateForm({ pitch: p }); setAudioPitch(p); }}
                         className="px-1 py-0.5 rounded text-[7px] font-black font-mono bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-white/10 transition-all" title="Octave down">−8ve</button>
-                      <button onClick={() => { const p = (formData.pitch || 0) + 12; handleAutoSave({ pitch: p }); setAudioPitch(p); }}
+                      <button onClick={() => { const p = (formData.pitch || 0) + 12; updateForm({ pitch: p }); setAudioPitch(p); }}
                         className="px-1 py-0.5 rounded text-[7px] font-black font-mono bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-white/10 transition-all" title="Octave up">+8ve</button>
                     </div>
                   </div>
@@ -1682,7 +1704,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   <span className="text-[11px] font-bold text-slate-300">Confidence</span>
                   <MasteryRating
                     value={formData.comfort_level || 0}
-                    onChange={(val) => handleAutoSave({ comfort_level: val })}
+                    onChange={(val) => updateForm({ comfort_level: val })}
                     size="lg"
                   />
                 </div>
@@ -1693,7 +1715,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                     <p className="text-[8px] text-slate-600 font-medium mt-0.5">Mark as performance-ready for public gigs</p>
                   </div>
                   <button
-                    onClick={() => handleAutoSave({ is_ready_to_sing: formData.is_ready_to_sing === true ? false : true })}
+                    onClick={() => updateForm({ is_ready_to_sing: formData.is_ready_to_sing === true ? false : true })}
                     className={cn(
                       "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all shrink-0",
                       formData.is_ready_to_sing === true
@@ -1738,7 +1760,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                   <textarea
                     placeholder="e.g. The bridge has a 7-beat rest, don't come in early..."
                     value={formData.notes || ''}
-                    onChange={e => handleAutoSave({ notes: e.target.value })}
+                    onChange={e => updateForm({ notes: e.target.value })}
                     rows={3}
                     className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white font-medium focus:outline-none focus:border-indigo-500 resize-none"
                   />
@@ -1777,9 +1799,9 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => { onClose(); setTimeout(() => onSwitchTab('config'), 100); }}
+                <button onClick={() => { setShowSummary(false); setActiveView('summary'); }}
                   className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-[10px] font-black uppercase tracking-widest text-white transition-all">
-                  Song Studio
+                  {allDone ? 'Done' : 'Continue steps'}
                 </button>
                 <button onClick={handleClose}
                   className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all">
@@ -1914,7 +1936,7 @@ const ReadinessWizardModal: React.FC<ReadinessWizardModalProps> = ({
                                       undoSkipNextRef.current = true;
                                       const remainingChecked = subtaskStates.filter(s => s.done && s.id !== sub.id).length;
                                       if (remainingChecked === 0) {
-                                        handleAutoSave({
+                                        updateForm({
                                           readiness_checklist: checked.filter(id => id !== currentStep.id),
                                         });
                                       }
