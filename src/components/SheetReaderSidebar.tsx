@@ -51,7 +51,7 @@ const SheetReaderSidebar: React.FC<SheetReaderSidebarProps> = ({ songs, currentI
           variant="ghost"
           size="icon"
           onClick={onToggleSidebar}
-          className="h-8 w-8 rounded-xl text-slate-400 hover:bg-white/10"
+          className="h-11 w-11 rounded-xl text-slate-400 hover:bg-white/10"
           title="Close Sidebar"
         >
           <PanelLeft className="w-4 h-4" />

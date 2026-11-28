@@ -621,7 +621,7 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable)) return;
+      if (target && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target instanceof HTMLButtonElement || target instanceof HTMLAnchorElement || target.isContentEditable)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
       const step = showTwoPages ? 2 : 1;
@@ -643,6 +643,14 @@ const SheetReaderMode: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
+      {isSidebarOpen && !isZenMode && (
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+        />
+      )}
       <div className={cn("fixed left-0 top-0 h-full w-[300px] z-50 transition-transform duration-300", isSidebarOpen && !isZenMode ? "translate-x-0" : "-translate-x-full")}>
         <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { stopPlayback(); setCurrentIndex(idx); }} isFullScreen={isZenMode} isOpen={isSidebarOpen && !isZenMode} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </div>
@@ -705,6 +713,12 @@ const SheetReaderMode: React.FC = () => {
           }}
         >
           <KeyReminderPill isVisible={showKeyReminder} targetKey={effectiveTargetKey} pitch={effectivePitch} />
+
+          {!isZenMode && (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') && (pdfNumPages || 0) > 1 && (
+            <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/10 bg-slate-900/80 px-3 py-1 text-[10px] font-black tabular-nums tracking-widest text-slate-300 backdrop-blur-md" aria-live="polite">
+              {pdfCurrentPage} <span className="text-slate-500">/</span> {pdfNumPages}
+            </div>
+          )}
 
           <animated.div 
             {...bind()}  

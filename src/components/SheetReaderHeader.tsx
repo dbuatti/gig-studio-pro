@@ -117,7 +117,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           size="icon"
           onClick={onToggleSidebar}
           className={cn(
-            "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-all",
+            "h-11 w-11 md:h-10 md:w-10 rounded-xl transition-all",
             isSidebarOpen ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-white/5 hover:bg-white/10 text-slate-400"
           )}
           title="Search Songs"
@@ -217,7 +217,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             size="icon"
             onClick={onTogglePlayback}
             className={cn(
-              "h-8 w-8 md:h-10 md:w-10 rounded-xl transition-all",
+              "h-11 w-11 md:h-10 md:w-10 rounded-xl transition-all",
               isPlaying ? "bg-red-600 text-white hover:bg-red-700" : "bg-emerald-600 text-white hover:bg-emerald-700"
             )}
             title={isPlaying ? 'Pause audio [Space]' : 'Play audio [Space]'}
@@ -231,7 +231,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             variant="ghost"
             size="icon"
             onClick={onShuffle}
-            className="h-8 w-8 md:h-10 md:w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+            className="h-11 w-11 md:h-10 md:w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
             title="Shuffle reader"
             aria-label="Shuffle reader songs"
           >
@@ -257,7 +257,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             title="Readiness score — tap to review what's still missing"
             aria-label={`Readiness ${readiness} percent. Open readiness wizard.`}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 md:px-2.5 md:py-1 text-[9px] md:text-[11px] font-black tabular-nums transition-all hover:brightness-125 active:scale-95",
+              "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-2 py-1 md:min-h-0 md:px-2.5 md:py-1 text-[9px] md:text-[11px] font-black tabular-nums transition-all hover:brightness-125 active:scale-95",
               readiness >= 75
                 ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/30"
                 : readiness >= 50

@@ -91,7 +91,7 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
           size="icon" 
           onClick={onPrevious} 
           disabled={isDisabled} 
-          className="h-8 w-8 md:h-10 md:w-10 rounded-full hover:bg-white/10 text-slate-400"
+          className="h-11 w-11 md:h-10 md:w-10 rounded-full hover:bg-white/10 text-slate-400"
           aria-label="Previous song"
         >
           <SkipBack className="w-4 h-4 md:w-5 md:h-5" />
@@ -124,7 +124,7 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
           size="icon" 
           onClick={onNext} 
           disabled={isDisabled} 
-          className="h-8 w-8 md:h-10 md:w-10 rounded-full hover:bg-white/10 text-slate-400"
+          className="h-11 w-11 md:h-10 md:w-10 rounded-full hover:bg-white/10 text-slate-400"
           aria-label="Next song"
         >
           <SkipForward className="w-4 h-4 md:w-5 md:h-5" />
