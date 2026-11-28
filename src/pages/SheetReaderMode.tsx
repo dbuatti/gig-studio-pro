@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong, UGChordsConfig, EnergyZone } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles, Frown, Meh, Smile, Shuffle, SlidersHorizontal, Play, Pause, SkipBack, SkipForward, FileText } from 'lucide-react';
+import { Loader2, Sparkles, Frown, Meh, Smile, Shuffle, SlidersHorizontal, Play, Pause, SkipBack, SkipForward, FileText, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DEFAULT_FILTERS } from '@/components/SetlistFilters';
@@ -43,6 +43,7 @@ import SongInfoOverlay from '@/components/SongInfoOverlay';
 import KeyReminderPill from '@/components/KeyReminderPill';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useWakeLock } from '@/hooks/use-wake-lock';
 
 // Ensure worker is configured
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -70,11 +71,15 @@ const SheetReaderMode: React.FC = () => {
   const { forceReaderResource, updateSetting: updateReaderSetting } = useReaderSettings();
 
   const [baseSongs, setBaseSongs] = useState<SetlistSong[]>([]);
-  const [readerMode, setReaderMode] = useState<'practice' | 'preferred' | 'live'>(() => (localStorage.getItem('reader_mode') as 'practice' | 'preferred' | 'live') || 'preferred');
+  const [readerMode, setReaderMode] = useState<'practice' | 'preferred' | 'live'>(() => {
+    const saved = localStorage.getItem('reader_mode');
+    return saved === 'practice' || saved === 'preferred' || saved === 'live' ? saved : 'preferred';
+  });
   const [fullMasterRepertoire, setFullMasterRepertoire] = useState<SetlistSong[]>([]);
   const [currentSetlistSongs, setCurrentSetlistSongs] = useState<SetlistSong[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isStudioPanelOpen, setIsStudioPanel] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
@@ -83,6 +88,8 @@ const SheetReaderMode: React.FC = () => {
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [isZenMode, setIsZenMode] = useState(false); 
   const [showKeyReminder, setShowKeyReminder] = useState(false);
+  // Keep the screen awake while the reader is open so the chart never sleeps mid-gig.
+  const { isActive: isWakeLockActive } = useWakeLock(true);
 
   const hasPreferredReader = (s: SetlistSong) => !!s.preferred_reader && s.preferred_reader !== 'unsure';
   const isReadableChart = (s: SetlistSong) => !!(s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url);
@@ -202,8 +209,8 @@ const SheetReaderMode: React.FC = () => {
     setCurrentSetlistSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
   }, []);
 
-  const handleAutoSave = useCallback(async (updates: Partial<SetlistSong>) => {
-    if (!currentSong || !userId) return;
+  const handleAutoSave = useCallback(async (updates: Partial<SetlistSong>): Promise<boolean> => {
+    if (!currentSong || !userId) return false;
     try {
       const masterId = currentSong.master_id || currentSong.id;
       const result = await syncToMasterRepertoire(user.id, [{
@@ -213,8 +220,10 @@ const SheetReaderMode: React.FC = () => {
         artist: currentSong.artist
       }]);
       if (result[0]) handleLocalSongUpdate(currentSong.id, { ...result[0], master_id: masterId });
+      return true;
     } catch (err) {
       showError(`Auto-save failed: ${err instanceof Error ? err.message : String(err)}`);
+      return false;
     }
   }, [currentSong, user, handleLocalSongUpdate]);
 
@@ -273,6 +282,7 @@ const SheetReaderMode: React.FC = () => {
   const fetchSongs = useCallback(async () => {
     if (!userId) return;
     setInitialLoading(true);
+    setLoadError(null);
     try {
       const readerViewMode = sessionStorage.getItem('reader_view_mode');
       const readerSetlistId = sessionStorage.getItem('reader_setlist_id');
@@ -378,7 +388,9 @@ const SheetReaderMode: React.FC = () => {
         if (idx !== -1) setCurrentIndex(idx);
       }
     } catch (err: unknown) {
-      showError(`Failed to load songs: ${err instanceof Error ? err.message : String(err)}`);
+      const message = err instanceof Error ? err.message : String(err);
+      setLoadError(message);
+      showError(`Failed to load songs: ${message}`);
     } finally {
       setInitialLoading(false);
     }
@@ -399,7 +411,12 @@ const SheetReaderMode: React.FC = () => {
 
   const handleShuffleReaderList = useCallback(() => {
     if (allSongs.length < 2) { showInfo("Not enough songs to shuffle."); return; }
-    const shuffled = [...allSongs].sort(() => Math.random() - 0.5);
+    // Fisher–Yates: unbiased, unlike sort(() => Math.random() - 0.5).
+    const shuffled = [...allSongs];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
     setBaseSongs(shuffled);
     setCurrentIndex(0);
     showSuccess(`Shuffled ${shuffled.length} tracks`);
@@ -412,8 +429,8 @@ const SheetReaderMode: React.FC = () => {
       : level === 'mid'
       ? { comfort_level: 2, is_ready_to_sing: false }
       : { comfort_level: -3, is_ready_to_sing: false };
-    await handleAutoSave(updates);
-    showSuccess(level === 'happy' ? 'Marked as singable' : level === 'mid' ? 'Marked as unsure' : 'Marked as not ready');
+    const saved = await handleAutoSave(updates);
+    if (saved) showSuccess(level === 'happy' ? 'Marked as singable' : level === 'mid' ? 'Marked as unsure' : 'Marked as not ready');
   }, [currentSong, handleAutoSave]);
 
   // Reader shortcuts: M = cycle mode, S = shuffle, 1/2/3 = rate current song.
@@ -645,6 +662,28 @@ const SheetReaderMode: React.FC = () => {
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
+  if (loadError && baseSongs.length === 0) {
+    return (
+      <div className="h-screen w-screen bg-slate-950 text-white flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-3xl border border-red-500/20 bg-slate-900 p-8 text-center shadow-2xl">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-400">
+            <AlertTriangle className="h-7 w-7" />
+          </div>
+          <h2 className="text-lg font-black uppercase tracking-tight">Couldn't load your songs</h2>
+          <p className="mt-2 text-xs leading-relaxed text-slate-400">{loadError}</p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Button onClick={() => fetchSongs()} className="h-11 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white hover:bg-indigo-500">
+              Try again
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/')} className="h-11 rounded-xl border-white/10 bg-slate-800 px-5 text-xs font-bold text-slate-200">
+              Back to dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
       {isSidebarOpen && !isZenMode && (
@@ -873,6 +912,13 @@ const SheetReaderMode: React.FC = () => {
             <SkipForward className="w-4 h-4" />
           </button>
           <span className="max-w-[160px] truncate text-[9px] font-black uppercase tracking-widest text-slate-400 pl-1 pr-2">{currentSong.name}</span>
+          <span
+            className="mr-1 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-slate-500"
+            title={isWakeLockActive ? 'Screen will stay on while the reader is open' : 'Screen-awake lock unavailable on this device'}
+          >
+            <span className={cn("h-1.5 w-1.5 rounded-full", isWakeLockActive ? "bg-emerald-400" : "bg-slate-600")} />
+            Awake
+          </span>
         </div>
       )}
 

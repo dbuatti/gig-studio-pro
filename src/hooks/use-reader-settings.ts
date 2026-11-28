@@ -22,8 +22,15 @@ const DEFAULT_READER_SETTINGS: ReaderSettings = {
 export function useReaderSettings() {
   const [settings, setSettings] = useState<ReaderSettings>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('gig_reader_settings');
-      return { ...DEFAULT_READER_SETTINGS, ...safeJsonParse(saved, {}) };
+      const saved = safeJsonParse<Partial<ReaderSettings>>(localStorage.getItem('gig_reader_settings'), {});
+      const validResources: ReaderResourceForce[] = ['default', 'force-pdf', 'force-ug', 'force-chords', 'simulation'];
+      return {
+        ...DEFAULT_READER_SETTINGS,
+        ...saved,
+        forceReaderResource: validResources.includes(saved.forceReaderResource as ReaderResourceForce)
+          ? saved.forceReaderResource as ReaderResourceForce
+          : 'default',
+      };
     }
     return DEFAULT_READER_SETTINGS;
   });
